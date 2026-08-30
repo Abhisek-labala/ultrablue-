@@ -1,0 +1,23 @@
+# Root Git Ignore
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.idea/
+.vscode/
+
+# Backend Ignored Files
+backend/vendor/
+backend/storage/*.key
+backend/storage/logs/
+backend/storage/framework/cache/
+backend/storage/framework/sessions/
+backend/storage/framework/views/
+backend/.env
+backend/database/*.sqlite
+
+# Frontend Ignored Files
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
