@@ -596,7 +596,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
             {/* Portal Login Button */}
             <button
               onClick={onLoginClick}
-              title="Enterprise Portal Login (Distributor / Sales Operator / Admin)"
+              title="Portal Login (Distributor / Sales Operator / Admin)"
               style={{
                 backgroundColor: isDark ? 'rgba(0, 200, 245, 0.12)' : '#F8FAFC',
                 border: isDark ? '1px solid rgba(0, 200, 245, 0.35)' : '1px solid #CBD5E1',
@@ -970,7 +970,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
               }}
             >
               <Lock size={15} />
-              <span>Enterprise Portal Login</span>
+              <span>Portal Login</span>
             </button>
 
             {/* Full Width Big CTA Button */}

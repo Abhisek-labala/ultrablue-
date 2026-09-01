@@ -348,7 +348,7 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
             <Logo size="small" variant={isDark ? "dark" : "light"} />
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: 800, color: textHeading, margin: '0 0 4px 0', fontFamily: 'var(--font-family-heading)' }}>
-            {authMode === 'login' ? 'Enterprise Portal Login' : 'Partner & Staff Registration'}
+            {authMode === 'login' ? 'Portal Login' : 'Registration'}
           </h2>
           <p style={{ fontSize: '11px', color: textMuted, margin: 0 }}>
             Ayush Green Energy • ISO 22241-1 Industrial Suite
