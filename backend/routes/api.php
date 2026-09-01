@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ComplianceController;
+use App\Http\Controllers\Api\TerritoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +63,10 @@ Route::delete('/promotions/{id}', [PromotionController::class, 'destroy']);
 // Inventory & Multi-Depot Endpoints
 Route::get('/inventory', [InventoryController::class, 'index']);
 Route::get('/inventory/locations', [InventoryController::class, 'locations']);
+Route::post('/inventory/locations', [InventoryController::class, 'storeLocation']);
+Route::put('/inventory/locations/{id}', [InventoryController::class, 'updateLocation']);
+Route::patch('/inventory/locations/{id}/toggle', [InventoryController::class, 'toggleLocationStatus']);
+Route::delete('/inventory/locations/{id}', [InventoryController::class, 'deleteLocation']);
 Route::post('/inventory/refill', [InventoryController::class, 'refill']);
 
 // Sales POS Billing Endpoints (Strict Anti-Overbill)
@@ -72,8 +77,15 @@ Route::get('/invoices/{id}/pdf', [InvoiceController::class, 'downloadPdf']);
 // Distributor Management
 Route::get('/distributors', [DistributorController::class, 'index']);
 Route::post('/distributors', [DistributorController::class, 'store']);
+Route::put('/distributors/{id}', [DistributorController::class, 'update']);
 Route::patch('/distributors/{id}/status', [DistributorController::class, 'updateStatus']);
 Route::get('/distributors/pricelist', [DistributorController::class, 'downloadPriceList']);
+
+// Territory & Geographic Locations (Stored in Database)
+Route::get('/territories', [TerritoryController::class, 'index']);
+Route::post('/territories', [TerritoryController::class, 'store']);
+Route::put('/territories/{id}', [TerritoryController::class, 'update']);
+Route::delete('/territories/{id}', [TerritoryController::class, 'destroy']);
 
 // Operator Management
 Route::get('/operators', [OperatorController::class, 'index']);

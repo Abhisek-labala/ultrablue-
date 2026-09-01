@@ -208,7 +208,7 @@ export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) =
             </div>
             <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Heading 2 / Card Header (Outfit 20px Bold)</span>
-              <h2>Distributor Tier Pricing & Quotation Desk</h2>
+              <h2>Distributor Wholesale Pricing & Quotation Desk</h2>
             </div>
             <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Body Text (Inter 14px Regular)</span>
@@ -303,10 +303,10 @@ export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) =
             <StatusBadge status="HEALTHY" label="Healthy Stock" />
             <StatusBadge status="LOW_STOCK" label="Low Stock Warning" />
             <StatusBadge status="OUT_OF_STOCK" label="Out of Stock" />
-            <StatusBadge status="APPROVED" label="Distributor Approved" />
+            <StatusBadge status="APPROVED" label="Distributor Authorized" />
             <StatusBadge status="PENDING_REVIEW" label="Pending KYC Review" />
             <StatusBadge status="EXPIRED" label="Batch Expired" />
-            <StatusBadge status="GOLD_TIER" label="Gold Tier Distributor" />
+            <StatusBadge status="APPROVED" label="Account Active" />
             <StatusBadge status="NEW_INQUIRY" label="New Bulk Inquiry" />
           </div>
         </section>

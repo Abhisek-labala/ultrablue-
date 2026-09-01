@@ -1,25 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
   Plus, 
   Search, 
   Edit3, 
+  Edit2,
   Trash2, 
   CheckCircle2, 
   ShieldCheck, 
   Layers, 
-  BadgePercent,
-  Warehouse,
-  Award,
-  Check,
-  Download,
-  Truck
+  BadgePercent, 
+  Warehouse, 
+  Award, 
+  Check, 
+  Download, 
+  Truck,
+  Globe,
+  Building2,
+  Power,
+  MapPin,
+  XCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { KPICard } from '../../components/ui/KPICard';
-import { ProductAPI, ComplianceAPI } from '../../services/api';
+import { DataTable } from '../../components/ui/DataTable';
+import { ProductAPI, ComplianceAPI, TerritoryAPI, InventoryAPI } from '../../services/api';
+
+// Form Validation Utilities
+const validatePhone = (phone, isRequired = false) => {
+  const clean = String(phone || '').replace(/\D/g, '');
+  if (!clean) {
+    return isRequired ? 'Contact phone number is required.' : '';
+  }
+  if (clean.length !== 10) {
+    return `Phone number must be exactly 10 digits (currently ${clean.length}).`;
+  }
+  if (!/^[6-9]/.test(clean)) {
+    return 'Phone number must start with 6, 7, 8, or 9.';
+  }
+  return '';
+};
+
+const validateRequiredText = (text, fieldName = 'Field', minLength = 2) => {
+  if (!text || !String(text).trim()) {
+    return `${fieldName} is required.`;
+  }
+  if (String(text).trim().length < minLength) {
+    return `${fieldName} must be at least ${minLength} characters.`;
+  }
+  return '';
+};
+
+const validateRegionCode = (code) => {
+  if (!code || !String(code).trim()) return '';
+  const clean = String(code).trim().toUpperCase();
+  if (clean.length < 2 || clean.length > 6) {
+    return 'Region code should be 2 to 6 characters (e.g. ODI, WBE, GOA).';
+  }
+  if (!/^[A-Z0-9]+$/.test(clean)) {
+    return 'Region code must contain letters/numbers only.';
+  }
+  return '';
+};
 
 export const AdminProductsView = ({ 
   products = [], 
@@ -36,73 +80,199 @@ export const AdminProductsView = ({
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryText, setCustomCategoryText] = useState('');
 
+  // Loaded Tabs Cache Tracker to prevent redundant network calls
+  const loadedTabsRef = useRef({});
+
+  // Form Validation Errors States
+  const [depotErrors, setDepotErrors] = useState({});
+  const [editDepotErrors, setEditDepotErrors] = useState({});
+  const [territoryErrors, setTerritoryErrors] = useState({});
+  const [editTerritoryErrors, setEditTerritoryErrors] = useState({});
+  const [categoryErrors, setCategoryErrors] = useState({});
+  const [packErrors, setPackErrors] = useState({});
+
   // 1. Dynamic Category Master Registry State
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [categoriesList, setCategoriesList] = useState([]);
-  const [categoryForm, setCategoryForm] = useState({ name: '', code: '', hsn: '31021000', gst: 18, standard: '', description: '' });
+  const [categoryForm, setCategoryForm] = useState({ name: '', code: '', hsn: '', gst: 18, standard: '', description: '' });
 
   // 2. Dynamic Pack Sizes Master Registry State
   const [isPackModalOpen, setIsPackModalOpen] = useState(false);
   const [packSizesList, setPackSizesList] = useState([]);
-  const [packForm, setPackForm] = useState({ name: '', volume: 20, type: '', tareWeight: '', nozzle: '', barcodePrefix: '' });
+  const [packForm, setPackForm] = useState({ name: '', volume: '', type: '', tareWeight: '', nozzle: '', barcodePrefix: '' });
 
   // 3. Compliance Parameters State
   const [isComplianceParamModalOpen, setIsComplianceParamModalOpen] = useState(false);
   const [complianceParams, setComplianceParams] = useState([]);
-  const [paramForm, setParamForm] = useState({ prop: '', unit: '%', limit: '', batch: '', method: '' });
+  const [paramForm, setParamForm] = useState({ prop: '', unit: '', limit: '', batch: '', method: '' });
 
   // 4. OEM Approvals State
   const [isOemModalOpen, setIsOemModalOpen] = useState(false);
   const [oemApprovalsList, setOemApprovalsList] = useState([]);
-  const [oemForm, setOemForm] = useState({ oem: '', approvalNo: '', engineStandard: '', validDate: '31-Dec-2027' });
+  const [oemForm, setOemForm] = useState({ oem: '', approvalNo: '', engineStandard: '', validDate: '' });
 
   // 5. Batch Certificates State
   const [isBatchCertModalOpen, setIsBatchCertModalOpen] = useState(false);
   const [batchCertificates, setBatchCertificates] = useState([]);
-  const [batchCertForm, setBatchCertForm] = useState({ certNo: `UBP-QA-2026-${Date.now().toString().slice(-3)}`, batchNo: 'UB-26H-992', location: 'Bhadrak Mother Plant', purity: '32.5% Urea', density: '1.0895 g/cm³', chemist: 'Dr. A. K. Mohapatra' });
+  const [batchCertForm, setBatchCertForm] = useState({ certNo: '', batchNo: '', location: '', purity: '', density: '', chemist: '' });
 
-  // Initial Data Fetching from Database API
+  // 6. Dynamic Territories State (States & Cities DB Registry)
+  const [databaseTerritories, setDatabaseTerritories] = useState({});
+  const [territoriesList, setTerritoriesList] = useState([]);
+  const [selectedTerritoryStateFilter, setSelectedTerritoryStateFilter] = useState('ALL');
+  const [territoryForm, setTerritoryForm] = useState({ state: '', city: '', customState: '', regionCode: '' });
+  const [editingTerritory, setEditingTerritory] = useState({ id: '', state: '', city: '', customState: '', regionCode: '' });
+  const [territorySearchQuery, setTerritorySearchQuery] = useState('');
+  const [isTerritoryModalOpen, setIsTerritoryModalOpen] = useState(false);
+  const [isEditTerritoryModalOpen, setIsEditTerritoryModalOpen] = useState(false);
+
+  // 7. Dynamic Depots State (Depots & Dispenser Stations DB Registry)
+  const [databaseDepots, setDatabaseDepots] = useState([]);
+  const [depotStatusFilter, setDepotStatusFilter] = useState('ALL');
+  const [isDepotModalOpen, setIsDepotModalOpen] = useState(false);
+  const [isEditDepotModalOpen, setIsEditDepotModalOpen] = useState(false);
+  const [depotSearchQuery, setDepotSearchQuery] = useState('');
+  const [newDepotForm, setNewDepotForm] = useState({
+    name: '',
+    city: '',
+    state: '',
+    customState: '',
+    customCity: '',
+    address: '',
+    phone: ''
+  });
+  const [editingDepot, setEditingDepot] = useState({
+    id: '',
+    name: '',
+    city: '',
+    state: '',
+    customState: '',
+    customCity: '',
+    address: '',
+    phone: '',
+    isActive: true
+  });
+
+  const loadTerritories = async () => {
+    try {
+      const listData = await TerritoryAPI.getAllList().catch(() => []);
+      const list = Array.isArray(listData) ? listData : [];
+      const grouped = {};
+      list.forEach(item => {
+        const st = item.state || 'Other';
+        if (!grouped[st]) grouped[st] = [];
+        grouped[st].push(item);
+      });
+      setDatabaseTerritories(grouped);
+      setTerritoriesList(list);
+      const firstState = Object.keys(grouped)[0] || '';
+      const firstCity = firstState && grouped[firstState] ? (typeof grouped[firstState][0] === 'string' ? grouped[firstState][0] : grouped[firstState][0]?.city) : '';
+      setNewDepotForm(prev => ({
+        ...prev,
+        state: prev.state || firstState,
+        city: prev.city || firstCity || ''
+      }));
+    } catch (err) {
+      console.error('Error fetching territories:', err);
+    }
+  };
+
+  const loadDepots = async () => {
+    try {
+      const data = await InventoryAPI.getLocations(true).catch(() => []);
+      if (Array.isArray(data)) {
+        setDatabaseDepots(data);
+      }
+    } catch (err) {
+      console.error('Error fetching depots:', err);
+    }
+  };
+
+  // Targeted, Cached On-Demand Data Fetching per Active SubTab
   useEffect(() => {
-    const loadComplianceAndCategories = async () => {
+    const loadSubTabData = async () => {
+      // If data for this specific subTab has already been fetched, skip duplicate network call
+      if (loadedTabsRef.current[subTab]) return;
+
       try {
-        const [paramsData, oemsData, packsData, certsData, catsData] = await Promise.all([
-          ComplianceAPI.getParameters(),
-          ComplianceAPI.getOemApprovals(),
-          ComplianceAPI.getPackSizes(),
-          ComplianceAPI.getBatchCertificates(),
-          ProductAPI.getCategories()
-        ]);
-        if (paramsData && paramsData.length > 0) setComplianceParams(paramsData);
-        if (oemsData && oemsData.length > 0) setOemApprovalsList(oemsData);
-        if (packsData && packsData.length > 0) setPackSizesList(packsData);
-        if (certsData && certsData.length > 0) setBatchCertificates(certsData);
-        if (catsData && catsData.length > 0) setCategoriesList(catsData);
+        switch (subTab) {
+          case 'master': {
+            const [catsData, packsData] = await Promise.all([
+              ProductAPI.getCategories().catch(() => []),
+              ComplianceAPI.getPackSizes().catch(() => [])
+            ]);
+            if (catsData) setCategoriesList(catsData);
+            if (packsData) setPackSizesList(packsData);
+            loadedTabsRef.current['master'] = true;
+            break;
+          }
+          case 'categories': {
+            const catsData = await ProductAPI.getCategories().catch(() => []);
+            if (catsData) setCategoriesList(catsData);
+            loadedTabsRef.current['categories'] = true;
+            break;
+          }
+          case 'packsizes': {
+            const packsData = await ComplianceAPI.getPackSizes().catch(() => []);
+            if (packsData) setPackSizesList(packsData);
+            loadedTabsRef.current['packsizes'] = true;
+            break;
+          }
+          case 'compliance': {
+            const [paramsData, oemsData, certsData] = await Promise.all([
+              ComplianceAPI.getParameters().catch(() => []),
+              ComplianceAPI.getOemApprovals().catch(() => []),
+              ComplianceAPI.getBatchCertificates().catch(() => [])
+            ]);
+            if (paramsData) setComplianceParams(paramsData);
+            if (oemsData) setOemApprovalsList(oemsData);
+            if (certsData) setBatchCertificates(certsData);
+            loadedTabsRef.current['compliance'] = true;
+            break;
+          }
+          case 'territories': {
+            await loadTerritories();
+            loadedTabsRef.current['territories'] = true;
+            break;
+          }
+          case 'depots': {
+            await Promise.all([
+              loadDepots(),
+              loadTerritories()
+            ]);
+            loadedTabsRef.current['depots'] = true;
+            break;
+          }
+          default:
+            break;
+        }
       } catch (err) {
-        console.error('Error fetching compliance & categories database records:', err);
+        console.error('Error fetching tab-specific database records:', err);
       }
     };
-    loadComplianceAndCategories();
-  }, []);
+
+    loadSubTabData();
+  }, [subTab]);
 
   // Simple Product Form State
   const defaultCategory = categoriesList[0]?.name || '';
-  const defaultPack = packSizesList[0] || { name: 'Standard Pack', volume: 20, barcodePrefix: 'UBP' };
+  const defaultPack = packSizesList[0] || { name: '', volume: '', barcodePrefix: '' };
 
   const initialProductFormState = {
     name: '',
     category_name: defaultCategory,
     description: '',
-    hsn_code: '31021000',
+    hsn_code: '',
     gst_rate: 18,
     is_gst_inclusive: true,
     pack_variants: [
       { 
-        pack_size: defaultPack.name, 
-        sku: `${defaultPack.barcodePrefix || 'UBP'}-01`, 
-        volume_in_litres: defaultPack.volume || 20, 
-        standard_mrp: 1150, 
-        distributor_base_price: 880, 
+        pack_size: defaultPack.name || '', 
+        sku: defaultPack.barcodePrefix ? `${defaultPack.barcodePrefix}-01` : '', 
+        volume_in_litres: defaultPack.volume || '', 
+        standard_mrp: '', 
+        distributor_base_price: '', 
         is_popular: true 
       }
     ]
@@ -481,6 +651,265 @@ export const AdminProductsView = ({
     }
   };
 
+  // Territories handlers with Validation
+  const handleSaveTerritory = async (e) => {
+    e.preventDefault();
+    const finalState = territoryForm.state === 'Other' ? territoryForm.customState.trim() : territoryForm.state.trim();
+    const finalCity = territoryForm.city.trim();
+
+    const errors = {};
+    const stateErr = validateRequiredText(finalState, 'State Name', 2);
+    if (stateErr) errors.state = stateErr;
+
+    const cityErr = validateRequiredText(finalCity, 'City Name', 2);
+    if (cityErr) errors.city = cityErr;
+
+    const codeErr = validateRegionCode(territoryForm.regionCode);
+    if (codeErr) errors.regionCode = codeErr;
+
+    if (Object.keys(errors).length > 0) {
+      setTerritoryErrors(errors);
+      if (onShowToast) onShowToast('Please correct the highlighted territory errors.');
+      return;
+    }
+
+    try {
+      await TerritoryAPI.create(finalState, finalCity);
+      if (onShowToast) onShowToast(`Territory "${finalCity}, ${finalState}" added to database.`);
+      setTerritoryForm({ state: '', city: '', customState: '', regionCode: '' });
+      setTerritoryErrors({});
+      setIsTerritoryModalOpen(false);
+      await loadTerritories();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error saving territory to database.');
+    }
+  };
+
+  const handleDeleteTerritoryCity = async (cityItem, stateName) => {
+    const cityName = typeof cityItem === 'string' ? cityItem : (cityItem.city || '');
+    const cityId = typeof cityItem === 'object' ? cityItem.id : (territoriesList.find(t => t.city === cityName && (!stateName || t.state === stateName))?.id);
+    if (!window.confirm(`Are you sure you want to remove "${cityName}${stateName ? `, ${stateName}` : ''}" from the database?`)) return;
+    try {
+      if (cityId) {
+        await TerritoryAPI.delete(cityId);
+      } else {
+        const list = databaseTerritories[stateName] || [];
+        const found = list.find(item => (typeof item === 'object' && item.city === cityName));
+        if (found?.id) await TerritoryAPI.delete(found.id);
+      }
+      if (onShowToast) onShowToast(`City "${cityName}" removed from database.`);
+      await loadTerritories();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error deleting territory.');
+    }
+  };
+
+  const handleOpenEditTerritory = (t) => {
+    setEditingTerritory({
+      id: t.id,
+      state: t.state || '',
+      city: t.city || '',
+      customState: '',
+      regionCode: t.region_code || ''
+    });
+    setEditTerritoryErrors({});
+    setIsEditTerritoryModalOpen(true);
+  };
+
+  const handleSaveEditTerritory = async (e) => {
+    e.preventDefault();
+    const finalState = editingTerritory.state === 'Other' ? editingTerritory.customState.trim() : editingTerritory.state.trim();
+    const finalCity = editingTerritory.city.trim();
+
+    const errors = {};
+    const stateErr = validateRequiredText(finalState, 'State Name', 2);
+    if (stateErr) errors.state = stateErr;
+
+    const cityErr = validateRequiredText(finalCity, 'City Name', 2);
+    if (cityErr) errors.city = cityErr;
+
+    const codeErr = validateRegionCode(editingTerritory.regionCode);
+    if (codeErr) errors.regionCode = codeErr;
+
+    if (Object.keys(errors).length > 0) {
+      setEditTerritoryErrors(errors);
+      if (onShowToast) onShowToast('Please correct the highlighted territory errors.');
+      return;
+    }
+
+    try {
+      await TerritoryAPI.update(editingTerritory.id, {
+        state: finalState,
+        city: finalCity,
+        region_code: editingTerritory.regionCode ? editingTerritory.regionCode.trim() : undefined
+      });
+      if (onShowToast) onShowToast(`Territory "${finalCity}, ${finalState}" updated in database.`);
+      setEditTerritoryErrors({});
+      setIsEditTerritoryModalOpen(false);
+      await loadTerritories();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error updating territory.');
+    }
+  };
+
+  // Depots handlers with Validation
+  const handleCreateDepotSubmit = async (e) => {
+    e.preventDefault();
+    const finalState = newDepotForm.state === 'Other' ? newDepotForm.customState.trim() : newDepotForm.state.trim();
+    const finalCity = (newDepotForm.state === 'Other' || newDepotForm.city === 'Other') ? newDepotForm.customCity.trim() : newDepotForm.city.trim();
+
+    const errors = {};
+    const nameErr = validateRequiredText(newDepotForm.name, 'Depot / Station Name', 3);
+    if (nameErr) errors.name = nameErr;
+
+    const stateErr = validateRequiredText(finalState, 'State', 2);
+    if (stateErr) errors.state = stateErr;
+
+    const cityErr = validateRequiredText(finalCity, 'City Hub', 2);
+    if (cityErr) errors.city = cityErr;
+
+    const phoneErr = validatePhone(newDepotForm.phone, false);
+    if (phoneErr) errors.phone = phoneErr;
+
+    if (Object.keys(errors).length > 0) {
+      setDepotErrors(errors);
+      if (onShowToast) onShowToast('Please resolve the highlighted validation errors.');
+      return;
+    }
+
+    try {
+      if ((newDepotForm.state === 'Other' && finalState) || (newDepotForm.city === 'Other' && finalCity)) {
+        try {
+          await TerritoryAPI.create(finalState, finalCity);
+          await loadTerritories();
+        } catch {}
+      }
+      await InventoryAPI.createLocation({
+        name: newDepotForm.name.trim(),
+        city: finalCity,
+        state: finalState,
+        address: newDepotForm.address.trim(),
+        phone: newDepotForm.phone.trim()
+      });
+      if (onShowToast) onShowToast(`Depot "${newDepotForm.name}" created and saved to database!`);
+      setNewDepotForm({ name: '', city: '', state: '', customState: '', customCity: '', address: '', phone: '' });
+      setDepotErrors({});
+      setIsDepotModalOpen(false);
+      await loadDepots();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error saving depot.');
+    }
+  };
+
+  const handleOpenEditDepot = (depot) => {
+    setEditingDepot({
+      id: depot.id,
+      name: depot.name || '',
+      city: depot.city || '',
+      state: depot.state || '',
+      customState: '',
+      customCity: '',
+      address: depot.address || '',
+      phone: depot.contact_phone || depot.phone || '',
+      isActive: Boolean(depot.is_active)
+    });
+    setEditDepotErrors({});
+    setIsEditDepotModalOpen(true);
+  };
+
+  const handleSaveDepotEditSubmit = async (e) => {
+    e.preventDefault();
+    const finalState = editingDepot.state === 'Other' ? editingDepot.customState.trim() : editingDepot.state.trim();
+    const finalCity = (editingDepot.state === 'Other' || editingDepot.city === 'Other') ? editingDepot.customCity.trim() : editingDepot.city.trim();
+
+    const errors = {};
+    const nameErr = validateRequiredText(editingDepot.name, 'Depot Name', 3);
+    if (nameErr) errors.name = nameErr;
+
+    const stateErr = validateRequiredText(finalState, 'State', 2);
+    if (stateErr) errors.state = stateErr;
+
+    const cityErr = validateRequiredText(finalCity, 'City Hub', 2);
+    if (cityErr) errors.city = cityErr;
+
+    const phoneErr = validatePhone(editingDepot.phone, false);
+    if (phoneErr) errors.phone = phoneErr;
+
+    if (Object.keys(errors).length > 0) {
+      setEditDepotErrors(errors);
+      if (onShowToast) onShowToast('Please resolve the highlighted validation errors.');
+      return;
+    }
+
+    try {
+      if ((editingDepot.state === 'Other' && finalState) || (editingDepot.city === 'Other' && finalCity)) {
+        try {
+          await TerritoryAPI.create(finalState, finalCity);
+          await loadTerritories();
+        } catch {}
+      }
+      await InventoryAPI.updateLocation(editingDepot.id, {
+        name: editingDepot.name.trim(),
+        city: finalCity,
+        state: finalState,
+        address: editingDepot.address.trim(),
+        phone: editingDepot.phone.trim(),
+        isActive: editingDepot.isActive
+      });
+      if (onShowToast) onShowToast(`Depot "${editingDepot.name}" updated successfully!`);
+      setEditDepotErrors({});
+      setIsEditDepotModalOpen(false);
+      await loadDepots();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error updating depot.');
+    }
+  };
+
+  const handleToggleDepotStatus = async (depot) => {
+    try {
+      const res = await InventoryAPI.toggleLocationStatus(depot.id);
+      if (onShowToast) onShowToast(res.message || `Depot status updated.`);
+      await loadDepots();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error toggling status.');
+    }
+  };
+
+  const handleDeleteDepot = async (depot) => {
+    if (!window.confirm(`Are you sure you want to permanently delete depot "${depot.name}" from database?`)) return;
+    try {
+      await InventoryAPI.deleteLocation(depot.id);
+      if (onShowToast) onShowToast(`Depot "${depot.name}" deleted.`);
+      await loadDepots();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error deleting depot.');
+    }
+  };
+
+  const stateOptions = [
+    { value: '', label: '-- Select State (from DB) --' },
+    ...Object.keys(databaseTerritories).sort().map(s => ({ value: s, label: s })),
+    { value: 'Other', label: '+ Add New State' }
+  ];
+
+  const getCityOptions = (stateName, currentCity) => {
+    if (!stateName || stateName === 'Other') return [{ value: '', label: '-- Select State First --' }];
+    const cityList = (databaseTerritories[stateName] || []).map(item => (typeof item === 'string' ? item : item.city));
+    const list = [{ value: '', label: '-- Select City (from DB) --' }];
+    cityList.forEach(c => {
+      list.push({ value: c, label: c });
+    });
+    if (currentCity && !cityList.includes(currentCity) && currentCity !== 'Other') {
+      list.push({ value: currentCity, label: currentCity });
+    }
+    list.push({ value: 'Other', label: '+ Add New City' });
+    return list;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* SUB-MENU NAVIGATION PILLS */}
@@ -490,7 +919,9 @@ export const AdminProductsView = ({
             { id: 'master', label: 'Product Master', icon: Package, count: products.length },
             { id: 'categories', label: 'Product Categories', icon: Layers, count: categoriesList.length },
             { id: 'packsizes', label: 'Pack Sizes & Variants', icon: Warehouse, count: packSizesList.length },
-            { id: 'compliance', label: 'ISO / BIS Compliance', icon: ShieldCheck, badge: 'Verified' }
+            { id: 'compliance', label: 'ISO / BIS Compliance', icon: ShieldCheck, badge: 'Verified' },
+            { id: 'territories', label: 'States & Territories', icon: Globe, count: Object.keys(databaseTerritories).length },
+            { id: 'depots', label: 'Depots & Stations', icon: Building2, count: databaseDepots.length }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = subTab === tab.id;
@@ -536,48 +967,6 @@ export const AdminProductsView = ({
             );
           })}
         </div>
-
-        {/* Action Button */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {subTab === 'master' && (
-            <Button size="sm" variant="gold" icon={Plus} onClick={handleOpenAddProduct}>
-              Add Product
-            </Button>
-          )}
-          {subTab === 'categories' && (
-            <Button size="sm" variant="primary" icon={Plus} onClick={() => {
-              setEditingCategory(null);
-              setCategoryForm({ name: '', code: '', hsn: '31021000', gst: 18, standard: '', description: '' });
-              setIsCategoryModalOpen(true);
-            }}>
-              Add Category
-            </Button>
-          )}
-          {subTab === 'packsizes' && (
-            <Button size="sm" variant="primary" icon={Plus} onClick={() => {
-              setPackForm({ name: '', volume: 20, type: '', tareWeight: '', nozzle: '', barcodePrefix: '' });
-              setIsPackModalOpen(true);
-            }}>
-              Add Pack Size
-            </Button>
-          )}
-          {subTab === 'compliance' && (
-            <>
-              <Button size="sm" variant="secondary" icon={Plus} onClick={() => {
-                setParamForm({ prop: '', unit: '%', limit: '', batch: '', method: '' });
-                setIsComplianceParamModalOpen(true);
-              }}>
-                Add Parameter
-              </Button>
-              <Button size="sm" variant="primary" icon={Plus} onClick={() => {
-                setOemForm({ oem: '', approvalNo: '', engineStandard: '', validDate: '31-Dec-2027' });
-                setIsOemModalOpen(true);
-              }}>
-                Add OEM Approval
-              </Button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -597,7 +986,7 @@ export const AdminProductsView = ({
               </p>
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
@@ -616,6 +1005,10 @@ export const AdminProductsView = ({
                   }}
                 />
               </div>
+
+              <Button size="sm" variant="gold" icon={Plus} onClick={handleOpenAddProduct}>
+                Add Product
+              </Button>
             </div>
           </div>
 
@@ -757,7 +1150,8 @@ export const AdminProductsView = ({
       )}
 
       {/* ========================================================================= */}
-      {/* 2. SUB-VIEW: PRODUCT CATEGORIES */}
+      {/* ========================================================================= */}
+      {/* 2. SUB-VIEW: PRODUCT CATEGORIES (DATATABLE) */}
       {/* ========================================================================= */}
       {subTab === 'categories' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -787,15 +1181,14 @@ export const AdminProductsView = ({
             />
           </div>
 
-          {/* Category Table */}
-          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>Product Categories & HSN Codes</h4>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Categories created here appear dynamically in the Add Product form.
-                </p>
-              </div>
+          <DataTable
+            title="Product Categories & HSN Codes"
+            subtitle="Categories created here appear dynamically across all product creation forms."
+            data={categoriesList}
+            searchPlaceholder="Search category name, code, HSN..."
+            pageSize={10}
+            pageSizeOptions={[5, 10, 25, 50]}
+            actions={
               <Button size="sm" variant="gold" icon={Plus} onClick={() => {
                 setEditingCategory(null);
                 setCategoryForm({ name: '', code: '', hsn: '31021000', gst: 18, standard: '', description: '' });
@@ -803,132 +1196,174 @@ export const AdminProductsView = ({
               }}>
                 Add Category
               </Button>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '12px 16px' }}>Category Name</th>
-                    <th style={{ padding: '12px 16px' }}>Category Code</th>
-                    <th style={{ padding: '12px 16px' }}>HSN Code</th>
-                    <th style={{ padding: '12px 16px' }}>Default GST</th>
-                    <th style={{ padding: '12px 16px' }}>Industry Standard</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categoriesList.map(cat => (
-                    <tr key={cat.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{cat.name}</strong>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cat.description}</span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{ backgroundColor: 'rgba(0, 200, 245, 0.12)', color: 'var(--brand-cyan)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
-                          {cat.code}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 600 }}>{cat.hsn}</td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--brand-blue)' }}>{cat.gst}%</td>
-                      <td style={{ padding: '14px 16px' }}>{cat.standard}</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                          <Button size="sm" variant="ghost" icon={Edit3} onClick={() => {
-                            setEditingCategory(cat);
-                            setCategoryForm({ name: cat.name, code: cat.code || `CAT-${cat.name.slice(0, 3).toUpperCase()}`, hsn: cat.hsn || '31021000', gst: cat.gst || 18, standard: cat.standard || 'ISO / BIS', description: cat.description || '' });
-                            setIsCategoryModalOpen(true);
-                          }}>
-                            Edit
-                          </Button>
-                          <button
-                            onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                            style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '6px' }}
-                            title={`Delete category ${cat.name}`}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+            }
+            columns={[
+              {
+                header: '#',
+                accessor: 'id',
+                width: '50px',
+                render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+              },
+              {
+                header: 'Category Name',
+                accessor: 'name',
+                render: (val, row) => (
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{val}</strong>
+                    {row.description && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.description}</span>}
+                  </div>
+                )
+              },
+              {
+                header: 'Category Code',
+                accessor: 'code',
+                render: (val) => (
+                  <span style={{ backgroundColor: 'rgba(0, 200, 245, 0.12)', color: 'var(--brand-cyan)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px' }}>
+                    {val}
+                  </span>
+                )
+              },
+              {
+                header: 'HSN Code',
+                accessor: 'hsn',
+                render: (val) => <span style={{ fontWeight: 600 }}>{val || '31021000'}</span>
+              },
+              {
+                header: 'Default GST',
+                accessor: 'gst',
+                render: (val) => <span style={{ fontWeight: 700, color: 'var(--brand-blue)' }}>{val || 18}%</span>
+              },
+              {
+                header: 'Industry Standard',
+                accessor: 'standard',
+                render: (val) => <span>{val || 'ISO / BIS'}</span>
+              },
+              {
+                header: 'Actions',
+                accessor: 'actions',
+                align: 'right',
+                render: (_, row) => (
+                  <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                    <Button size="sm" variant="ghost" icon={Edit3} onClick={() => {
+                      setEditingCategory(row);
+                      setCategoryForm({ name: row.name, code: row.code || `CAT-${row.name.slice(0, 3).toUpperCase()}`, hsn: row.hsn || '31021000', gst: row.gst || 18, standard: row.standard || 'ISO / BIS', description: row.description || '' });
+                      setIsCategoryModalOpen(true);
+                    }}>
+                      Edit
+                    </Button>
+                    <button
+                      onClick={() => handleDeleteCategory(row.id, row.name)}
+                      style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '6px' }}
+                      title={`Delete category ${row.name}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )
+              }
+            ]}
+          />
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 3. SUB-VIEW: PACK SIZES & VARIANTS */}
+      {/* 3. SUB-VIEW: PACK SIZES & VARIANTS (DATATABLE) */}
       {/* ========================================================================= */}
       {subTab === 'packsizes' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Header Card */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Warehouse size={20} color="var(--brand-cyan)" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Master Pack Sizes Registry</h3>
-              </div>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                Packaging sizes configured here automatically populate in the product packaging dropdown.
-              </p>
-            </div>
-            
-            <Button size="sm" variant="gold" icon={Plus} onClick={() => {
-              setPackForm({ name: '', volume: 20, type: '', tareWeight: '', nozzle: '', barcodePrefix: '' });
-              setIsPackModalOpen(true);
-            }}>
-              Add Master Pack Size
-            </Button>
-          </div>
-
-          {/* Packaging Grid Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-            {packSizesList.map(pack => (
-              <div key={pack.id} style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: 'var(--shadow-sm)' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+          <DataTable
+            title="Master Pack Sizes & Variants Registry"
+            subtitle="Packaging sizes configured here automatically populate across packaging dropdowns."
+            data={packSizesList}
+            searchPlaceholder="Search pack name, volume, material..."
+            pageSize={10}
+            pageSizeOptions={[5, 10, 25, 50]}
+            actions={
+              <Button size="sm" variant="gold" icon={Plus} onClick={() => {
+                setPackForm({ name: '', volume: 20, type: '', tareWeight: '', nozzle: '', barcodePrefix: '' });
+                setIsPackModalOpen(true);
+              }}>
+                Add Master Pack Size
+              </Button>
+            }
+            columns={[
+              {
+                header: '#',
+                accessor: 'id',
+                width: '50px',
+                render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+              },
+              {
+                header: 'Packaging Variant',
+                accessor: 'name',
+                render: (val, row) => (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Warehouse size={16} color="var(--brand-cyan)" />
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>{pack.name}</h4>
-                      <span style={{ fontSize: '11px', color: 'var(--brand-blue)', fontWeight: 700 }}>{pack.volume} Litres Net</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{val}</strong>
+                      <div style={{ fontSize: '11px', color: 'var(--brand-blue)', fontWeight: 700 }}>{row.volume} Litres Net</div>
                     </div>
-                    <span style={{ backgroundColor: 'rgba(0, 200, 245, 0.12)', color: 'var(--brand-cyan)', fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                      {pack.barcodePrefix}
-                    </span>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', backgroundColor: 'var(--bg-app)', padding: '8px 10px', borderRadius: '6px', marginBottom: '10px' }}>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Material:</span> <strong>{pack.type || 'Standard Poly'}</strong></div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Tare Weight:</span> <strong>{pack.tareWeight || 'Standard'}</strong></div>
-                    <div><span style={{ color: 'var(--text-muted)' }}>Dispensing:</span> <strong>{pack.nozzle || 'Integrated Nozzle'}</strong></div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--status-success)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Check size={12} /> Active Master Size
+                )
+              },
+              {
+                header: 'Barcode Prefix',
+                accessor: 'barcodePrefix',
+                render: (val) => (
+                  <span style={{ backgroundColor: 'rgba(0, 200, 245, 0.12)', color: 'var(--brand-cyan)', fontSize: '11px', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                    {val || 'UBP'}
                   </span>
-                  <button
-                    onClick={() => handleDeletePackSize(pack.id, pack.name)}
-                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px' }}
-                    title={`Delete ${pack.name}`}
-                  >
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                )
+              },
+              {
+                header: 'Container Material',
+                accessor: 'type',
+                render: (val) => <span>{val || 'Standard Poly HDPE'}</span>
+              },
+              {
+                header: 'Tare Weight',
+                accessor: 'tareWeight',
+                render: (val) => <span>{val || 'Standard Weight'}</span>
+              },
+              {
+                header: 'Dispensing Mechanism',
+                accessor: 'nozzle',
+                render: (val) => <span>{val || 'Integrated Spout Nozzle'}</span>
+              },
+              {
+                header: 'Status',
+                accessor: 'status',
+                render: () => (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                    <Check size={11} /> ACTIVE
+                  </span>
+                )
+              },
+              {
+                header: 'Actions',
+                accessor: 'actions',
+                align: 'right',
+                render: (_, row) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    style={{ color: 'var(--status-danger)', padding: '4px 8px' }}
+                    icon={Trash2}
+                    onClick={() => handleDeletePackSize(row.id, row.name)}
+                    title={`Delete ${row.name}`}
+                  />
+                )
+              }
+            ]}
+          />
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 4. SUB-VIEW: TECHNICAL SPECS & ISO / BIS COMPLIANCE */}
+      {/* 4. SUB-VIEW: TECHNICAL SPECS & ISO / BIS COMPLIANCE (DATATABLES) */}
       {/* ========================================================================= */}
       {subTab === 'compliance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Header Banner */}
           <div style={{ background: 'linear-gradient(135deg, #040D1E 0%, #06142F 100%)', color: '#FFFFFF', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--brand-navy-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--brand-gold)', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
@@ -969,15 +1404,15 @@ export const AdminProductsView = ({
             />
           </div>
 
-          {/* Chemical Analysis Matrix Table */}
-          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>UltraBlue+ DEF ISO 22241 Quality Standard Limit Table</h4>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Standard laboratory limits vs UltraBlue+ verified batch average.
-                </p>
-              </div>
+          {/* ISO 22241 Parameters DataTable */}
+          <DataTable
+            title="UltraBlue+ DEF ISO 22241 Quality Standard Limit Table"
+            subtitle="Standard laboratory testing limits vs UltraBlue+ verified batch average."
+            data={complianceParams}
+            searchPlaceholder="Search parameter, unit, test method..."
+            pageSize={10}
+            pageSizeOptions={[5, 10, 20, 50]}
+            actions={
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Button size="sm" variant="gold" icon={Plus} onClick={() => {
                   setParamForm({ prop: '', unit: '%', limit: '', batch: '', method: '' });
@@ -991,114 +1426,463 @@ export const AdminProductsView = ({
                   Download Lab Sheet
                 </Button>
               </div>
-            </div>
+            }
+            columns={[
+              {
+                header: '#',
+                accessor: 'id',
+                width: '50px',
+                render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+              },
+              {
+                header: 'Parameter Property',
+                accessor: 'prop',
+                render: (val) => <strong style={{ color: 'var(--text-primary)' }}>{val}</strong>
+              },
+              {
+                header: 'Unit',
+                accessor: 'unit',
+                render: (val) => <span style={{ color: 'var(--text-muted)' }}>{val}</span>
+              },
+              {
+                header: 'ISO Standard Limits',
+                accessor: 'limit',
+                render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>
+              },
+              {
+                header: 'UltraBlue+ Batch Avg',
+                accessor: 'batch',
+                render: (val) => <span style={{ fontWeight: 700, color: 'var(--brand-blue)' }}>{val}</span>
+              },
+              {
+                header: 'Test Method',
+                accessor: 'method',
+                render: (val) => <span style={{ color: 'var(--text-muted)' }}>{val}</span>
+              },
+              {
+                header: 'Status',
+                accessor: 'status',
+                render: () => (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
+                    <Check size={12} /> Compliant
+                  </span>
+                )
+              },
+              {
+                header: 'Action',
+                accessor: 'action',
+                align: 'right',
+                render: (_, row) => (
+                  <button
+                    onClick={() => handleDeleteParam(row.id, row.prop)}
+                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                    title={`Delete parameter ${row.prop}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )
+              }
+            ]}
+          />
 
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '10px 16px' }}>Parameter Property</th>
-                    <th style={{ padding: '10px 16px' }}>Unit</th>
-                    <th style={{ padding: '10px 16px' }}>ISO 22241-1 Standard Limits</th>
-                    <th style={{ padding: '10px 16px' }}>UltraBlue+ Batch Average</th>
-                    <th style={{ padding: '10px 16px' }}>Test Method</th>
-                    <th style={{ padding: '10px 16px' }}>Status</th>
-                    <th style={{ padding: '10px 16px', textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {complianceParams.map((row, rIdx) => (
-                    <tr key={row.id || rIdx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>{row.prop}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{row.unit}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{row.limit}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--brand-blue)' }}>{row.batch}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{row.method}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
-                          <Check size={12} /> Compliant
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleDeleteParam(row.id, row.prop)}
-                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
-                          title={`Delete parameter ${row.prop}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* OEM Approvals Directory */}
-          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>OEM Manufacturer Approvals</h4>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Approvals from leading commercial vehicle manufacturers.
-                </p>
-              </div>
+          {/* OEM Approvals Directory DataTable */}
+          <DataTable
+            title="OEM Manufacturer Approvals Directory"
+            subtitle="Approvals from leading commercial vehicle manufacturers and engine builders."
+            data={oemApprovalsList}
+            searchPlaceholder="Search vehicle manufacturer, approval no, engine standard..."
+            pageSize={10}
+            pageSizeOptions={[5, 10, 20]}
+            actions={
               <Button size="sm" variant="primary" icon={Plus} onClick={() => {
                 setOemForm({ oem: '', approvalNo: '', engineStandard: '', validDate: '31-Dec-2027' });
                 setIsOemModalOpen(true);
               }}>
                 Add OEM Approval
               </Button>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '10px 16px' }}>Vehicle Manufacturer (OEM)</th>
-                    <th style={{ padding: '10px 16px' }}>Approval Ref No.</th>
-                    <th style={{ padding: '10px 16px' }}>Engine Standard / System</th>
-                    <th style={{ padding: '10px 16px' }}>Validity</th>
-                    <th style={{ padding: '10px 16px' }}>Status</th>
-                    <th style={{ padding: '10px 16px', textAlign: 'right' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {oemApprovalsList.map(oem => (
-                    <tr key={oem.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td style={{ padding: '12px 16px' }}>
-                        <strong style={{ color: 'var(--text-primary)' }}>{oem.oem}</strong>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ backgroundColor: 'rgba(0, 86, 210, 0.08)', color: 'var(--brand-blue)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
-                          {oem.approvalNo || oem.approval_no}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{oem.engineStandard || oem.engine_standard}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{oem.validDate || oem.valid_date}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
-                          <Check size={12} /> {oem.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleDeleteOem(oem.id, oem.oem)}
-                          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
-                          title={`Delete OEM approval for ${oem.oem}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+            }
+            columns={[
+              {
+                header: '#',
+                accessor: 'id',
+                width: '50px',
+                render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+              },
+              {
+                header: 'Vehicle Manufacturer (OEM)',
+                accessor: 'oem',
+                render: (val) => <strong style={{ color: 'var(--text-primary)' }}>{val}</strong>
+              },
+              {
+                header: 'Approval Ref No.',
+                accessor: 'approvalNo',
+                render: (val, row) => (
+                  <span style={{ backgroundColor: 'rgba(0, 86, 210, 0.08)', color: 'var(--brand-blue)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700, fontSize: '11px' }}>
+                    {val || row.approval_no}
+                  </span>
+                )
+              },
+              {
+                header: 'Engine Standard / System',
+                accessor: 'engineStandard',
+                render: (val, row) => <span style={{ color: 'var(--text-secondary)' }}>{val || row.engine_standard}</span>
+              },
+              {
+                header: 'Validity',
+                accessor: 'validDate',
+                render: (val, row) => <span style={{ color: 'var(--text-muted)' }}>{val || row.valid_date}</span>
+              },
+              {
+                header: 'Status',
+                accessor: 'status',
+                render: (val) => (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
+                    <Check size={12} /> {val || 'APPROVED'}
+                  </span>
+                )
+              },
+              {
+                header: 'Action',
+                accessor: 'action',
+                align: 'right',
+                render: (_, row) => (
+                  <button
+                    onClick={() => handleDeleteOem(row.id, row.oem)}
+                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                    title={`Delete OEM approval for ${row.oem}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )
+              }
+            ]}
+          />
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 5. SUB-VIEW: MASTER STATES & REGIONAL TERRITORIES (DB) - DATATABLE */}
+      {/* ========================================================================= */}
+      {subTab === 'territories' && (() => {
+        const stateListOptions = [
+          { value: 'ALL', label: `All States (${Object.keys(databaseTerritories).length})` },
+          ...Object.keys(databaseTerritories).sort().map(s => ({
+            value: s,
+            label: `${s} (${(databaseTerritories[s] || []).length} hubs)`
+          }))
+        ];
+
+        const filteredTerritories = territoriesList.filter(t => {
+          if (selectedTerritoryStateFilter !== 'ALL' && t.state !== selectedTerritoryStateFilter) return false;
+          return true;
+        });
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Quick Metrics Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Registered Hubs</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>{territoriesList.length}</div>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 600, textTransform: 'uppercase' }}>Active States</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--brand-cyan)', marginTop: '4px' }}>{Object.keys(databaseTerritories).length}</div>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--status-success)', fontWeight: 600, textTransform: 'uppercase' }}>Database Status</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--status-success)', marginTop: '4px' }}>Synced (Live DB)</div>
+              </div>
+            </div>
+
+            {/* Enhanced DataTable with Pagination, Page Size Selector, State Filter, and Search */}
+            <DataTable
+              title="Master States & Regional Territories (DB)"
+              subtitle="Database-persisted geographical territories for distributor allocation, depot mapping, and supply logistics."
+              data={filteredTerritories}
+              searchPlaceholder="Search city, state, code..."
+              pageSize={10}
+              pageSizeOptions={[5, 10, 25, 50, 100]}
+              filterComponent={
+                <div style={{ minWidth: '180px' }}>
+                  <Select
+                    value={selectedTerritoryStateFilter}
+                    onChange={e => setSelectedTerritoryStateFilter(e.target.value)}
+                    options={stateListOptions}
+                  />
+                </div>
+              }
+              actions={
+                <Button size="sm" variant="primary" icon={Plus} onClick={() => { setTerritoryForm({ state: '', city: '', customState: '', regionCode: '' }); setIsTerritoryModalOpen(true); }}>
+                  Add State / City
+                </Button>
+              }
+              columns={[
+                {
+                  header: '#',
+                  accessor: 'id',
+                  width: '50px',
+                  render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+                },
+                {
+                  header: 'State / Territory',
+                  accessor: 'state',
+                  render: (val) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: 'rgba(0, 102, 204, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-blue)', fontWeight: 800, fontSize: '11px' }}>
+                        {(val || 'IN').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{val}</span>
+                    </div>
+                  )
+                },
+                {
+                  header: 'City / Commercial Hub',
+                  accessor: 'city',
+                  render: (val) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MapPin size={14} color="var(--brand-cyan)" />
+                      <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{val}</span>
+                    </div>
+                  )
+                },
+                {
+                  header: 'Region Code',
+                  accessor: 'region_code',
+                  render: (val, row) => (
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-muted)' }}>
+                      {val || `${(row.state || 'IN').slice(0, 3).toUpperCase()}`}
+                    </span>
+                  )
+                },
+                {
+                  header: 'Status',
+                  accessor: 'is_active',
+                  render: () => (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 700, color: 'var(--status-success)', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                      <Check size={11} /> ACTIVE
+                    </span>
+                  )
+                },
+                {
+                  header: 'Actions',
+                  accessor: 'actions',
+                  align: 'right',
+                  render: (_, row) => (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        icon={Edit2}
+                        onClick={() => handleOpenEditTerritory(row)}
+                        title="Edit State / City"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        style={{ color: 'var(--status-danger)', padding: '4px 8px' }}
+                        icon={Trash2}
+                        onClick={() => handleDeleteTerritoryCity(row, row.state)}
+                        title="Delete Territory from DB"
+                      />
+                    </div>
+                  )
+                }
+              ]}
+            />
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* 6. SUB-VIEW: MASTER DEPOTS & DISPENSER STATIONS (DB) - DATATABLE */}
+      {/* ========================================================================= */}
+      {subTab === 'depots' && (() => {
+        const activeCount = databaseDepots.filter(d => Boolean(d.is_active)).length;
+        const deactivatedCount = databaseDepots.filter(d => !Boolean(d.is_active)).length;
+
+        const filteredDepots = databaseDepots.filter(depot => {
+          if (depotStatusFilter === 'ACTIVE' && !Boolean(depot.is_active)) return false;
+          if (depotStatusFilter === 'DEACTIVATED' && Boolean(depot.is_active)) return false;
+          return true;
+        });
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Quick Metrics Bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Registered Depots</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>{databaseDepots.length}</div>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--status-success)', fontWeight: 600, textTransform: 'uppercase' }}>Active Hubs</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--status-success)', marginTop: '4px' }}>{activeCount}</div>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--status-danger)', fontWeight: 600, textTransform: 'uppercase' }}>Deactivated Hubs (Can Activate)</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--status-danger)', marginTop: '4px' }}>{deactivatedCount}</div>
+              </div>
+            </div>
+
+            {/* Enhanced Depots DataTable with Pagination, Search, Status Filter */}
+            <DataTable
+              title="Master Dispensing Depots & Hub Stations Registry (DB)"
+              subtitle="Configure all factory mother plants, regional depots, and highway dispenser hubs."
+              data={filteredDepots}
+              searchPlaceholder="Search depot name, city, state, phone..."
+              pageSize={10}
+              pageSizeOptions={[5, 10, 25, 50, 100]}
+              filterComponent={
+                <div style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--bg-app)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-medium)' }}>
+                  {[
+                    { id: 'ALL', label: `All (${databaseDepots.length})` },
+                    { id: 'ACTIVE', label: `Active (${activeCount})` },
+                    { id: 'DEACTIVATED', label: `Deactivated (${deactivatedCount})` }
+                  ].map(filter => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setDepotStatusFilter(filter.id)}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: depotStatusFilter === filter.id ? 'var(--brand-blue)' : 'transparent',
+                        color: depotStatusFilter === filter.id ? '#FFFFFF' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              }
+              actions={
+                <Button size="sm" variant="gold" icon={Plus} onClick={() => { setNewDepotForm({ name: '', city: '', state: '', customState: '', customCity: '', address: '', phone: '' }); setIsDepotModalOpen(true); }}>
+                  Add Depot Station
+                </Button>
+              }
+              columns={[
+                {
+                  header: '#',
+                  accessor: 'id',
+                  width: '50px',
+                  render: (_, __, rowIdx) => <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{rowIdx + 1}</span>
+                },
+                {
+                  header: 'Depot / Dispenser Station',
+                  accessor: 'name',
+                  render: (val, row) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Building2 size={16} color={Boolean(row.is_active) ? 'var(--brand-blue)' : 'var(--text-muted)'} />
+                      <div>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{val}</span>
+                        {row.address && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.address}</div>}
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  header: 'State & City Hub',
+                  accessor: 'city',
+                  render: (_, row) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MapPin size={13} color="var(--brand-cyan)" />
+                      <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {row.city || 'Hub'}, {row.state || 'Odisha'}
+                      </span>
+                    </div>
+                  )
+                },
+                {
+                  header: 'Contact Phone',
+                  accessor: 'contact_phone',
+                  render: (val, row) => <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{val || row.phone || '—'}</span>
+                },
+                {
+                  header: 'Status',
+                  accessor: 'is_active',
+                  render: (val) => {
+                    const isActive = Boolean(val);
+                    return (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: '12px',
+                          backgroundColor: isActive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isActive ? 'var(--status-success)' : 'var(--status-danger)',
+                          border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                        }}
+                      >
+                        {isActive ? 'ACTIVE' : 'DEACTIVATED'}
+                      </span>
+                    );
+                  }
+                },
+                {
+                  header: 'Actions',
+                  accessor: 'actions',
+                  align: 'right',
+                  render: (_, row) => {
+                    const isActive = Boolean(row.is_active);
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                        {/* Activate / Deactivate Toggle Button */}
+                        <Button
+                          size="sm"
+                          variant={isActive ? 'ghost' : 'gold'}
+                          style={{
+                            color: isActive ? 'var(--status-danger)' : undefined,
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            fontWeight: 700
+                          }}
+                          icon={isActive ? Power : CheckCircle2}
+                          onClick={() => handleToggleDepotStatus(row)}
+                          title={isActive ? 'Deactivate Depot' : 'Activate Depot'}
+                        >
+                          {isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+
+                        {/* Edit Button */}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          icon={Edit2}
+                          onClick={() => handleOpenEditDepot(row)}
+                          title="Edit Depot Details"
+                        >
+                          Edit
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          style={{ color: 'var(--status-danger)', padding: '4px 6px' }}
+                          icon={Trash2}
+                          onClick={() => handleDeleteDepot(row)}
+                          title="Delete Depot from Database"
+                        />
+                      </div>
+                    );
+                  }
+                }
+              ]}
+            />
+          </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* 1. SIMPLE & DYNAMIC MASTER PRODUCT MODAL */}
@@ -1487,8 +2271,459 @@ export const AdminProductsView = ({
           </div>
         </form>
       </Modal>
+
+      {/* 6. TERRITORY STATE / CITY ADD MODAL */}
+      <Modal
+        isOpen={isTerritoryModalOpen}
+        onClose={() => {
+          setIsTerritoryModalOpen(false);
+          setTerritoryErrors({});
+        }}
+        title="Add Master Territory (State & City)"
+        subtitle="Persist geographical region in database"
+        icon={Globe}
+      >
+        <form noValidate onSubmit={handleSaveTerritory} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Select State (from DB) *</label>
+            <Select
+              value={territoryForm.state}
+              onChange={e => {
+                setTerritoryForm({ ...territoryForm, state: e.target.value });
+                if (territoryErrors.state) setTerritoryErrors(prev => ({ ...prev, state: null }));
+              }}
+              options={stateOptions}
+              error={territoryErrors.state}
+              required
+            />
+          </div>
+
+          {territoryForm.state === 'Other' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>New State Name *</label>
+              <Input
+                value={territoryForm.customState}
+                onChange={e => {
+                  setTerritoryForm({ ...territoryForm, customState: e.target.value });
+                  if (territoryErrors.state) setTerritoryErrors(prev => ({ ...prev, state: null }));
+                }}
+                onBlur={() => setTerritoryErrors(prev => ({ ...prev, state: validateRequiredText(territoryForm.customState, 'State Name', 2) }))}
+                placeholder="e.g. Telangana, Jharkhand"
+                error={territoryErrors.state}
+                required
+                autoFocus
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>City / Hub Name *</label>
+            <Input
+              value={territoryForm.city}
+              onChange={e => {
+                setTerritoryForm({ ...territoryForm, city: e.target.value });
+                if (territoryErrors.city) setTerritoryErrors(prev => ({ ...prev, city: null }));
+              }}
+              onBlur={() => setTerritoryErrors(prev => ({ ...prev, city: validateRequiredText(territoryForm.city, 'City Name', 2) }))}
+              placeholder="e.g. Hyderabad, Ranchi, Jamshedpur"
+              error={territoryErrors.city}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Region / State Code (Optional)</label>
+            <Input
+              value={territoryForm.regionCode || ''}
+              maxLength={6}
+              onChange={e => {
+                const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+                setTerritoryForm({ ...territoryForm, regionCode: val });
+                if (territoryErrors.regionCode) setTerritoryErrors(prev => ({ ...prev, regionCode: null }));
+              }}
+              onBlur={() => setTerritoryErrors(prev => ({ ...prev, regionCode: validateRegionCode(territoryForm.regionCode) }))}
+              placeholder="e.g. ODI, WBE, JHK, TEL"
+              error={territoryErrors.regionCode}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button type="button" variant="secondary" onClick={() => {
+              setIsTerritoryModalOpen(false);
+              setTerritoryErrors({});
+            }}>Cancel</Button>
+            <Button type="submit" variant="primary" icon={CheckCircle2}>Save Territory</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 6B. EDIT TERRITORY STATE / CITY MODAL */}
+      <Modal
+        isOpen={isEditTerritoryModalOpen}
+        onClose={() => {
+          setIsEditTerritoryModalOpen(false);
+          setEditTerritoryErrors({});
+        }}
+        title="Edit Master Territory"
+        subtitle="Update registered state and city in database"
+        icon={Globe}
+      >
+        <form noValidate onSubmit={handleSaveEditTerritory} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>State Name *</label>
+            <Input
+              value={editingTerritory.state}
+              onChange={e => {
+                setEditingTerritory({ ...editingTerritory, state: e.target.value });
+                if (editTerritoryErrors.state) setEditTerritoryErrors(prev => ({ ...prev, state: null }));
+              }}
+              onBlur={() => setEditTerritoryErrors(prev => ({ ...prev, state: validateRequiredText(editingTerritory.state, 'State Name', 2) }))}
+              placeholder="e.g. Odisha, West Bengal"
+              error={editTerritoryErrors.state}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>City / Commercial Hub Name *</label>
+            <Input
+              value={editingTerritory.city}
+              onChange={e => {
+                setEditingTerritory({ ...editingTerritory, city: e.target.value });
+                if (editTerritoryErrors.city) setEditTerritoryErrors(prev => ({ ...prev, city: null }));
+              }}
+              onBlur={() => setEditTerritoryErrors(prev => ({ ...prev, city: validateRequiredText(editingTerritory.city, 'City Name', 2) }))}
+              placeholder="e.g. Bhubaneswar, Cuttack, Kolkata"
+              error={editTerritoryErrors.city}
+              required
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Region Code</label>
+            <Input
+              value={editingTerritory.regionCode || ''}
+              maxLength={6}
+              onChange={e => {
+                const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+                setEditingTerritory({ ...editingTerritory, regionCode: val });
+                if (editTerritoryErrors.regionCode) setEditTerritoryErrors(prev => ({ ...prev, regionCode: null }));
+              }}
+              onBlur={() => setEditTerritoryErrors(prev => ({ ...prev, regionCode: validateRegionCode(editingTerritory.regionCode) }))}
+              placeholder="e.g. ODI, WBE, JHK"
+              error={editTerritoryErrors.regionCode}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button type="button" variant="secondary" onClick={() => {
+              setIsEditTerritoryModalOpen(false);
+              setEditTerritoryErrors({});
+            }}>Cancel</Button>
+            <Button type="submit" variant="primary" icon={CheckCircle2}>Save Changes</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 7. DEPOT STATION ADD MODAL */}
+      <Modal
+        isOpen={isDepotModalOpen}
+        onClose={() => {
+          setIsDepotModalOpen(false);
+          setDepotErrors({});
+        }}
+        title="Add Master Dispenser Depot / Station"
+        subtitle="Register location in inventory_locations table"
+        icon={Building2}
+      >
+        <form noValidate onSubmit={handleCreateDepotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Depot / Station Name *</label>
+            <Input
+              value={newDepotForm.name}
+              onChange={e => {
+                setNewDepotForm({ ...newDepotForm, name: e.target.value });
+                if (depotErrors.name) setDepotErrors(prev => ({ ...prev, name: null }));
+              }}
+              onBlur={() => setDepotErrors(prev => ({ ...prev, name: validateRequiredText(newDepotForm.name, 'Depot / Station Name', 3) }))}
+              placeholder="e.g. Sambalpur Heavy Haul Highway Hub"
+              error={depotErrors.name}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>State (from DB) *</label>
+              <Select
+                value={newDepotForm.state}
+                onChange={e => {
+                  const val = e.target.value;
+                  const cList = (databaseTerritories[val] || []).map(item => (typeof item === 'string' ? item : item.city));
+                  setNewDepotForm({
+                    ...newDepotForm,
+                    state: val,
+                    city: cList[0] || (val === 'Other' ? 'Other' : ''),
+                    customState: '',
+                    customCity: ''
+                  });
+                  if (depotErrors.state) setDepotErrors(prev => ({ ...prev, state: null }));
+                }}
+                options={stateOptions}
+                error={depotErrors.state}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>City / Hub (from DB) *</label>
+              <Select
+                value={newDepotForm.city}
+                onChange={e => {
+                  setNewDepotForm({ ...newDepotForm, city: e.target.value });
+                  if (depotErrors.city) setDepotErrors(prev => ({ ...prev, city: null }));
+                }}
+                options={getCityOptions(newDepotForm.state, newDepotForm.city)}
+                error={depotErrors.city}
+                required
+              />
+            </div>
+          </div>
+
+          {newDepotForm.state === 'Other' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter New State Name *</label>
+                <Input
+                  value={newDepotForm.customState}
+                  onChange={e => {
+                    setNewDepotForm({ ...newDepotForm, customState: e.target.value });
+                    if (depotErrors.state) setDepotErrors(prev => ({ ...prev, state: null }));
+                  }}
+                  onBlur={() => setDepotErrors(prev => ({ ...prev, state: validateRequiredText(newDepotForm.customState, 'State Name', 2) }))}
+                  placeholder="e.g. Telangana, Jharkhand"
+                  error={depotErrors.state}
+                  required
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter City Name *</label>
+                <Input
+                  value={newDepotForm.customCity}
+                  onChange={e => {
+                    setNewDepotForm({ ...newDepotForm, customCity: e.target.value });
+                    if (depotErrors.city) setDepotErrors(prev => ({ ...prev, city: null }));
+                  }}
+                  onBlur={() => setDepotErrors(prev => ({ ...prev, city: validateRequiredText(newDepotForm.customCity, 'City Name', 2) }))}
+                  placeholder="e.g. Ranchi, Jamshedpur"
+                  error={depotErrors.city}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {newDepotForm.state !== 'Other' && newDepotForm.city === 'Other' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter New City Name for {newDepotForm.state} *</label>
+              <Input
+                value={newDepotForm.customCity}
+                onChange={e => {
+                  setNewDepotForm({ ...newDepotForm, customCity: e.target.value });
+                  if (depotErrors.city) setDepotErrors(prev => ({ ...prev, city: null }));
+                }}
+                onBlur={() => setDepotErrors(prev => ({ ...prev, city: validateRequiredText(newDepotForm.customCity, 'City Name', 2) }))}
+                placeholder={`Enter city in ${newDepotForm.state}`}
+                error={depotErrors.city}
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Address Details</label>
+            <Input
+              value={newDepotForm.address}
+              onChange={e => setNewDepotForm({ ...newDepotForm, address: e.target.value })}
+              placeholder="e.g. NH-53 Industrial Area"
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Contact Phone</label>
+            <Input
+              value={newDepotForm.phone}
+              maxLength={10}
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setNewDepotForm({ ...newDepotForm, phone: val });
+                if (depotErrors.phone) setDepotErrors(prev => ({ ...prev, phone: null }));
+              }}
+              onBlur={() => setDepotErrors(prev => ({ ...prev, phone: validatePhone(newDepotForm.phone, false) }))}
+              placeholder="10-digit mobile number (e.g. 9853675971)"
+              error={depotErrors.phone}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button type="button" variant="secondary" onClick={() => {
+              setIsDepotModalOpen(false);
+              setDepotErrors({});
+            }}>Cancel</Button>
+            <Button type="submit" variant="gold" icon={CheckCircle2}>Save Depot Station</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 8. DEPOT STATION EDIT MODAL */}
+      <Modal
+        isOpen={isEditDepotModalOpen}
+        onClose={() => {
+          setIsEditDepotModalOpen(false);
+          setEditDepotErrors({});
+        }}
+        title="Edit Dispenser Depot / Station"
+        subtitle="Update registered hub parameters in database"
+        icon={Building2}
+      >
+        <form noValidate onSubmit={handleSaveDepotEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Depot / Station Name *</label>
+            <Input
+              value={editingDepot.name}
+              onChange={e => {
+                setEditingDepot({ ...editingDepot, name: e.target.value });
+                if (editDepotErrors.name) setEditDepotErrors(prev => ({ ...prev, name: null }));
+              }}
+              onBlur={() => setEditDepotErrors(prev => ({ ...prev, name: validateRequiredText(editingDepot.name, 'Depot Name', 3) }))}
+              error={editDepotErrors.name}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>State (from DB) *</label>
+              <Select
+                value={editingDepot.state}
+                onChange={e => {
+                  const val = e.target.value;
+                  const cList = (databaseTerritories[val] || []).map(item => (typeof item === 'string' ? item : item.city));
+                  setEditingDepot({
+                    ...editingDepot,
+                    state: val,
+                    city: cList[0] || (val === 'Other' ? 'Other' : ''),
+                    customState: '',
+                    customCity: ''
+                  });
+                  if (editDepotErrors.state) setEditDepotErrors(prev => ({ ...prev, state: null }));
+                }}
+                options={stateOptions}
+                error={editDepotErrors.state}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>City / Hub (from DB) *</label>
+              <Select
+                value={editingDepot.city}
+                onChange={e => {
+                  setEditingDepot({ ...editingDepot, city: e.target.value });
+                  if (editDepotErrors.city) setEditDepotErrors(prev => ({ ...prev, city: null }));
+                }}
+                options={getCityOptions(editingDepot.state, editingDepot.city)}
+                error={editDepotErrors.city}
+                required
+              />
+            </div>
+          </div>
+
+          {editingDepot.state === 'Other' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter New State Name *</label>
+                <Input
+                  value={editingDepot.customState}
+                  onChange={e => {
+                    setEditingDepot({ ...editingDepot, customState: e.target.value });
+                    if (editDepotErrors.state) setEditDepotErrors(prev => ({ ...prev, state: null }));
+                  }}
+                  onBlur={() => setEditDepotErrors(prev => ({ ...prev, state: validateRequiredText(editingDepot.customState, 'State Name', 2) }))}
+                  placeholder="e.g. Telangana, Jharkhand"
+                  error={editDepotErrors.state}
+                  required
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter City Name *</label>
+                <Input
+                  value={editingDepot.customCity}
+                  onChange={e => {
+                    setEditingDepot({ ...editingDepot, customCity: e.target.value });
+                    if (editDepotErrors.city) setEditDepotErrors(prev => ({ ...prev, city: null }));
+                  }}
+                  onBlur={() => setEditDepotErrors(prev => ({ ...prev, city: validateRequiredText(editingDepot.customCity, 'City Name', 2) }))}
+                  placeholder="e.g. Ranchi, Jamshedpur"
+                  error={editDepotErrors.city}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {editingDepot.state !== 'Other' && editingDepot.city === 'Other' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Enter New City Name for {editingDepot.state} *</label>
+              <Input
+                value={editingDepot.customCity}
+                onChange={e => {
+                  setEditingDepot({ ...editingDepot, customCity: e.target.value });
+                  if (editDepotErrors.city) setEditDepotErrors(prev => ({ ...prev, city: null }));
+                }}
+                onBlur={() => setEditDepotErrors(prev => ({ ...prev, city: validateRequiredText(editingDepot.customCity, 'City Name', 2) }))}
+                placeholder={`Enter city in ${editingDepot.state}`}
+                error={editDepotErrors.city}
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Address Details</label>
+            <Input
+              value={editingDepot.address}
+              onChange={e => setEditingDepot({ ...editingDepot, address: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>Contact Phone</label>
+            <Input
+              value={editingDepot.phone}
+              maxLength={10}
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setEditingDepot({ ...editingDepot, phone: val });
+                if (editDepotErrors.phone) setEditDepotErrors(prev => ({ ...prev, phone: null }));
+              }}
+              onBlur={() => setEditDepotErrors(prev => ({ ...prev, phone: validatePhone(editingDepot.phone, false) }))}
+              placeholder="10-digit mobile number (e.g. 9853675971)"
+              error={editDepotErrors.phone}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button type="button" variant="secondary" onClick={() => {
+              setIsEditDepotModalOpen(false);
+              setEditDepotErrors({});
+            }}>Cancel</Button>
+            <Button type="submit" variant="primary" icon={CheckCircle2}>Save Depot Changes</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
 
 export default AdminProductsView;
+

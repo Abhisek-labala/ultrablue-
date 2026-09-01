@@ -217,13 +217,13 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 'var(--space-4)',
-          borderLeft: '4px solid var(--brand-gold)'
+          borderLeft: '4px solid var(--brand-blue)'
         }}
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--brand-gold)', color: 'var(--brand-navy-dark)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', textTransform: 'uppercase' }}>
-              Gold Tier Distributor
+            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--brand-blue)', color: '#FFFFFF', padding: '2px 8px', borderRadius: 'var(--radius-pill)', textTransform: 'uppercase' }}>
+              Authorized Distributor
             </span>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--brand-cyan)' }}>GSTIN: {currentDistributor.gstin}</span>
           </div>
@@ -236,7 +236,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-          <Button variant="gold" icon={Download} onClick={handleDownloadPriceList}>
+          <Button variant="primary" icon={Download} onClick={handleDownloadPriceList}>
             Download B2B Price List
           </Button>
           <Button variant="secondary" icon={UserPlus} onClick={() => setIsSignupModalOpen(true)}>
@@ -255,11 +255,10 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       {/* KPI Overview */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
         <KPICard
-          title="Assigned Discount Tier"
-          value="15% Off MRP"
+          title="Wholesale Pricing"
+          value="B2B Base Rates"
           subtext="Applied automatically at checkout"
           icon={Sparkles}
-          goldAccent={true}
         />
         <KPICard
           title="Total Orders Dispatched"
@@ -291,7 +290,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           icon={Layers}
           onClick={() => handleTabSwitch('catalog')}
         >
-          Special Tier Price Catalogue
+          Wholesale Product Catalogue
         </Button>
         <Button
           size="sm"
@@ -505,7 +504,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         isOpen={isSignupModalOpen}
         onClose={() => setIsSignupModalOpen(false)}
         title="Distributor Application & Onboarding"
-        subtitle="Apply for UltraBlue+ Tier 1 / Gold Dealership"
+        subtitle="Apply for UltraBlue+ Authorized Dealership"
         icon={UserPlus}
       >
         <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

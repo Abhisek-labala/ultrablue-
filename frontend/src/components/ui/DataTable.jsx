@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ChevronUp, 
   ChevronDown, 
@@ -21,8 +21,10 @@ export const DataTable = ({
   searchPlaceholder = 'Search records...',
   filterComponent,
   title,
+  subtitle,
   actions,
-  pageSize = 6,
+  pageSize = 10,
+  pageSizeOptions = [5, 10, 25, 50, 100],
   selectable = false,
   onSelectedChange,
   emptyMessage = 'No records found in this view.'
@@ -31,7 +33,13 @@ export const DataTable = ({
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc'); // 'asc' | 'desc'
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(pageSize);
   const [selectedIds, setSelectedIds] = useState(new Set());
+
+  // Reset page on search or data change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, data.length, rowsPerPage]);
 
   // Search filtering
   const filteredData = useMemo(() => {
@@ -40,6 +48,9 @@ export const DataTable = ({
     return data.filter(item => {
       return Object.values(item).some(val => {
         if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return JSON.stringify(val).toLowerCase().includes(term);
+        }
         return String(val).toLowerCase().includes(term);
       });
     });
@@ -52,6 +63,9 @@ export const DataTable = ({
       let aVal = a[sortField];
       let bVal = b[sortField];
 
+      if (aVal === undefined || aVal === null) aVal = '';
+      if (bVal === undefined || bVal === null) bVal = '';
+
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
       if (typeof bVal === 'string') bVal = bVal.toLowerCase();
 
@@ -62,11 +76,11 @@ export const DataTable = ({
   }, [filteredData, sortField, sortDirection]);
 
   // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
+  const totalPages = Math.max(1, Math.ceil(sortedData.length / rowsPerPage));
   const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedData.slice(start, start + pageSize);
-  }, [sortedData, currentPage, pageSize]);
+    const start = (currentPage - 1) * rowsPerPage;
+    return sortedData.slice(start, start + rowsPerPage);
+  }, [sortedData, currentPage, rowsPerPage]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -82,7 +96,7 @@ export const DataTable = ({
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedData.length) {
+    if (selectedIds.size === paginatedData.length && paginatedData.length > 0) {
       setSelectedIds(new Set());
       onSelectedChange?.([]);
     } else {
@@ -100,44 +114,81 @@ export const DataTable = ({
     onSelectedChange?.(Array.from(next));
   };
 
+  // Generate pagination buttons
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxButtons = 5;
+    if (totalPages <= maxButtons) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxButtons - 1);
+      if (end - start < maxButtons - 1) {
+        start = Math.max(1, end - maxButtons + 1);
+      }
+      for (let i = start; i <= end; i++) pages.push(i);
+    }
+    return pages;
+  };
+
   return (
-    <div className="ub-card" style={{ overflow: 'hidden' }}>
+    <div 
+      style={{ 
+        backgroundColor: 'var(--bg-card)', 
+        borderRadius: '12px', 
+        border: '1px solid var(--border-medium)', 
+        overflow: 'hidden',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)'
+      }}
+    >
       {/* Table Toolbar */}
       {(title || searchable || actions || filterComponent) && (
         <div 
           style={{
-            padding: 'var(--space-4) var(--space-5)',
-            borderBottom: '1px solid var(--border-light)',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-medium)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 'var(--space-4)',
+            gap: '12px',
             flexWrap: 'wrap',
-            background: 'var(--bg-surface)'
+            background: 'var(--bg-card)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: '260px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
             {title && (
-              <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
-                {title}
-              </h3>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {title}
+                </h3>
+                {subtitle && (
+                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {subtitle}
+                  </p>
+                )}
+              </div>
             )}
             {searchable && (
-              <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
+              <div style={{ position: 'relative', flex: 1, maxWidth: '320px', minWidth: '180px' }}>
                 <Search 
-                  size={16} 
+                  size={14} 
                   style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} 
                 />
                 <input
                   type="text"
                   placeholder={searchPlaceholder}
                   value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 32px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-medium)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    boxSizing: 'border-box'
                   }}
-                  className="ub-input"
-                  style={{ paddingLeft: '32px', fontSize: 'var(--font-size-sm)', height: '36px' }}
                 />
               </div>
             )}
@@ -145,7 +196,7 @@ export const DataTable = ({
           </div>
 
           {actions && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {actions}
             </div>
           )}
@@ -159,11 +210,11 @@ export const DataTable = ({
             width: '100%', 
             borderCollapse: 'collapse', 
             textAlign: 'left',
-            fontSize: 'var(--font-size-sm)'
+            fontSize: '13px'
           }}
         >
           <thead>
-            <tr style={{ background: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+            <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-medium)' }}>
               {selectable && (
                 <th style={{ width: '40px', padding: '10px 14px', textAlign: 'center' }}>
                   <input
@@ -181,21 +232,25 @@ export const DataTable = ({
                   style={{
                     padding: '12px 16px',
                     fontWeight: 700,
-                    color: 'var(--brand-navy-primary)',
+                    color: 'var(--text-muted)',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                     cursor: col.sortable !== false ? 'pointer' : 'default',
                     userSelect: 'none',
                     whiteSpace: 'nowrap',
-                    width: col.width
+                    width: col.width,
+                    textAlign: col.align || 'left'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'flex-start' }}>
                     <span>{col.header}</span>
                     {col.sortable !== false && (
-                      <span style={{ color: sortField === col.accessor ? 'var(--brand-blue)' : 'var(--text-muted)' }}>
+                      <span style={{ color: sortField === col.accessor ? 'var(--brand-cyan)' : 'var(--text-muted)' }}>
                         {sortField === col.accessor ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          sortDirection === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />
                         ) : (
-                          <ChevronsUpDown size={13} opacity={0.5} />
+                          <ChevronsUpDown size={12} opacity={0.4} />
                         )}
                       </span>
                     )}
@@ -209,14 +264,14 @@ export const DataTable = ({
               <tr>
                 <td 
                   colSpan={columns.length + (selectable ? 1 : 0)} 
-                  style={{ padding: 'var(--space-10) var(--space-4)', textAlign: 'center', color: 'var(--text-secondary)' }}
+                  style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-muted)' }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <Search size={32} style={{ color: 'var(--text-muted)' }} />
-                    <p style={{ fontWeight: 600 }}>{emptyMessage}</p>
+                    <Search size={28} style={{ color: 'var(--text-muted)', opacity: 0.6 }} />
+                    <p style={{ fontWeight: 600, fontSize: '13px', margin: 0 }}>{emptyMessage}</p>
                     {searchTerm && (
                       <Button size="sm" variant="secondary" onClick={() => setSearchTerm('')}>
-                        Clear search filter
+                        Clear Search
                       </Button>
                     )}
                   </div>
@@ -231,12 +286,12 @@ export const DataTable = ({
                   <tr
                     key={rowKey}
                     style={{
-                      borderBottom: '1px solid var(--border-light)',
-                      background: isSelected ? 'var(--brand-blue-light)' : 'transparent',
-                      transition: 'background-color var(--transition-fast)'
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: isSelected ? 'rgba(0, 102, 204, 0.08)' : 'transparent',
+                      transition: 'background-color 0.15s'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--bg-surface-secondary)';
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
                     }}
                     onMouseLeave={(e) => {
                       if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
@@ -259,10 +314,13 @@ export const DataTable = ({
                           padding: '12px 16px',
                           color: 'var(--text-primary)',
                           verticalAlign: 'middle',
-                          whiteSpace: col.noWrap ? 'nowrap' : 'normal'
+                          whiteSpace: col.noWrap ? 'nowrap' : 'normal',
+                          textAlign: col.align || 'left'
                         }}
                       >
-                        {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
+                        {col.render 
+                          ? col.render(row[col.accessor], row, (currentPage - 1) * rowsPerPage + idx) 
+                          : row[col.accessor]}
                       </td>
                     ))}
                   </tr>
@@ -276,43 +334,87 @@ export const DataTable = ({
       {/* Table Pagination Footer */}
       <div 
         style={{
-          padding: 'var(--space-3) var(--space-5)',
-          borderTop: '1px solid var(--border-light)',
-          background: 'var(--bg-surface-secondary)',
+          padding: '12px 18px',
+          borderTop: '1px solid var(--border-medium)',
+          background: 'var(--bg-app)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          fontSize: 'var(--font-size-xs)',
-          color: 'var(--text-secondary)',
+          fontSize: '12px',
+          color: 'var(--text-muted)',
           flexWrap: 'wrap',
-          gap: 'var(--space-2)'
+          gap: '12px'
         }}
       >
-        <div>
-          Showing <b>{sortedData.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</b> to{' '}
-          <b>{Math.min(currentPage * pageSize, sortedData.length)}</b> of <b>{sortedData.length}</b> records
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div>
+            Showing <b>{sortedData.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}</b> to{' '}
+            <b>{Math.min(currentPage * rowsPerPage, sortedData.length)}</b> of <b>{sortedData.length}</b> records
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px' }}>Rows per page:</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+              style={{
+                padding: '3px 8px',
+                borderRadius: '4px',
+                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                fontSize: '11px',
+                cursor: 'pointer'
+              }}
+            >
+              {pageSizeOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        {/* Pagination Page Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <Button
             size="sm"
             variant="secondary"
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            style={{ padding: '4px 8px', fontSize: '11px' }}
             icon={ChevronLeft}
           >
-            Previous
+            Prev
           </Button>
 
-          <span style={{ fontWeight: 600, padding: '0 6px' }}>
-            Page {currentPage} of {totalPages}
-          </span>
+          {getPageNumbers().map(pageNum => (
+            <button
+              key={pageNum}
+              type="button"
+              onClick={() => setCurrentPage(pageNum)}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                border: currentPage === pageNum ? '1px solid var(--brand-blue)' : '1px solid var(--border-medium)',
+                backgroundColor: currentPage === pageNum ? 'var(--brand-blue)' : 'var(--bg-card)',
+                color: currentPage === pageNum ? '#FFFFFF' : 'var(--text-secondary)',
+                fontWeight: currentPage === pageNum ? 700 : 500,
+                fontSize: '11px',
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+            >
+              {pageNum}
+            </button>
+          ))}
 
           <Button
             size="sm"
             variant="secondary"
             disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            style={{ padding: '4px 8px', fontSize: '11px' }}
             icon={ChevronRight}
             iconPosition="right"
           >
@@ -323,3 +425,6 @@ export const DataTable = ({
     </div>
   );
 };
+
+export default DataTable;
+

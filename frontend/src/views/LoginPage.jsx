@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Logo } from '../components/ui/Logo';
-import { 
-  ShieldCheck, 
-  Lock, 
-  Mail, 
-  ArrowLeft, 
-  CheckCircle2, 
-  AlertCircle, 
-  Building2, 
-  Store, 
-  UserCheck, 
-  KeyRound, 
+import {
+  ShieldCheck,
+  Lock,
+  Mail,
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  Building2,
+  Store,
+  UserCheck,
+  KeyRound,
   Sparkles,
   Sun,
   Moon,
@@ -93,14 +93,14 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   // Auth Mode: 'login' | 'register'
   const [authMode, setAuthMode] = useState('login');
 
-  // Role: 'admin' | 'operator' | 'distributor'
-  const [selectedRole, setSelectedRole] = useState('admin');
-  
+  // Role: 'distributor' | 'operator' | 'admin'
+  const [selectedRole, setSelectedRole] = useState('distributor');
+
   // Login Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
-  
+
   // Registration Form State
   const [regForm, setRegForm] = useState({
     fullName: '',
@@ -125,17 +125,17 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   };
 
   const ROLE_DETAILS = {
-    admin: {
-      title: 'Super Administrator',
-      description: 'Master inventory, plant telemetry, CoA certificate signing & ERP ledger'
-    },
-    operator: {
-      title: 'Plant POS Operator',
-      description: 'Real-time retail billing, thermal GST receipts, dispensing nozzle counter'
-    },
     distributor: {
       title: 'Authorized B2B Partner',
       description: 'Factory direct orders, live tanker dispatch tracking, credit statement ledger'
+    },
+    operator: {
+      title: 'Sales & Plant POS Operator',
+      description: 'Real-time retail billing, thermal GST receipts, dispensing nozzle counter'
+    },
+    admin: {
+      title: 'Super Administrator',
+      description: 'Master inventory, plant telemetry, CoA certificate signing & ERP ledger'
     }
   };
 
@@ -431,9 +431,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
             }}
           >
             {[
-              ...(authMode === 'login' ? [{ id: 'admin', label: 'ADMIN', icon: Building2 }] : []),
-              { id: 'operator', label: 'OPERATOR', icon: Store },
-              { id: 'distributor', label: 'DISTRIBUTOR', icon: UserCheck }
+              { id: 'distributor', label: 'DISTRIBUTOR', icon: UserCheck },
+              { id: 'operator', label: 'SALES OPERATOR', icon: Store },
+              ...(authMode === 'login' ? [{ id: 'admin', label: 'ADMIN', icon: Building2 }] : [])
             ].map(tab => {
               const isActive = selectedRole === tab.id;
               return (
@@ -446,18 +446,18 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                     padding: '8px 4px',
                     borderRadius: '50px',
                     border: 'none',
-                    backgroundColor: isActive 
-                      ? (isDark ? 'var(--brand-blue)' : '#FFFFFF') 
+                    backgroundColor: isActive
+                      ? (isDark ? 'var(--brand-blue)' : '#FFFFFF')
                       : 'transparent',
-                    color: isActive 
-                      ? (isDark ? '#FFFFFF' : '#06142F') 
+                    color: isActive
+                      ? (isDark ? '#FFFFFF' : '#06142F')
                       : (isDark ? '#94A3B8' : '#475569'),
                     fontSize: '11px',
                     fontWeight: isActive ? 800 : 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: isActive 
-                      ? (isDark ? '0 4px 12px rgba(0, 143, 224, 0.4)' : '0 2px 8px rgba(0,0,0,0.15)') 
+                    boxShadow: isActive
+                      ? (isDark ? '0 4px 12px rgba(0, 143, 224, 0.4)' : '0 2px 8px rgba(0,0,0,0.15)')
                       : 'none',
                     display: 'flex',
                     alignItems: 'center',
@@ -496,9 +496,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
             <span style={{ color: textMuted, fontSize: '10px' }}>
               {authMode === 'login'
                 ? (ROLE_DETAILS[selectedRole]?.description || '')
-                : (selectedRole === 'distributor' 
-                    ? 'Get wholesale pricing, digital CoA downloads, and priority factory tanker delivery.' 
-                    : 'Issue retail invoices, thermal receipts, and real-time dispenser counter sync.')
+                : (selectedRole === 'distributor'
+                  ? 'Get wholesale pricing, digital CoA downloads, and priority factory tanker delivery.'
+                  : 'Issue retail invoices, thermal receipts, and real-time dispenser counter sync.')
               }
             </span>
           </div>

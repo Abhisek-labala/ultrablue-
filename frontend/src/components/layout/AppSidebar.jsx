@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -22,7 +22,10 @@ import {
   BadgePercent,
   Sparkles,
   Tag,
-  ShieldCheck
+  ShieldCheck,
+  Building2,
+  Database,
+  MapPin
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { COMPANY_INFO } from '../../config/companyInfo';
@@ -34,17 +37,8 @@ export const AppSidebar = ({
   isCollapsed = false,
   onToggleCollapse
 }) => {
-  // Track open/collapsed submenu groups
-  const [expandedMenus, setExpandedMenus] = useState({
-    admin_products: true
-  });
-
-  // Auto-expand parent group if activeTab is a child
-  useEffect(() => {
-    if (activeTab && activeTab.startsWith('admin_products')) {
-      setExpandedMenus(prev => ({ ...prev, admin_products: true }));
-    }
-  }, [activeTab]);
+  // Track open/collapsed submenu groups (Closed by default as requested)
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   const toggleSubMenu = (menuId) => {
     setExpandedMenus(prev => ({ ...prev, [menuId]: !prev[menuId] }));
@@ -84,14 +78,16 @@ export const AppSidebar = ({
           { id: 'admin_dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
           {
             id: 'admin_products',
-            label: 'Products Catalogue',
-            icon: Package,
+            label: 'Master Data Config',
+            icon: Database,
             badge: 'Config',
             subItems: [
               { id: 'admin_products_master', label: 'Product Master', icon: Package, badge: 'SKUs' },
-              { id: 'admin_products_categories', label: 'Product Categories', icon: Layers, badge: '5 Cats' },
-              { id: 'admin_products_packsizes', label: 'Pack Sizes & Variants', icon: Warehouse, badge: '8 Packs' },
-              { id: 'admin_products_compliance', label: 'ISO / BIS Compliance', icon: ShieldCheck, badge: 'ISO' }
+              { id: 'admin_products_categories', label: 'Product Categories', icon: Layers, badge: 'Categories' },
+              { id: 'admin_products_packsizes', label: 'Pack Sizes & Variants', icon: Warehouse, badge: 'Packs' },
+              { id: 'admin_products_compliance', label: 'ISO / BIS Compliance', icon: ShieldCheck, badge: 'ISO' },
+              { id: 'admin_products_territories', label: 'States & Territories', icon: Globe, badge: 'DB' },
+              { id: 'admin_products_depots', label: 'Depots & Stations', icon: Building2, badge: 'Multi-Hub' }
             ]
           },
           { id: 'admin_prices', label: 'Pricing Engine', icon: BadgePercent, badge: 'Live GST' },

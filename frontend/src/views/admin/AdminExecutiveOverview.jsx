@@ -44,7 +44,7 @@ export const AdminExecutiveOverview = ({
           <h2 style={{ margin: '4px 0 0 0', fontSize: '20px', fontWeight: 800 }}>Master Plant & Operations Dashboard</h2>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Button size="sm" variant="secondary" icon={Package} onClick={() => onNavigate('admin_products')}>
+          <Button size="sm" variant="secondary" icon={Package} onClick={() => onNavigate('admin_products_master')}>
             Manage Products
           </Button>
           <Button size="sm" variant="gold" icon={BadgePercent} onClick={() => onNavigate('admin_prices')}>
@@ -78,7 +78,7 @@ export const AdminExecutiveOverview = ({
           value={`${distributors.length} Partners`}
           delta={pendingApprovalsCount > 0 ? `${pendingApprovalsCount} KYC Pending` : 'All Approved'}
           isPositive={pendingApprovalsCount === 0}
-          subtext={pendingApprovalsCount > 0 ? 'Review & assign price tiers' : 'Active B2B Logistics Matrix'}
+          subtext={pendingApprovalsCount > 0 ? 'Review pending KYC applications' : 'Active B2B Logistics Matrix'}
           icon={Users}
           goldAccent={pendingApprovalsCount > 0}
         />
@@ -106,7 +106,7 @@ export const AdminExecutiveOverview = ({
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{products.length} Products</span>
             </div>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
-              Configured master products with pack sizes, GST inclusive/exclusive taxation modes, and multi-tier wholesale rates.
+              Configured master products with pack sizes, GST inclusive/exclusive taxation modes, and wholesale distributor rates.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '8px', marginBottom: '14px' }}>
               <div><span style={{ color: 'var(--text-muted)' }}>Active SKUs:</span> <strong>{products.reduce((acc, p) => acc + (p.packOptions?.length || 0), 0)} Variants</strong></div>
@@ -116,7 +116,7 @@ export const AdminExecutiveOverview = ({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Button size="sm" variant="secondary" icon={Package} onClick={() => onNavigate('admin_products')} style={{ flex: 1 }}>
+            <Button size="sm" variant="secondary" icon={Package} onClick={() => onNavigate('admin_products_master')} style={{ flex: 1 }}>
               Products
             </Button>
             <Button size="sm" variant="gold" icon={BadgePercent} onClick={() => onNavigate('admin_prices')} style={{ flex: 1 }}>

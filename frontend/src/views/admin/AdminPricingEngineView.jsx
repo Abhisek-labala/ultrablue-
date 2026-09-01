@@ -37,13 +37,13 @@ export const AdminPricingEngineView = ({
     setPriceEditForm({
       productId: product.id,
       productName: product.name,
-      hsnCode: product.hsnCode || '31021000',
+      hsnCode: product.hsnCode || product.hsn_code || '',
       gstRate: product.gstRate !== undefined ? Number(product.gstRate) : 18,
       isGstInclusive: product.isGstInclusive !== undefined ? Boolean(product.isGstInclusive) : true,
       packVariants: (product.packOptions || []).map(po => ({
         sku: po.sku,
         pack_size: po.size,
-        volume_in_litres: parseFloat(po.size) || 20,
+        volume_in_litres: parseFloat(po.size) || 0,
         standard_mrp: po.mrp,
         distributor_base_price: po.distributorPrice,
         is_popular: Boolean(po.isPopular)
@@ -86,10 +86,10 @@ export const AdminPricingEngineView = ({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BadgePercent size={20} color="var(--brand-gold)" />
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Master Multi-Tier Pricing & Taxation Engine</h3>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Master Wholesale Pricing & Taxation Engine</h3>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Real-time price schedule matrix across standard MRP, base distributor rates, tiered discounts (Platinum, Gold, Silver), and GST calculations.
+            Real-time price schedule matrix across standard MRP, base distributor rates, dealer margin spreads, and GST calculations.
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export const AdminPricingEngineView = ({
               type="text"
               value={pricingSearchQuery}
               onChange={(e) => setPricingSearchQuery(e.target.value)}
-              placeholder="Search by SKU, product name, tier..."
+              placeholder="Search by SKU, product name..."
               style={{
                 padding: '8px 12px 8px 30px',
                 fontSize: '12px',
@@ -136,9 +136,6 @@ export const AdminPricingEngineView = ({
                     HSN: p.hsnCode || '31021000',
                     StandardMRP: mrp,
                     DistributorBase: base,
-                    GoldTier_15Pct: (base * 0.85).toFixed(2),
-                    PlatinumTier_20Pct: (base * 0.80).toFixed(2),
-                    SilverTier_10Pct: (base * 0.90).toFixed(2),
                     TaxableBase: taxable.toFixed(2),
                     GSTAmount: gst.toFixed(2),
                     GSTRate: rate + '%',
@@ -177,9 +174,9 @@ export const AdminPricingEngineView = ({
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '10px', padding: '14px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>B2B Tier Structure</span>
-          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-gold)', marginTop: '4px' }}>Gold (15%) • Plat (20%)</div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Silver (10%) Volume Discounts</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Wholesale Price Matrix</span>
+          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-cyan)', marginTop: '4px' }}>B2B Standard Rates</div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Authorized Factory Direct</span>
         </div>
       </div>
 
@@ -188,9 +185,9 @@ export const AdminPricingEngineView = ({
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Layers size={16} color="var(--brand-blue)" />
-            <span>Master SKU Price Schedule & Tier Matrix</span>
+            <span>Master SKU Price Schedule & Taxation Matrix</span>
           </h4>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Auto-calculated with live GST & tier formulas</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Auto-calculated with live GST & margin formulas</span>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
@@ -201,11 +198,8 @@ export const AdminPricingEngineView = ({
                 <th style={{ padding: '10px 14px', fontWeight: 700 }}>SKU Code</th>
                 <th style={{ padding: '10px 14px', fontWeight: 700 }}>Standard MRP (₹)</th>
                 <th style={{ padding: '10px 14px', fontWeight: 700 }}>Distributor Base (₹)</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--brand-gold)' }}>Gold Tier (15%)</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#10B981' }}>Platinum Tier (20%)</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700 }}>Silver Tier (10%)</th>
                 <th style={{ padding: '10px 14px', fontWeight: 700 }}>GST Breakdown</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700 }}>Dealer Margin</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700 }}>Dealer Margin Spread</th>
                 <th style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
@@ -224,9 +218,6 @@ export const AdminPricingEngineView = ({
                     const isIncl = prod.isGstInclusive !== false;
                     const taxable = isIncl ? (mrp / (1 + (rate / 100))) : mrp;
                     const gst = isIncl ? (mrp - taxable) : (mrp * (rate / 100));
-                    const goldPrice = base * 0.85;
-                    const platPrice = base * 0.80;
-                    const silverPrice = base * 0.90;
                     const dealerMargin = mrp - base;
                     const marginPct = base > 0 ? ((dealerMargin / base) * 100).toFixed(1) : 0;
 
@@ -246,15 +237,6 @@ export const AdminPricingEngineView = ({
                         </td>
                         <td style={{ padding: '12px 14px', fontWeight: 700 }}>
                           ₹{base.toLocaleString('en-IN')}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--brand-gold)', fontWeight: 700 }}>
-                          ₹{goldPrice.toFixed(0)}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#10B981', fontWeight: 700 }}>
-                          ₹{platPrice.toFixed(0)}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--text-secondary)' }}>
-                          ₹{silverPrice.toFixed(0)}
                         </td>
                         <td style={{ padding: '12px 14px' }}>
                           <div style={{ fontSize: '11px' }}>

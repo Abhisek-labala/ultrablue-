@@ -68,12 +68,14 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
   const fetchInventory = async () => {
     setLoading(true);
     try {
-      const [inv, locs] = await Promise.all([
+      const [inv, locs, prods] = await Promise.all([
         InventoryAPI.getAll().catch(e => { console.warn('Inventory fetch error:', e); return []; }),
-        InventoryAPI.getLocations().catch(e => { console.warn('Locations fetch error:', e); return []; })
+        InventoryAPI.getLocations().catch(e => { console.warn('Locations fetch error:', e); return []; }),
+        ProductAPI.getAll().catch(e => { console.warn('Products fetch error:', e); return []; })
       ]);
       setInventory(Array.isArray(inv) ? inv : []);
       setLocations(Array.isArray(locs) ? locs : []);
+      setProducts(Array.isArray(prods) ? prods : []);
     } finally {
       setLoading(false);
     }
@@ -140,18 +142,20 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const [rep, sales, dists, inqs, inv] = await Promise.all([
+      const [rep, sales, dists, inqs, inv, locs] = await Promise.all([
         ReportAPI.getSummary().catch(() => null),
         SalesAPI.getAllInvoices().catch(() => []),
         DistributorAPI.getAll().catch(() => []),
         InquiryAPI.getAll().catch(() => []),
-        InventoryAPI.getAll().catch(() => [])
+        InventoryAPI.getAll().catch(() => []),
+        InventoryAPI.getLocations().catch(() => [])
       ]);
       setReportSummary(rep);
       setInvoices(Array.isArray(sales) ? sales : []);
       setDistributors(Array.isArray(dists) ? dists : []);
       setInquiries(Array.isArray(inqs) ? inqs : []);
       setInventory(Array.isArray(inv) ? inv : []);
+      setLocations(Array.isArray(locs) ? locs : []);
     } finally {
       setLoading(false);
     }
@@ -193,12 +197,18 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
     switch (currentTab) {
       case 'products':
       case 'products_master':
-      case 'products_categories':
-      case 'products_packsizes':
-      case 'products_compliance':
       case 'prices':
       case 'pricing':
         fetchProducts();
+        break;
+      case 'products_categories':
+      case 'products_packsizes':
+      case 'products_compliance':
+      case 'products_territories':
+      case 'products_depots':
+      case 'territories':
+      case 'depots':
+        // Managed on-demand inside AdminProductsView per active subTab
         break;
       case 'offers':
         fetchPromotions();
@@ -225,8 +235,11 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
         // Static configuration, no remote dataset required
         break;
       case 'dashboard':
-      default:
+      case 'admin_dashboard':
         fetchDashboardOverview();
+        break;
+      default:
+        // Do not fetch all dashboard overview on unmapped routes
         break;
     }
   }, [currentTab]);
@@ -310,6 +323,7 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
           <AdminInventoryView
             inventory={inventory}
             locations={locations}
+            products={products}
             onRefresh={fetchInventory}
             onShowToast={showToast}
             exportToCSV={exportToCSV}
@@ -364,8 +378,10 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
             distributors={distributors}
             inquiries={inquiries}
             inventory={inventory}
+            locations={locations}
             exportToCSV={exportToCSV}
             onShowToast={showToast}
+            COMPANY_INFO={COMPANY_INFO}
           />
         );
 

@@ -18,10 +18,12 @@ export const ROUTES = [
   // Admin Routes - Product Master & Catalogue Sub-Routes
   { path: '/admin', role: 'admin', tab: 'admin_dashboard', exact: true, title: 'Master Plant & Operations Dashboard', crumbs: ['UltraBlue+', 'Ayush Green Energy', 'Admin Command Center'] },
   { path: '/admin/dashboard', role: 'admin', tab: 'admin_dashboard', title: 'Master Plant & Operations Dashboard', crumbs: ['UltraBlue+', 'Admin', 'Executive Dashboard'] },
-  { path: '/admin/products', role: 'admin', tab: 'admin_products_master', aliases: ['/admin/products/master', '/admin/catalogue', '/admin/catalog'], title: 'Product Master Catalogue & SKU Matrix', crumbs: ['UltraBlue+', 'Products Catalogue', 'Product Master'] },
-  { path: '/admin/products/categories', role: 'admin', tab: 'admin_products_categories', aliases: ['/admin/categories'], title: 'Product Categories & Industry Classifications', crumbs: ['UltraBlue+', 'Products Catalogue', 'Product Categories'] },
-  { path: '/admin/products/packsizes', role: 'admin', tab: 'admin_products_packsizes', aliases: ['/admin/packsizes', '/admin/pack-sizes'], title: 'Master Pack Sizes & Packaging Variants', crumbs: ['UltraBlue+', 'Products Catalogue', 'Pack Sizes & Variants'] },
-  { path: '/admin/products/compliance', role: 'admin', tab: 'admin_products_compliance', aliases: ['/admin/compliance', '/admin/standards'], title: 'ISO 22241 & BIS Quality Compliance', crumbs: ['UltraBlue+', 'Products Catalogue', 'ISO / BIS Compliance'] },
+  { path: '/admin/products', role: 'admin', tab: 'admin_products_master', aliases: ['/admin/products/master', '/admin/catalogue', '/admin/catalog', '/admin/master-data'], title: 'Master Data Configuration & Catalogue Matrix', crumbs: ['UltraBlue+', 'Master Data Config', 'Product Master'] },
+  { path: '/admin/products/categories', role: 'admin', tab: 'admin_products_categories', aliases: ['/admin/categories'], title: 'Product Categories & Industry Classifications', crumbs: ['UltraBlue+', 'Master Data Config', 'Product Categories'] },
+  { path: '/admin/products/packsizes', role: 'admin', tab: 'admin_products_packsizes', aliases: ['/admin/packsizes', '/admin/pack-sizes'], title: 'Master Pack Sizes & Packaging Variants', crumbs: ['UltraBlue+', 'Master Data Config', 'Pack Sizes & Variants'] },
+  { path: '/admin/products/compliance', role: 'admin', tab: 'admin_products_compliance', aliases: ['/admin/compliance', '/admin/standards'], title: 'ISO 22241 & BIS Quality Compliance', crumbs: ['UltraBlue+', 'Master Data Config', 'ISO / BIS Compliance'] },
+  { path: '/admin/products/territories', role: 'admin', tab: 'admin_products_territories', aliases: ['/admin/territories', '/admin/regions'], title: 'Master States & Regional Territories (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'States & Territories'] },
+  { path: '/admin/products/depots', role: 'admin', tab: 'admin_products_depots', aliases: ['/admin/depots-config', '/admin/stations'], title: 'Master Dispensing Depots & Hub Stations (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'Depots & Stations'] },
   { path: '/admin/pricing', role: 'admin', tab: 'admin_prices', aliases: ['/admin/prices', '/admin/pricing-engine'], title: 'Pricing Engine & Multi-Tier Wholesale Matrix', crumbs: ['UltraBlue+', 'Admin', 'Pricing Engine'] },
   { path: '/admin/offers', role: 'admin', tab: 'admin_offers', aliases: ['/admin/promotions', '/admin/deals'], title: 'Offers, Promotions & Broadcast Deals', crumbs: ['UltraBlue+', 'Admin', 'Offers & Promotions'] },
   { path: '/admin/distributors', role: 'admin', tab: 'admin_distributors', aliases: ['/admin/partners', '/admin/b2b'], title: 'Authorized B2B Distributor Accounts & KYC', crumbs: ['UltraBlue+', 'Admin', 'Distributor Accounts'] },
@@ -92,7 +94,14 @@ export const matchRoute = (pathname) => {
 
 export const getRouteForTab = (tabKey, role = null) => {
   if (tabKey) {
-    const found = ROUTES.find(r => r.tab === tabKey);
+    let normalized = tabKey;
+    if (normalized === 'admin_products' || normalized === 'products') normalized = 'admin_products_master';
+    if (normalized === 'admin_pricing' || normalized === 'pricing') normalized = 'admin_prices';
+    if (normalized === 'admin_inventory' || normalized === 'inventory') normalized = 'admin_inventory';
+    if (normalized === 'admin_sales' || normalized === 'sales') normalized = 'admin_sales';
+    if (normalized === 'admin_reports' || normalized === 'reports') normalized = 'admin_reports';
+
+    const found = ROUTES.find(r => r.tab === normalized);
     if (found) return found;
   }
   if (role) {

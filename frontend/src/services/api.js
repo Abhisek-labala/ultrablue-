@@ -198,24 +198,97 @@ export const InventoryAPI = {
     }));
   },
 
-  getLocations: async () => {
-    const res = await fetch(`${API_BASE_URL}/inventory/locations`, { headers });
-    const json = await res.json();
-    return json.data || [];
+  getLocations: async (includeAll = false) => {
+    try {
+      const url = includeAll ? `${API_BASE_URL}/inventory/locations?all=1` : `${API_BASE_URL}/inventory/locations`;
+      const res = await fetch(url, { headers });
+      const json = await res.json();
+      return json.data || [];
+    } catch {
+      return [];
+    }
   },
 
-  refillStock: async ({ locationId, sku, qty, batchNo }) => {
+  createLocation: async (locationData) => {
+    const res = await fetch(`${API_BASE_URL}/inventory/locations`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: locationData.name,
+        city: locationData.city,
+        state: locationData.state,
+        location_type: locationData.type || 'depot',
+        address: locationData.address,
+        pincode: locationData.pincode,
+        contact_phone: locationData.phone
+      })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to create depot location');
+    return json;
+  },
+
+  updateLocation: async (id, locationData) => {
+    const res = await fetch(`${API_BASE_URL}/inventory/locations/${id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        name: locationData.name,
+        city: locationData.city,
+        state: locationData.state,
+        address: locationData.address,
+        contact_phone: locationData.phone,
+        is_active: locationData.isActive
+      })
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update depot location');
+    return json;
+  },
+
+  toggleLocationStatus: async (id) => {
+    const res = await fetch(`${API_BASE_URL}/inventory/locations/${id}/toggle`, {
+      method: 'PATCH',
+      headers
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to toggle depot status');
+    return json;
+  },
+
+  deleteLocation: async (id) => {
+    const res = await fetch(`${API_BASE_URL}/inventory/locations/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+    return await res.json();
+  },
+
+  refill: async (params) => {
+    const locationId = params.location_id || params.locationId;
+    const sku = params.sku;
+    const qty = params.quantity || params.qty;
+    const batchNo = params.batch_number || params.batch_no || params.batchNo;
+
     const res = await fetch(`${API_BASE_URL}/inventory/refill`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         location_id: locationId,
-        sku,
-        quantity: parseInt(qty, 10),
-        batch_number: batchNo
+        sku: sku,
+        quantity: parseInt(qty),
+        batch_number: batchNo,
+        mfg_date: params.mfg_date || params.mfgDate,
+        expiry_date: params.exp_date || params.expiry_date || params.expDate
       })
     });
-    return await res.json();
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to process inventory refill');
+    return json;
+  },
+
+  refillStock: async (params) => {
+    return InventoryAPI.refill(params);
   }
 };
 
@@ -228,28 +301,43 @@ export const SalesAPI = {
     const json = await res.json();
     return (json.data || []).map(inv => ({
       id: inv.invoice_number || inv.id,
+      invoiceNumber: inv.invoice_number || inv.id,
       customerName: inv.customer_name,
       customerPhone: inv.customer_phone,
-      vehicleNo: inv.vehicle_number || 'Counter Sale',
+      vehicleNumber: inv.vehicle_number || inv.vehicleNo || '',
+      vehicleNo: inv.vehicle_number || inv.vehicleNo || 'Counter Sale',
       location: inv.location_name || 'Bhadrak Depot',
-      operatorName: inv.operator_name,
+      depotName: inv.location_name || 'Bhadrak Central Plant',
+      operatorName: inv.operator_name || 'Terminal POS',
       date: new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-      subtotal: parseFloat(inv.subtotal),
+      createdAt: new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+      subtotal: parseFloat(inv.subtotal || 0),
       discount: parseFloat(inv.discount_amount || 0),
-      taxable: parseFloat(inv.taxable_amount),
-      cgst: parseFloat(inv.cgst_amount),
-      sgst: parseFloat(inv.sgst_amount),
-      grandTotal: parseFloat(inv.grand_total),
-      paymentMethod: inv.payment_method,
-      paymentStatus: inv.payment_status,
+      taxable: parseFloat(inv.taxable_amount || inv.subtotal || 0),
+      cgst: parseFloat(inv.cgst_amount || 0),
+      sgst: parseFloat(inv.sgst_amount || 0),
+      taxAmount: parseFloat(inv.cgst_amount || 0) + parseFloat(inv.sgst_amount || 0),
+      grandTotal: parseFloat(inv.grand_total || 0),
+      paymentMethod: inv.payment_method || 'UPI / FastPay',
+      paymentStatus: inv.payment_status || 'PAID',
       smsSent: Boolean(inv.is_sms_sent),
-      items: Array.isArray(inv.items) ? inv.items.map(it => ({
-        name: `${it.product_name || 'Product'} (${it.pack_size || ''})`,
+      quantity: inv.items?.[0]?.quantity || 1,
+      quantityLiters: inv.items?.[0]?.quantity || 1,
+      productName: inv.items?.[0]?.product_name || 'UltraBlue+ AUS 32 DEF',
+      sku: inv.items?.[0]?.sku || 'UB-DEF-20L',
+      items: Array.isArray(inv.items) && inv.items.length > 0 ? inv.items.map(it => ({
+        name: `${it.product_name || 'UltraBlue+ DEF'} (${it.pack_size || ''})`,
         sku: it.sku,
         qty: it.quantity,
-        unitPrice: parseFloat(it.unit_price),
-        amount: parseFloat(it.line_total)
-      })) : []
+        unitPrice: parseFloat(it.unit_price || 0),
+        amount: parseFloat(it.line_total || 0)
+      })) : [{
+        name: inv.product_name || 'UltraBlue+ AUS 32 DEF (20L Canister)',
+        sku: inv.sku || 'UB-DEF-20L',
+        qty: inv.quantity || 1,
+        unitPrice: parseFloat(inv.grand_total || 1150) / 1.18,
+        amount: parseFloat(inv.grand_total || 1150) / 1.18
+      }]
     }));
   },
 
@@ -298,44 +386,74 @@ export const DistributorAPI = {
     return (json.data || []).map(d => ({
       id: d.id,
       name: d.company_name,
+      companyName: d.company_name,
       contactPerson: d.contact_person,
       phone: d.phone,
       email: d.email,
       gstin: d.gstin,
       city: d.territory_city,
-      state: d.territory_state,
-      tier: d.discount_tier || 'Gold Tier (15% Disc)',
+      state: d.territory_state || '',
+      tier: d.discount_tier || 'Authorized Distributor',
       creditLimit: `₹ ${parseFloat(d.credit_limit || 0).toLocaleString('en-IN')}`,
       rawCreditLimit: parseFloat(d.credit_limit || 0),
       accountStatus: d.account_status,
+      status: d.account_status,
       totalOrders: 0,
       totalPurchases: '₹ 0',
       joinedDate: new Date(d.created_at).toISOString().split('T')[0]
     }));
   },
 
-  createDirect: async (distData) => {
+  create: async (distData) => {
     const res = await fetch(`${API_BASE_URL}/distributors`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        company_name: distData.companyName,
-        contact_person: distData.contactPerson,
+        company_name: distData.companyName || distData.company_name,
+        contact_person: distData.contactPerson || distData.contact_person,
         phone: distData.phone,
         email: distData.email,
         gstin: distData.gstin,
-        territory_city: distData.city,
-        territory_state: distData.state || 'Odisha',
-        discount_tier: distData.tier || 'Gold Tier (15% Disc)',
-        credit_limit: parseFloat(distData.creditLimit || 500000),
-        password: distData.password || 'distributor123'
+        territory_city: distData.city || distData.territory_city,
+        territory_state: distData.state || distData.territory_state,
+        credit_limit: parseFloat(distData.creditLimit ?? distData.credit_limit),
+        password: distData.password || undefined
       })
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Error creating distributor account.');
+      const errMsg = json.message || (json.errors ? Object.values(json.errors).flat().join(' ') : 'Error creating distributor account.');
+      throw new Error(errMsg);
     }
     return json;
+  },
+
+  update: async (id, distData) => {
+    const res = await fetch(`${API_BASE_URL}/distributors/${id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        company_name: distData.companyName || distData.company_name,
+        contact_person: distData.contactPerson || distData.contact_person,
+        phone: distData.phone,
+        email: distData.email,
+        gstin: distData.gstin,
+        territory_city: distData.city || distData.territory_city,
+        territory_state: distData.state || distData.territory_state,
+        account_status: distData.accountStatus || distData.status,
+        credit_limit: parseFloat(distData.creditLimit ?? distData.rawCreditLimit)
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      const errMsg = json.message || (json.errors ? Object.values(json.errors).flat().join(' ') : 'Error updating distributor account.');
+      throw new Error(errMsg);
+    }
+    return json;
+  },
+
+  createDirect: async (distData) => {
+    return await DistributorAPI.create(distData);
   },
 
   register: async (distData) => {
@@ -343,13 +461,13 @@ export const DistributorAPI = {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        company_name: distData.companyName,
-        contact_person: distData.contactPerson,
+        company_name: distData.companyName || distData.company_name,
+        contact_person: distData.contactPerson || distData.contact_person,
         phone: distData.phone,
         email: distData.email,
         gstin: distData.gstin,
-        territory_city: distData.city,
-        territory_state: distData.state || 'Odisha'
+        territory_city: distData.city || distData.territory_city,
+        territory_state: distData.state || distData.territory_state
       })
     });
     const json = await res.json();
@@ -359,15 +477,15 @@ export const DistributorAPI = {
     return json;
   },
 
-  updateStatus: async (id, status, tier = 'Gold Tier (15% Disc)', creditLimit = 500000) => {
+  updateStatus: async (id, status, creditLimit) => {
+    const payload = { account_status: status };
+    if (creditLimit !== undefined && creditLimit !== null && !isNaN(creditLimit)) {
+      payload.credit_limit = parseFloat(creditLimit);
+    }
     const res = await fetch(`${API_BASE_URL}/distributors/${id}/status`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({
-        account_status: status,
-        discount_tier: tier,
-        credit_limit: creditLimit
-      })
+      body: JSON.stringify(payload)
     });
     return await res.json();
   }
@@ -699,4 +817,60 @@ export const ComplianceAPI = {
     return await res.json();
   }
 };
+
+export const TerritoryAPI = {
+  getAll: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/territories`, { headers });
+      const json = await res.json();
+      return json.grouped || {};
+    } catch {
+      return {};
+    }
+  },
+
+  getAllList: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/territories`, { headers });
+      const json = await res.json();
+      return json.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  create: async (stateOrData, cityArg) => {
+    const payload = typeof stateOrData === 'object'
+      ? { state: stateOrData.state, city: stateOrData.city, region_code: stateOrData.regionCode || stateOrData.region_code }
+      : { state: stateOrData, city: cityArg };
+    const res = await fetch(`${API_BASE_URL}/territories`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to save territory');
+    return json;
+  },
+
+  update: async (id, data) => {
+    const res = await fetch(`${API_BASE_URL}/territories/${id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Failed to update territory');
+    return json;
+  },
+
+  delete: async (id) => {
+    const res = await fetch(`${API_BASE_URL}/territories/${id}`, {
+      method: 'DELETE',
+      headers
+    });
+    return await res.json();
+  }
+};
+
 
