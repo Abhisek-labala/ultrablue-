@@ -42,19 +42,45 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_name' => 'required|string|max:150',
-            'customer_phone' => 'required|string|max:20',
-            'vehicle_number' => 'nullable|string|max:40',
+            'customer_name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:120',
+                'regex:/^[a-zA-Z0-9\s\.\,\-\&]+$/'
+            ],
+            'customer_phone' => [
+                'required',
+                'string',
+                'regex:/^(\+91[\-\s]?)?[6-9]\d{9}$/'
+            ],
+            'vehicle_number' => [
+                'nullable',
+                'string',
+                'max:30',
+                'regex:/^([A-Za-z]{2}[\s\-]?[0-9]{1,2}[\s\-]?[A-Za-z]{0,3}[\s\-]?[0-9]{4}|[0-9]{2}[\s\-]?BH[\s\-]?[0-9]{4}[\s\-]?[A-Za-z]{1,2}|Counter Sale|Direct Counter Sale)$/i'
+            ],
             'location_id' => 'required|uuid|exists:inventory_locations,id',
             'operator_name' => 'nullable|string|max:100',
             'items' => 'required|array|min:1',
             'items.*.sku' => 'required|string',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'payment_method' => 'nullable|string'
+            'discount_amount' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|string|max:50',
+            'coupon_code' => 'nullable|string|max:50',
+            'payment_method' => 'nullable|string',
+            'payment_ref' => 'nullable|string|max:100'
+        ], [
+            'customer_name.required' => 'Customer / Fleet Name is required.',
+            'customer_name.min' => 'Customer / Fleet Name must be at least 3 characters.',
+            'customer_name.regex' => 'Customer Name contains invalid characters.',
+            'customer_phone.required' => 'Customer Mobile is required for SMS receipt.',
+            'customer_phone.regex' => 'Please enter a valid 10-digit Indian mobile number (e.g. 9853675971 or +91 9853675971).',
+            'vehicle_number.regex' => 'Invalid vehicle registration format (e.g. OD05AX4892 or 22BH1234AA).'
         ]);
 
-        return DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated, $request) {
             $locationId = $validated['location_id'];
             $items = $validated['items'];
 
@@ -80,8 +106,17 @@ class InvoiceController extends Controller
                 }
             }
 
-            // 2. Dynamic Product-Wise GST Calculations (Inclusive vs Exclusive)
-            $subtotal = 0;
+            // 2. Dynamic Product-Wise GST Calculations (Inclusive vs Exclusive) with Discount Support
+            $rawSubtotal = 0;
+            foreach ($items as $i) {
+                $rawSubtotal += ($i['unit_price'] * $i['qty']);
+            }
+
+            $requestedDiscount = floatval($validated['discount_amount'] ?? $request->input('discount') ?? 0);
+            $finalDiscount = min($rawSubtotal, max(0, $requestedDiscount));
+            $discountRatio = $rawSubtotal > 0 ? ($finalDiscount / $rawSubtotal) : 0;
+
+            $subtotal = $rawSubtotal;
             $totalTaxable = 0;
             $totalCgst = 0;
             $totalSgst = 0;
@@ -89,7 +124,8 @@ class InvoiceController extends Controller
 
             foreach ($items as $i) {
                 $rawAmount = $i['unit_price'] * $i['qty'];
-                $subtotal += $rawAmount;
+                $lineDiscount = $rawAmount * $discountRatio;
+                $lineNet = max(0, $rawAmount - $lineDiscount);
 
                 $productInfo = DB::table('product_pack_variants')
                     ->join('products', 'product_pack_variants.product_id', '=', 'products.id')
@@ -101,14 +137,14 @@ class InvoiceController extends Controller
                 $isInclusive = ($productInfo && isset($productInfo->is_gst_inclusive)) ? (bool) $productInfo->is_gst_inclusive : true;
 
                 if ($isInclusive) {
-                    // MRP includes GST -> Extract base taxable
-                    $lineTaxable = $rawAmount / (1 + ($gstRate / 100));
-                    $lineGst = $rawAmount - $lineTaxable;
-                    $lineFinalTotal = $rawAmount;
+                    // MRP includes GST -> Extract base taxable from net line
+                    $lineTaxable = $lineNet / (1 + ($gstRate / 100));
+                    $lineGst = $lineNet - $lineTaxable;
+                    $lineFinalTotal = $lineNet;
                 } else {
-                    // MRP excludes GST -> Add GST on top
-                    $lineTaxable = $rawAmount;
-                    $lineGst = $rawAmount * ($gstRate / 100);
+                    // MRP excludes GST -> Add GST on top of net line
+                    $lineTaxable = $lineNet;
+                    $lineGst = $lineNet * ($gstRate / 100);
                     $lineFinalTotal = $lineTaxable + $lineGst;
                 }
 
@@ -124,23 +160,44 @@ class InvoiceController extends Controller
             $grandTotal = round($grandTotal, 2);
 
             $invoiceId = (string) Str::uuid();
-            $invoiceNumber = 'INV-2026-' . rand(1000, 9999);
+
+            // Dynamic Sequential Invoice Number: INVOICE-YY-0000001
+            $year = date('y');
+            $prefix = "INVOICE-{$year}-";
+
+            $latestInvoice = DB::table('invoices')
+                ->where('invoice_number', 'LIKE', "{$prefix}%")
+                ->orderByRaw("LENGTH(invoice_number) DESC, invoice_number DESC")
+                ->lockForUpdate()
+                ->value('invoice_number');
+
+            if ($latestInvoice && preg_match('/^INVOICE-\d{2}-(\d+)$/', $latestInvoice, $matches)) {
+                $nextIndex = ((int) $matches[1]) + 1;
+            } else {
+                $nextIndex = 1;
+            }
+
+            $invoiceNumber = $prefix . str_pad($nextIndex, 7, '0', STR_PAD_LEFT);
+
+            $basePaymentMethod = $validated['payment_method'] ?? 'Cash';
+            $paymentRef = !empty($validated['payment_ref']) ? trim($validated['payment_ref']) : null;
+            $finalPaymentMethod = $paymentRef ? "{$basePaymentMethod} (UTR: {$paymentRef})" : $basePaymentMethod;
 
             DB::table('invoices')->insert([
                 'id' => $invoiceId,
                 'invoice_number' => $invoiceNumber,
                 'location_id' => $locationId,
-                'operator_name' => !empty($validated['operator_name']) ?: $validated['operator_name'],
+                'operator_name' => !empty($validated['operator_name']) ? $validated['operator_name'] : null,
                 'customer_name' => $validated['customer_name'],
                 'customer_phone' => $validated['customer_phone'],
                 'vehicle_number' => $validated['vehicle_number'],
-                'subtotal' => $subtotal,
-                'discount_amount' => 0.00,
+                'subtotal' => round($subtotal, 2),
+                'discount_amount' => round($finalDiscount, 2),
                 'taxable_amount' => $taxable,
                 'cgst_amount' => $cgst,
                 'sgst_amount' => $sgst,
                 'grand_total' => $grandTotal,
-                'payment_method' => $validated['payment_method'],
+                'payment_method' => $finalPaymentMethod,
                 'payment_status' => 'PAID',
                 'is_sms_sent' => true,
                 'created_at' => now(),

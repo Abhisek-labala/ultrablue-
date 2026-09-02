@@ -37,10 +37,10 @@
   --bg-surface-tertiary: #E8EEF5;
   --bg-overlay: rgba(6, 20, 47, 0.6);
 
-  /* --- Text & Typography --- */
-  --text-primary: #172033;
-  --text-secondary: #5F6B7A;
-  --text-muted: #8E9BAE;
+  /* --- Text & Typography (High Contrast Enterprise Grade) --- */
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
   --text-on-dark: #FFFFFF;
   --text-on-dark-secondary: #CBD5E1;
   --text-link: #008FE0;

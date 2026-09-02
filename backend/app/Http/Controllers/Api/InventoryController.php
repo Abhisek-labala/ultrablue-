@@ -9,9 +9,9 @@ use Illuminate\Support\Str;
 
 class InventoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $batches = DB::table('inventory_batches')
+        $query = DB::table('inventory_batches')
             ->join('inventory_locations', 'inventory_batches.location_id', '=', 'inventory_locations.id')
             ->join('product_pack_variants', 'inventory_batches.variant_id', '=', 'product_pack_variants.id')
             ->join('products', 'product_pack_variants.product_id', '=', 'products.id')
@@ -21,8 +21,19 @@ class InventoryController extends Controller
                 'product_pack_variants.sku',
                 'product_pack_variants.pack_size',
                 'products.name as product_name'
-            )
-            ->get();
+            );
+
+        if ($request->filled('location_id')) {
+            $query->where('inventory_batches.location_id', $request->input('location_id'));
+        }
+        if ($request->filled('location_name')) {
+            $query->where('inventory_locations.name', 'ILIKE', '%' . $request->input('location_name') . '%');
+        }
+        if ($request->filled('assigned_depot')) {
+            $query->where('inventory_locations.name', 'ILIKE', '%' . $request->input('assigned_depot') . '%');
+        }
+
+        $batches = $query->get();
 
         return response()->json(['success' => true, 'data' => $batches]);
     }
@@ -32,6 +43,9 @@ class InventoryController extends Controller
         $query = DB::table('inventory_locations');
         if (!$request->has('all')) {
             $query->where('is_active', true);
+        }
+        if ($request->filled('assigned_depot')) {
+            $query->where('name', 'ILIKE', '%' . $request->input('assigned_depot') . '%');
         }
         $locations = $query->orderBy('name', 'asc')->get();
         return response()->json(['success' => true, 'data' => $locations]);

@@ -72,7 +72,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .page-body {
@@ -394,4 +394,60 @@ a:hover {
 
 .animate-pulse {
   animation: pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ==========================================================================
+   PRINT MEDIA STYLES (Single Page A4 Tax Invoice)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html, body {
+    background-color: #FFFFFF !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide background elements, navigation, sidebars, headers, app layouts */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Exclusively reveal printable invoice container */
+  .printable-invoice-container,
+  .printable-invoice-container * {
+    visibility: visible !important;
+  }
+
+  .printable-invoice-container {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 16px 20px !important;
+    border: 1.5px solid #0056D2 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Suppress browser default chrome */
+  nav, aside, header, footer, button, .modal-overlay, .ub-modal-backdrop {
+    display: none !important;
+  }
 }

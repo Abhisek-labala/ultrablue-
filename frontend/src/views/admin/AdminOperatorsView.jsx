@@ -20,6 +20,7 @@ import { Modal } from '../../components/ui/Modal';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { OperatorAPI, InventoryAPI, TerritoryAPI } from '../../services/api';
+import { ROLES, ROLE_LABELS } from '../../config/roles';
 
 // Validation helpers
 const validateEmail = (email) => {
@@ -365,9 +366,10 @@ export const AdminOperatorsView = ({
         name: newOperatorForm.name.trim(),
         email: newOperatorForm.email.trim().toLowerCase(),
         phone: newOperatorForm.phone.trim().replace(/\D/g, ''),
+        assignedDepot: finalDepot,
         assigned_depot: finalDepot,
         password: newOperatorForm.password,
-        role: 'operator'
+        role: ROLES.OPERATOR
       });
 
       if (onShowToast) onShowToast(`Sales Operator "${newOperatorForm.name}" created and assigned to ${finalDepot}!`);
@@ -491,7 +493,7 @@ export const AdminOperatorsView = ({
             accessor: 'role',
             render: (val) => (
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-blue)' }}>
-                {String(val || 'Operator').toUpperCase()}
+                {ROLE_LABELS[val] || 'Sales Operator'}
               </span>
             )
           },
@@ -501,7 +503,7 @@ export const AdminOperatorsView = ({
             render: (val) => (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <MapPin size={14} color="var(--brand-cyan)" />
-                <span style={{ fontSize: '12px', fontWeight: 600 }}>{val || 'General Plant Depot'}</span>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>{val || 'Not Assigned'}</span>
               </div>
             )
           },

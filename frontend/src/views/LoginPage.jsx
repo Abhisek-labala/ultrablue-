@@ -22,6 +22,7 @@ import {
   LogIn
 } from 'lucide-react';
 import { AuthAPI } from '../services/api';
+import { ROLES, ROLE_LABELS } from '../config/roles';
 
 // JWT Helper utility to generate, decode and verify tokens
 export const JWT_AUTH = {
@@ -34,7 +35,9 @@ export const JWT_AUTH = {
       name: user.name,
       role: user.role,
       permissions: user.permissions || [user.role],
-      organization: user.organization || 'Ayush Green Energy',
+      organization: user.organization || user.assignedDepot || '',
+      assignedDepot: user.assignedDepot || user.organization || '',
+      assigned_depot: user.assigned_depot || user.assignedDepot || user.organization || '',
       iat: now,
       exp: now + (24 * 60 * 60) // 24 hours validity
     })).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -93,8 +96,8 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   // Auth Mode: 'login' | 'register'
   const [authMode, setAuthMode] = useState('login');
 
-  // Role: 'distributor' | 'operator' | 'admin'
-  const [selectedRole, setSelectedRole] = useState('distributor');
+  // Fixed Platform Roles: Admin, Sales Operator, Distributor
+  const [selectedRole, setSelectedRole] = useState(ROLES.DISTRIBUTOR);
 
   // Login Form State
   const [email, setEmail] = useState('');
@@ -125,15 +128,15 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   };
 
   const ROLE_DETAILS = {
-    distributor: {
+    [ROLES.DISTRIBUTOR]: {
       title: 'Authorized B2B Partner',
       description: 'Factory direct orders, live tanker dispatch tracking, credit statement ledger'
     },
-    operator: {
+    [ROLES.OPERATOR]: {
       title: 'Sales & Plant POS Operator',
       description: 'Real-time retail billing, thermal GST receipts, dispensing nozzle counter'
     },
-    admin: {
+    [ROLES.ADMIN]: {
       title: 'Super Administrator',
       description: 'Master inventory, plant telemetry, CoA certificate signing & ERP ledger'
     }
@@ -431,9 +434,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
             }}
           >
             {[
-              { id: 'distributor', label: 'DISTRIBUTOR', icon: UserCheck },
-              { id: 'operator', label: 'SALES OPERATOR', icon: Store },
-              ...(authMode === 'login' ? [{ id: 'admin', label: 'ADMIN', icon: Building2 }] : [])
+              { id: ROLES.DISTRIBUTOR, label: 'DISTRIBUTOR', icon: UserCheck },
+              { id: ROLES.OPERATOR, label: 'SALES OPERATOR', icon: Store },
+              ...(authMode === 'login' ? [{ id: ROLES.ADMIN, label: 'ADMIN', icon: Building2 }] : [])
             ].map(tab => {
               const isActive = selectedRole === tab.id;
               return (

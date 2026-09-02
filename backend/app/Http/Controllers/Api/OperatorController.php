@@ -32,9 +32,9 @@ class OperatorController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'phone' => $user->phone ?: '+91 9853675971',
-                    'assignedDepot' => $user->organization ?: 'Bhadrak Central Depot & Factory Plant',
-                    'status' => $user->status ?: 'ACTIVE',
+                    'phone' => $user->phone,
+                    'assignedDepot' => $user->organization,
+                    'status' => $user->status,
                     'totalInvoices' => $invoiceCount,
                     'totalSales' => (float) $totalSales,
                     'joinedDate' => $user->created_at ? $user->created_at->format('Y-m-d') : date('Y-m-d'),
@@ -56,10 +56,13 @@ class OperatorController extends Controller
             'name' => 'required|string|min:3|max:100',
             'email' => 'required|email|max:150|unique:users,email',
             'phone' => 'required|string|min:10|max:20',
-            'assignedDepot' => 'required|string|max:200',
+            'assignedDepot' => 'nullable|string|max:200',
+            'assigned_depot' => 'nullable|string|max:200',
             'password' => 'required|string|min:4',
             'status' => 'nullable|string|in:ACTIVE,SUSPENDED'
         ]);
+
+        $assignedDepot = $request->input('assignedDepot') ?? $request->input('assigned_depot');
 
         $user = User::create([
             'name' => $validated['name'],
@@ -67,7 +70,7 @@ class OperatorController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => 'operator',
             'phone' => $validated['phone'],
-            'organization' => $validated['assignedDepot'],
+            'organization' => $assignedDepot,
             'status' => $validated['status'] ?? 'ACTIVE'
         ]);
 
@@ -114,9 +117,10 @@ class OperatorController extends Controller
      */
     public function updateLocation(Request $request, $id)
     {
-        $validated = $request->validate([
-            'assignedDepot' => 'required|string|max:200'
-        ]);
+        $depot = $request->input('assignedDepot') ?? $request->input('assigned_depot');
+        if (!$depot) {
+            return response()->json(['success' => false, 'message' => 'Assigned depot is required.'], 422);
+        }
 
         $user = User::where('id', $id)->where('role', 'operator')->first();
 
@@ -124,12 +128,12 @@ class OperatorController extends Controller
             return response()->json(['success' => false, 'message' => 'Operator not found.'], 404);
         }
 
-        $user->organization = $validated['assignedDepot'];
+        $user->organization = $depot;
         $user->save();
 
         return response()->json([
             'success' => true,
-            'message' => "Operator {$user->name} reassigned to {$validated['assignedDepot']}."
+            'message' => "Operator {$user->name} reassigned to {$depot}."
         ]);
     }
 

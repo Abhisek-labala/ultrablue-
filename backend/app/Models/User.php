@@ -13,6 +13,23 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    // Fixed platform roles: Admin, Sales Operator, Distributor
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_OPERATOR = 'operator';
+    public const ROLE_DISTRIBUTOR = 'distributor';
+
+    public const FIXED_ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_OPERATOR,
+        self::ROLE_DISTRIBUTOR,
+    ];
+
+    public const ROLE_LABELS = [
+        self::ROLE_ADMIN => 'Admin',
+        self::ROLE_OPERATOR => 'Sales Operator',
+        self::ROLE_DISTRIBUTOR => 'Distributor',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *

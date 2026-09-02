@@ -13,6 +13,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { ROLES, ROLE_LABELS } from '../../config/roles';
 
 export const AppHeader = ({
   title = 'Dashboard',
@@ -73,23 +74,11 @@ export const AppHeader = ({
     return cleanName.substring(0, 2).toUpperCase();
   };
 
-  const displayName = authUser?.name || (
-    currentRole === 'admin' ? 'Administrator' :
-    currentRole === 'operator' || currentRole === 'android_pos' ? 'Sales Operator' :
-    'Distributor Partner'
-  );
+  const displayName = authUser?.name || ROLE_LABELS[currentRole] || '';
 
-  const displayEmail = authUser?.email || (
-    currentRole === 'admin' ? 'admin@ultrablueplus.com' :
-    currentRole === 'operator' || currentRole === 'android_pos' ? 'operator@ultrablueplus.com' :
-    'distributor@ultrablueplus.com'
-  );
+  const displayEmail = authUser?.email || '';
 
-  const displayOrg = authUser?.title || authUser?.organization || (
-    currentRole === 'admin' ? 'Ayush Green Energy' :
-    currentRole === 'operator' || currentRole === 'android_pos' ? 'Sales Terminal Desk' :
-    'Authorized B2B Partner'
-  );
+  const displayOrg = authUser?.assignedDepot || authUser?.organization || authUser?.title || '';
 
   const initials = getInitials(displayName);
 
@@ -106,7 +95,8 @@ export const AppHeader = ({
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        gap: 'var(--space-4)'
+        gap: 'var(--space-4)',
+        boxShadow: 'var(--shadow-sm)'
       }}
     >
       {/* Left: Breadcrumbs & Title */}

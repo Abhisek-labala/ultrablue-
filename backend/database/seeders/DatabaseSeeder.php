@@ -35,7 +35,19 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('operator123'),
                 'role' => 'operator',
                 'phone' => '+91 8328826667',
-                'organization' => 'Bhadrak Depot Dispenser #01',
+                'organization' => 'Rourkela Mining & Heavy Fleet Depot',
+                'status' => 'ACTIVE'
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'prakash.pos@ultrablueplus.com'],
+            [
+                'name' => 'Prakash Jena',
+                'password' => Hash::make('operator123'),
+                'role' => 'operator',
+                'phone' => '+91 9437223344',
+                'organization' => 'Cuttack National Highway Hub (NH-16)',
                 'status' => 'ACTIVE'
             ]
         );

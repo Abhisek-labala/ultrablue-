@@ -6,9 +6,9 @@ import { PublicWebsite } from './views/PublicWebsite';
 import { LoginPage, JWT_AUTH } from './views/LoginPage';
 import { DistributorPortal } from './views/DistributorPortal';
 import { SalesOperatorTerminal } from './views/SalesOperatorTerminal';
-import { MobileOperatorApp } from './views/MobileOperatorApp';
 import { AdminDashboard } from './views/AdminDashboard';
 import { PromotionAPI } from './services/api';
+import { ROLES } from './config/roles';
 import './styles/tokens.css';
 import './styles/base.css';
 
@@ -56,9 +56,6 @@ export const ROUTES = [
   { path: '/design-system/components', role: 'design_system', tab: 'ds_components', title: 'Standardized Component Primitives & UI Atoms', crumbs: ['UltraBlue+', 'Design System', 'Component Primitives'] },
   { path: '/design-system/feedback', role: 'design_system', tab: 'ds_feedback', title: 'Feedback, Skeleton & Error State Guidelines', crumbs: ['UltraBlue+', 'Design System', 'Feedback States'] },
 
-  // Mobile App Simulator
-  { path: '/android-pos', role: 'android_pos', tab: 'mobile_pos', aliases: ['/mobile-pos'], title: 'Android Sales POS App Simulator (React Native)', crumbs: ['UltraBlue+', 'Android App (React Native)', 'Touch POS Terminal'] },
-
   // Login
   { path: '/login', role: 'login', tab: 'login', aliases: ['/signin', '/register', '/auth'], title: 'Enterprise Security Portal Login', crumbs: ['UltraBlue+', 'Enterprise Security', 'JWT Login'] },
 
@@ -86,7 +83,6 @@ export const matchRoute = (pathname) => {
   if (clean.includes('distributor') || clean.includes('portal')) return ROUTES.find(r => r.tab === 'dist_catalog');
   if (clean.includes('operator') || clean.includes('pos')) return ROUTES.find(r => r.tab === 'pos_billing');
   if (clean.includes('design') || clean.includes('token')) return ROUTES.find(r => r.tab === 'ds_preview');
-  if (clean.includes('android')) return ROUTES.find(r => r.tab === 'mobile_pos');
   if (clean.includes('login') || clean.includes('signin')) return ROUTES.find(r => r.tab === 'login');
 
   return ROUTES[ROUTES.length - 1]; // Public Website
@@ -185,11 +181,10 @@ export function App() {
   // Role switch handler
   const handleRoleChange = (newRole, updateUrl = true) => {
     let defaultTab = 'public_home';
-    if (newRole === 'admin') defaultTab = 'admin_dashboard';
-    else if (newRole === 'distributor') defaultTab = 'dist_catalog';
-    else if (newRole === 'operator') defaultTab = 'pos_billing';
+    if (newRole === ROLES.ADMIN) defaultTab = 'admin_dashboard';
+    else if (newRole === ROLES.DISTRIBUTOR) defaultTab = 'dist_catalog';
+    else if (newRole === ROLES.OPERATOR) defaultTab = 'pos_billing';
     else if (newRole === 'design_system') defaultTab = 'ds_preview';
-    else if (newRole === 'android_pos') defaultTab = 'mobile_pos';
     else if (newRole === 'login') defaultTab = 'login';
     else if (newRole === 'public') defaultTab = 'public_home';
 
@@ -241,15 +236,14 @@ export function App() {
   return (
     <div className="app-container">
       {/* Sidebar for Internal Applications */}
-      {currentRole !== 'android_pos' && (
-        <AppSidebar
-          currentRole={currentRole}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
-      )}
+      <AppSidebar
+        currentRole={currentRole}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        authUser={authUser}
+      />
 
       {/* Main Content Area */}
       <div className="main-content-wrapper">
@@ -282,26 +276,21 @@ export function App() {
               onTabChange={handleTabChange}
             />
           )}
-          {currentRole === 'distributor' && (
+          {currentRole === ROLES.DISTRIBUTOR && (
             <DistributorPortal
               authUser={authUser}
               activeTab={activeTab}
               onTabChange={handleTabChange}
             />
           )}
-          {currentRole === 'operator' && (
+          {currentRole === ROLES.OPERATOR && (
             <SalesOperatorTerminal
               authUser={authUser}
               activeTab={activeTab}
               onTabChange={handleTabChange}
             />
           )}
-          {currentRole === 'android_pos' && (
-            <MobileOperatorApp
-              authUser={authUser}
-            />
-          )}
-          {currentRole === 'admin' && (
+          {currentRole === ROLES.ADMIN && (
             <AdminDashboard
               authUser={authUser}
               activeTab={activeTab}

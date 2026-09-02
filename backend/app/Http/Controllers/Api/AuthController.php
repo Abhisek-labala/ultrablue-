@@ -83,8 +83,11 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'title' => $user->role === 'admin' ? 'Super Administrator' : ($user->role === 'operator' ? 'Plant POS Operator' : 'Authorized Gold Distributor'),
-            'organization' => $user->organization ?: 'Ayush Green Energy',
+            'title' => User::ROLE_LABELS[$user->role] ?? 'User',
+            'organization' => $user->organization,
+            'assignedDepot' => $user->organization,
+            'assigned_depot' => $user->organization,
+            'stationDepot' => $user->organization,
             'phone' => $user->phone,
             'permissions' => [$user->role]
         ];
@@ -184,8 +187,11 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'title' => $role === 'distributor' ? 'Authorized Distributor' : 'Sales POS Operator',
+            'title' => User::ROLE_LABELS[$role] ?? 'User',
             'organization' => $user->organization,
+            'assignedDepot' => $user->organization,
+            'assigned_depot' => $user->organization,
+            'stationDepot' => $user->organization,
             'phone' => $user->phone,
             'permissions' => [$role]
         ];
@@ -222,6 +228,17 @@ class AuthController extends Controller
                 'status' => 'error',
                 'message' => 'Invalid or expired JWT token'
             ], 401);
+        }
+
+        if (!empty($payload['sub'])) {
+            $dbUser = User::find($payload['sub']);
+            if ($dbUser) {
+                $payload['organization'] = $dbUser->organization;
+                $payload['assignedDepot'] = $dbUser->organization;
+                $payload['assigned_depot'] = $dbUser->organization;
+                $payload['stationDepot'] = $dbUser->organization;
+                $payload['status'] = $dbUser->status;
+            }
         }
 
         return response()->json([

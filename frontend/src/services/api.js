@@ -20,26 +20,26 @@ export const ProductAPI = {
       return json.data.map(p => ({
         id: p.id,
         name: p.name,
-        category: p.category_name || p.category || 'Diesel Exhaust Fluid',
-        subCategory: p.viscosity_grade || p.category_name || 'Industrial Fluid',
+        category: p.category_name || p.category || '',
+        subCategory: p.viscosity_grade || p.category_name || '',
         description: p.description || '',
-        imageUrl: p.image_url || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
-        badge: p.badge || 'ISO 22241 Certified',
+        imageUrl: p.image_url || '',
+        badge: p.badge || '',
         offerTag: p.offer_tag || null,
         offerDiscount: p.offer_discount || null,
         isiMarked: Boolean(p.is_isi_marked),
         bisCompliant: Boolean(p.is_bis_compliant),
-        isiNumber: p.isi_number || 'IS 17042:2018',
-        bisLicence: p.bis_licence || 'CM/L-84001923',
-        isoStandard: p.iso_standard || 'ISO 22241-1',
-        ureaContent: p.urea_content || '32.5% ± 0.7%',
-        density: p.density || '1.090 g/cm³',
-        metals: p.metals || '< 0.05 ppm',
-        insolubles: p.insolubles || '≤ 5 mg/kg',
-        viscosityGrade: p.viscosity_grade || 'AUS 32',
-        flashPoint: p.flash_point || 'N/A',
-        oemApprovals: p.oem_approvals || 'Tata Motors, Ashok Leyland, BharatBenz, JCB, Cummins, Volvo',
-        hsnCode: p.hsn_code || '31021000',
+        isiNumber: p.isi_number || '',
+        bisLicence: p.bis_licence || '',
+        isoStandard: p.iso_standard || '',
+        ureaContent: p.urea_content || '',
+        density: p.density || '',
+        metals: p.metals || '',
+        insolubles: p.insolubles || '',
+        viscosityGrade: p.viscosity_grade || '',
+        flashPoint: p.flash_point || '',
+        oemApprovals: p.oem_approvals || '',
+        hsnCode: p.hsn_code || '',
         gstRate: parseFloat(p.gst_rate) || 18,
         isGstInclusive: p.is_gst_inclusive !== undefined ? Boolean(p.is_gst_inclusive) : true,
         features: Array.isArray(p.features) ? p.features : (p.features_json ? JSON.parse(p.features_json) : []),
@@ -302,15 +302,15 @@ export const SalesAPI = {
     return (json.data || []).map(inv => ({
       id: inv.invoice_number || inv.id,
       invoiceNumber: inv.invoice_number || inv.id,
-      customerName: inv.customer_name,
-      customerPhone: inv.customer_phone,
+      customerName: inv.customer_name || '',
+      customerPhone: inv.customer_phone || '',
       vehicleNumber: inv.vehicle_number || inv.vehicleNo || '',
-      vehicleNo: inv.vehicle_number || inv.vehicleNo || 'Counter Sale',
-      location: inv.location_name || 'Bhadrak Depot',
-      depotName: inv.location_name || 'Bhadrak Central Plant',
-      operatorName: inv.operator_name || 'Terminal POS',
-      date: new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-      createdAt: new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+      vehicleNo: inv.vehicle_number || inv.vehicleNo || '',
+      location: inv.location_name || '',
+      depotName: inv.location_name || '',
+      operatorName: inv.operator_name || '',
+      date: inv.created_at ? new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
+      createdAt: inv.created_at ? new Date(inv.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '',
       subtotal: parseFloat(inv.subtotal || 0),
       discount: parseFloat(inv.discount_amount || 0),
       taxable: parseFloat(inv.taxable_amount || inv.subtotal || 0),
@@ -318,26 +318,20 @@ export const SalesAPI = {
       sgst: parseFloat(inv.sgst_amount || 0),
       taxAmount: parseFloat(inv.cgst_amount || 0) + parseFloat(inv.sgst_amount || 0),
       grandTotal: parseFloat(inv.grand_total || 0),
-      paymentMethod: inv.payment_method || 'UPI / FastPay',
+      paymentMethod: inv.payment_method || '',
       paymentStatus: inv.payment_status || 'PAID',
       smsSent: Boolean(inv.is_sms_sent),
-      quantity: inv.items?.[0]?.quantity || 1,
-      quantityLiters: inv.items?.[0]?.quantity || 1,
-      productName: inv.items?.[0]?.product_name || 'UltraBlue+ AUS 32 DEF',
-      sku: inv.items?.[0]?.sku || 'UB-DEF-20L',
+      quantity: inv.items?.[0]?.quantity || 0,
+      quantityLiters: inv.items?.[0]?.quantity || 0,
+      productName: inv.items?.[0]?.product_name || '',
+      sku: inv.items?.[0]?.sku || '',
       items: Array.isArray(inv.items) && inv.items.length > 0 ? inv.items.map(it => ({
-        name: `${it.product_name || 'UltraBlue+ DEF'} (${it.pack_size || ''})`,
-        sku: it.sku,
-        qty: it.quantity,
+        name: it.product_name ? `${it.product_name}${it.pack_size ? ` (${it.pack_size})` : ''}` : '',
+        sku: it.sku || '',
+        qty: parseInt(it.quantity, 10) || 0,
         unitPrice: parseFloat(it.unit_price || 0),
         amount: parseFloat(it.line_total || 0)
-      })) : [{
-        name: inv.product_name || 'UltraBlue+ AUS 32 DEF (20L Canister)',
-        sku: inv.sku || 'UB-DEF-20L',
-        qty: inv.quantity || 1,
-        unitPrice: parseFloat(inv.grand_total || 1150) / 1.18,
-        amount: parseFloat(inv.grand_total || 1150) / 1.18
-      }]
+      })) : []
     }));
   },
 
@@ -348,7 +342,11 @@ export const SalesAPI = {
     locationId,
     operatorName,
     items,
-    paymentMethod = 'UPI'
+    discountAmount = 0,
+    discountType = 'none',
+    couponCode = null,
+    paymentMethod = 'UPI',
+    paymentRef = ''
   }) => {
     const res = await fetch(`${API_BASE_URL}/invoices/create`, {
       method: 'POST',
@@ -359,12 +357,16 @@ export const SalesAPI = {
         vehicle_number: vehicleNo,
         location_id: locationId,
         operator_name: operatorName,
+        discount_amount: parseFloat(discountAmount) || 0,
+        discount_type: discountType,
+        coupon_code: couponCode,
         items: items.map(i => ({
           sku: i.sku,
           qty: parseInt(i.qty, 10),
           unit_price: parseFloat(i.unitPrice)
         })),
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        payment_ref: paymentRef
       })
     });
 
@@ -391,9 +393,9 @@ export const DistributorAPI = {
       phone: d.phone,
       email: d.email,
       gstin: d.gstin,
-      city: d.territory_city,
+      city: d.territory_city || '',
       state: d.territory_state || '',
-      tier: d.discount_tier || 'Authorized Distributor',
+      tier: d.discount_tier || '',
       creditLimit: `₹ ${parseFloat(d.credit_limit || 0).toLocaleString('en-IN')}`,
       rawCreditLimit: parseFloat(d.credit_limit || 0),
       accountStatus: d.account_status,
@@ -535,13 +537,17 @@ export const OperatorAPI = {
     const res = await fetch(`${API_BASE_URL}/operators/${id}/location`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ assignedDepot })
+      body: JSON.stringify({ assignedDepot, assigned_depot: assignedDepot })
     });
     const json = await res.json();
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Failed to update operator location.');
     }
     return json;
+  },
+
+  reassignDepot: async (id, assignedDepot) => {
+    return await OperatorAPI.updateLocation(id, assignedDepot);
   },
 
   resetPin: async (id, newPin) => {
@@ -605,8 +611,8 @@ export const InquiryAPI = {
         phone: inqData.phone,
         email: inqData.email || null,
         location: inqData.location,
-        product_requested: inqData.packagingNeeded || inqData.product || 'UltraBlue+ DEF',
-        estimated_quantity: inqData.quantity || '500 Litres',
+        product_requested: inqData.packagingNeeded || inqData.product || '',
+        estimated_quantity: inqData.quantity || '',
         message: inqData.message || null
       })
     });

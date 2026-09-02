@@ -29,13 +29,15 @@ import {
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { COMPANY_INFO } from '../../config/companyInfo';
+import { ROLES } from '../../config/roles';
 
 export const AppSidebar = ({
   currentRole = 'admin',
   activeTab = 'dashboard',
   onTabChange,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  authUser = null
 }) => {
   // Track open/collapsed submenu groups (Closed by default as requested)
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -47,7 +49,7 @@ export const AppSidebar = ({
   // Define navigation items grouped by role
   const getNavItems = () => {
     switch (currentRole) {
-      case 'operator':
+      case ROLES.OPERATOR:
         return [
           { id: 'pos_billing', label: 'Fast Sales POS', icon: ShoppingCart, badge: 'Active' },
           { id: 'stock_check', label: 'Live Stock Check', icon: Warehouse },
@@ -55,7 +57,7 @@ export const AppSidebar = ({
           { id: 'shift_summary', label: 'Shift Summary', icon: TrendingUp }
         ];
 
-      case 'distributor':
+      case ROLES.DISTRIBUTOR:
         return [
           { id: 'dist_dashboard', label: 'B2B Dashboard', icon: LayoutDashboard },
           { id: 'dist_catalog', label: 'Tier Price Catalogue', icon: Package, badge: 'Gold 15%' },
@@ -366,10 +368,12 @@ export const AppSidebar = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand-gold)', fontWeight: 700, marginBottom: '4px' }}>
             <PhoneCall size={13} />
-            <span>Ayush Green Energy Helpline</span>
+            <span>{COMPANY_INFO.name} Helpline</span>
           </div>
           <p style={{ color: 'var(--text-on-dark-secondary)', margin: '0 0 6px 0', lineHeight: 1.3 }}>
-            Bhadrak Plant 24/7 Dispatch Desk:
+            {(currentRole === ROLES.OPERATOR && (authUser?.assignedDepot || authUser?.organization))
+              ? `${(authUser?.assignedDepot || authUser?.organization)} Dispatch Desk:`
+              : '24/7 Dispatch Desk:'}
           </p>
           <strong style={{ color: '#FFFFFF', fontSize: '12px', letterSpacing: '0.02em' }}>
             {COMPANY_INFO.salesHotline}
