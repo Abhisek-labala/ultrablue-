@@ -296,8 +296,19 @@ export const InventoryAPI = {
 // 3. SALES POS INVOICES API (Strict Anti-Overbill)
 // ----------------------------------------------------
 export const SalesAPI = {
-  getAllInvoices: async () => {
-    const res = await fetch(`${API_BASE_URL}/invoices`, { headers });
+  getAllInvoices: async (params = {}) => {
+    let url = `${API_BASE_URL}/invoices`;
+    const searchParams = new URLSearchParams();
+    if (params.distributorPhone) searchParams.append('distributor_phone', params.distributorPhone);
+    if (params.distributorCompany) searchParams.append('distributor_company', params.distributorCompany);
+    if (params.distributorName) searchParams.append('distributor_name', params.distributorName);
+    if (params.customerPhone) searchParams.append('phone', params.customerPhone);
+    if (params.customerName) searchParams.append('customer_name', params.customerName);
+
+    const qs = searchParams.toString();
+    if (qs) url += `?${qs}`;
+
+    const res = await fetch(url, { headers });
     const json = await res.json();
     return (json.data || []).map(inv => ({
       id: inv.invoice_number || inv.id,

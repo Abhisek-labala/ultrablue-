@@ -28,12 +28,14 @@ import { DataTable } from '../components/ui/DataTable';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Modal } from '../components/ui/Modal';
 import { Input, Select } from '../components/ui/Input';
+import { InvoiceModal } from '../components/ui/InvoiceModal';
 import { 
   DistributorAPI, 
   SalesAPI, 
   InventoryAPI, 
   ProductAPI,
-  exportToCSV
+  exportToCSV,
+  API_BASE_URL
 } from '../services/api';
 
 export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChange }) => {
@@ -49,6 +51,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const [activeInvoiceModal, setActiveInvoiceModal] = useState(null);
   const [selectedProductForOrder, setSelectedProductForOrder] = useState(null);
   const [selectedPackSku, setSelectedPackSku] = useState('');
   const [orderQuantity, setOrderQuantity] = useState(20);
@@ -65,6 +68,113 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   });
 
   const [distributorOrders, setDistributorOrders] = useState([]);
+
+  // Derive current distributor details from authUser and distributor_profiles
+  const matchedProfile = (distributors || []).find(d => 
+    (d.email && authUser?.email && d.email.toLowerCase() === authUser.email.toLowerCase()) ||
+    (d.phone && authUser?.phone && d.phone.replace(/\D/g, '').slice(-10) === authUser.phone.replace(/\D/g, '').slice(-10)) ||
+    (d.company_name && authUser?.organization && d.company_name.toLowerCase() === authUser.organization.toLowerCase())
+  );
+
+  const currentDistributor = (authUser && authUser.role === 'distributor') ? {
+    name: authUser.organization || matchedProfile?.company_name || authUser.name || 'Shree Ganesh Fleet Logistics',
+    companyName: authUser.organization || matchedProfile?.company_name || 'Shree Ganesh Fleet Logistics',
+    gstin: matchedProfile?.gstin || authUser.gstin || '21AABCU9603R1ZM',
+    city: matchedProfile?.territory_city || authUser.city || 'Bhadrak',
+    state: matchedProfile?.territory_state || authUser.state || 'Odisha',
+    contactPerson: authUser.name || matchedProfile?.contact_person || 'Subrat Das',
+    phone: authUser.phone || matchedProfile?.phone || '+91 9853675971',
+    email: authUser.email || matchedProfile?.email || 'distributor@shreeganesh.com',
+    creditLimit: matchedProfile?.credit_limit ? `₹ ${Number(matchedProfile.credit_limit).toLocaleString('en-IN')}` : '₹ 5,00,000',
+    totalOrders: distributorOrders.length
+  } : (distributors[0] || {
+    name: 'Shree Ganesh Fleet Logistics',
+    companyName: 'Shree Ganesh Fleet Logistics',
+    gstin: '21AABCU9603R1ZM',
+    city: 'Bhadrak',
+    state: 'Odisha',
+    contactPerson: 'Subrat Das',
+    phone: '+91 9853675971',
+    email: 'distributor@shreeganesh.com',
+    creditLimit: '₹ 5,00,000',
+    totalOrders: distributorOrders.length
+  });
+
+  const getStorageKey = () => {
+    const raw = (currentDistributor.phone || authUser?.phone || '').replace(/\D/g, '').slice(-10);
+    return `ub_dist_orders_${raw || 'default'}`;
+  };
+
+  // Helper to determine if an invoice strictly belongs to this distributor
+  const isInvoiceForMe = (inv) => {
+    if (!inv) return false;
+    const normDigits = (v) => (v || '').replace(/\D/g, '');
+    const normStr = (v) => (v || '').trim().toLowerCase();
+
+    const invPhone = normDigits(inv.customerPhone);
+    const myPhone = normDigits(currentDistributor.phone);
+
+    // 1. Phone match (last 10 digits)
+    if (myPhone.length >= 10 && invPhone.length >= 10) {
+      if (invPhone.slice(-10) === myPhone.slice(-10)) return true;
+    }
+
+    const invCust = normStr(inv.customerName);
+    const myCompany = normStr(currentDistributor.companyName || currentDistributor.name);
+    const myContact = normStr(currentDistributor.contactPerson);
+
+    // 2. Company / Firm name match
+    if (myCompany && myCompany.length >= 3) {
+      if (invCust.includes(myCompany) || myCompany.includes(invCust)) return true;
+    }
+
+    // 3. Contact person name match
+    if (myContact && myContact.length >= 3) {
+      if (invCust.includes(myContact) || myContact.includes(invCust)) return true;
+    }
+
+    return false;
+  };
+
+  const fetchMyOrders = async () => {
+    // 1. Read locally saved dispatch requisitions
+    let localReqs = [];
+    try {
+      const saved = localStorage.getItem(getStorageKey());
+      if (saved) localReqs = JSON.parse(saved);
+    } catch (e) {
+      console.warn('Could not read saved requisitions:', e);
+    }
+
+    // 2. Fetch invoices specifically for this distributor
+    const distParams = {
+      distributorPhone: currentDistributor.phone,
+      distributorCompany: currentDistributor.companyName || currentDistributor.name,
+      distributorName: currentDistributor.contactPerson
+    };
+    const invs = await SalesAPI.getAllInvoices(distParams).catch(() => []);
+
+    // 3. Strict filter so no other company's invoice leaks through
+    const myInvs = (invs || []).filter(isInvoiceForMe);
+    const mappedInvs = myInvs.map(i => ({
+      id: i.id,
+      date: i.date,
+      item: i.items?.map(it => `${it.name} x ${it.qty}`).join(', ') || 'Wholesale DEF Order',
+      total: `₹ ${i.grandTotal?.toLocaleString('en-IN')}`,
+      status: i.paymentStatus || 'PAID',
+      invoiceNo: i.id,
+      isInvoice: true,
+      rawInvoice: i
+    }));
+
+    // 4. Merge: local requisitions + verified invoices
+    const combined = [
+      ...localReqs,
+      ...mappedInvs.filter(m => !localReqs.some(r => r.id === m.id || (r.invoiceNo && r.invoiceNo === m.id)))
+    ];
+
+    setDistributorOrders(combined);
+  };
 
   // Sync external tab prop from sidebar
   useEffect(() => {
@@ -94,39 +204,19 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         const prods = await ProductAPI.getAll().catch(() => []);
         setProducts(prods || []);
       } else if (currentTab === 'orders') {
-        const invs = await SalesAPI.getAllInvoices().catch(() => []);
-        if (invs && invs.length > 0) {
-          setDistributorOrders(invs.map(i => ({
-            id: i.id,
-            date: i.date,
-            item: i.items?.map(it => `${it.name} x ${it.qty}`).join(', ') || 'Wholesale Order',
-            total: `₹ ${i.grandTotal?.toLocaleString('en-IN')}`,
-            status: i.paymentStatus || 'COMPLETED',
-            invoiceNo: i.id
-          })));
-        }
+        await fetchMyOrders();
       } else if (currentTab === 'kyc') {
         const distData = await DistributorAPI.getAll().catch(() => []);
         setDistributors(distData || []);
       } else {
         // dashboard
-        const [distData, prods, invs] = await Promise.all([
+        const [distData, prods] = await Promise.all([
           DistributorAPI.getAll().catch(() => []),
-          ProductAPI.getAll().catch(() => []),
-          SalesAPI.getAllInvoices().catch(() => [])
+          ProductAPI.getAll().catch(() => [])
         ]);
         setDistributors(distData || []);
         setProducts(prods || []);
-        if (invs && invs.length > 0) {
-          setDistributorOrders(invs.map(i => ({
-            id: i.id,
-            date: i.date,
-            item: i.items?.map(it => `${it.name} x ${it.qty}`).join(', ') || 'Wholesale Order',
-            total: `₹ ${i.grandTotal?.toLocaleString('en-IN')}`,
-            status: i.paymentStatus || 'COMPLETED',
-            invoiceNo: i.id
-          })));
-        }
+        await fetchMyOrders();
       }
     } catch (e) {
       console.error('Error fetching distributor portal data:', e);
@@ -135,29 +225,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
 
   useEffect(() => {
     loadData();
-  }, [currentTab]);
-
-  const currentDistributor = (authUser && authUser.role === 'distributor') ? {
-    name: authUser.name || 'B2B Partner',
-    gstin: authUser.organization || authUser.gstin || 'Registered Partner',
-    city: authUser.city || 'Authorized Territory',
-    state: authUser.state || 'Odisha',
-    contactPerson: authUser.name || 'Partner Representative',
-    phone: authUser.phone || '-',
-    email: authUser.email || '-',
-    creditLimit: '₹ 5,00,000',
-    totalOrders: distributorOrders.length
-  } : (distributors[0] || {
-    name: 'Authorized B2B Partner',
-    gstin: 'Pending Registration',
-    city: 'Odisha',
-    state: 'India',
-    contactPerson: 'B2B Partner',
-    phone: '-',
-    email: '-',
-    creditLimit: '₹ 0',
-    totalOrders: 0
-  });
+  }, [currentTab, authUser]);
 
   const handleOrderClick = (product, pack) => {
     setSelectedProductForOrder({ product, pack });
@@ -174,7 +242,6 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         SKU: pack.sku,
         Standard_MRP_INR: pack.mrp,
         Distributor_Base_Price_INR: pack.distributorPrice,
-        Gross_Margin_Percent: pack.mrp > 0 ? `${Math.round(((pack.mrp - pack.distributorPrice) / pack.mrp) * 100)}%` : '0%',
         GST_Rate: `${prod.gstRate || 18}% (${prod.isGstInclusive !== false ? 'Inclusive' : 'Exclusive'})`
       }))
     );
@@ -319,7 +386,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       </div>
 
       {/* ========================================================================= */}
-      {/* Tab 1: Distributor Tier Catalogue */}
+      {/* Tab 1: Wholesale Product Catalogue */}
       {/* ========================================================================= */}
       {currentTab === 'catalog' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
@@ -349,7 +416,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
-              Authorized B2B Price & Margin Schedule
+              Authorized B2B Wholesale Price Schedule
             </h3>
             <Button size="sm" variant="gold" icon={Download} onClick={handleDownloadPriceList}>
               Export Price Schedule (CSV)
@@ -366,7 +433,6 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
                 size: pack.size,
                 mrp: pack.mrp,
                 distPrice: pack.distributorPrice,
-                margin: pack.mrp > 0 ? `${Math.round(((pack.mrp - pack.distributorPrice) / pack.mrp) * 100)}%` : '0%',
                 gst: `${prod.gstRate || 18}% (${prod.isGstInclusive !== false ? 'Incl.' : 'Excl.'})`
               }))
             )}
@@ -376,7 +442,6 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
               { header: 'Pack Size', accessor: 'size' },
               { header: 'Standard MRP', accessor: 'mrp', render: (val) => `₹ ${val?.toLocaleString('en-IN')}` },
               { header: 'Distributor Rate', accessor: 'distPrice', render: (val) => <strong style={{ color: 'var(--brand-blue)' }}>₹ {val?.toLocaleString('en-IN')}</strong> },
-              { header: 'Gross Margin', accessor: 'margin', render: (val) => <span style={{ color: 'var(--status-success-text)', fontWeight: 700 }}>{val}</span> },
               { header: 'Applicable GST', accessor: 'gst' }
             ]}
           />
@@ -389,7 +454,9 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       {currentTab === 'orders' && (
         <DataTable
           title="B2B Supply Orders & Requisitions"
+          subtitle={`Verified Order & Billing History for ${currentDistributor.name}`}
           data={distributorOrders}
+          emptyMessage="No orders or bills found against your account yet."
           columns={[
             { header: 'Order ID', accessor: 'id', render: (val) => <strong>{val}</strong> },
             { header: 'Order Date', accessor: 'date' },
@@ -397,8 +464,23 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
             { header: 'Total Value', accessor: 'total', render: (val) => <strong>{val}</strong> },
             { header: 'Status', accessor: 'status', render: (val) => <StatusBadge status={val} /> },
             { header: 'Invoice Reference', accessor: 'invoiceNo' },
-            { header: 'Actions', accessor: 'id', render: () => (
-              <Button size="sm" variant="secondary" icon={Download} onClick={() => alert('Downloading order invoice PDF...')}>
+            { header: 'Actions', accessor: 'id', render: (val, row) => (
+              <Button 
+                size="sm" 
+                variant="secondary" 
+                icon={Download} 
+                onClick={() => {
+                  if (row.invoiceNo && row.invoiceNo !== 'Pending Dispatch') {
+                    if (row.rawInvoice) {
+                      setActiveInvoiceModal(row.rawInvoice);
+                    } else {
+                      window.open(`${API_BASE_URL}/invoices/${row.invoiceNo}/pdf`, '_blank');
+                    }
+                  } else {
+                    alert(`Requisition #${row.id} is currently under dispatch processing. The official tax invoice PDF will be generated upon factory dispatch.`);
+                  }
+                }}
+              >
                 PDF
               </Button>
             )}
@@ -461,14 +543,22 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
                 const totalVal = selectedPack ? (selectedPack.distributorPrice * orderQuantity) : (22000);
 
                 const newOrd = {
-                  id: `ORD-DIST-${Math.floor(8800 + Math.random() * 100)}`,
+                  id: `ORD-DIST-${Math.floor(8800 + Math.random() * 1000)}`,
                   date: new Date().toISOString().split('T')[0],
                   item: `${selectedProd?.name || 'UltraBlue+ Fluids'} (${selectedPack?.size || 'Pack'}) x ${orderQuantity}`,
                   total: `₹ ${totalVal.toLocaleString('en-IN')}`,
                   status: 'PROCESSING',
                   invoiceNo: 'Pending Dispatch'
                 };
-                setDistributorOrders([newOrd, ...distributorOrders]);
+                const updated = [newOrd, ...distributorOrders];
+                setDistributorOrders(updated);
+                try {
+                  const saved = localStorage.getItem(getStorageKey());
+                  const list = saved ? JSON.parse(saved) : [];
+                  localStorage.setItem(getStorageKey(), JSON.stringify([newOrd, ...list]));
+                } catch (e) {
+                  console.warn('Could not save requisition to storage:', e);
+                }
                 setIsOrderModalOpen(false);
                 setOrderSuccessMsg(`Requisition #${newOrd.id} submitted! Bhadrak depot dispatch team notified.`);
                 setTimeout(() => setOrderSuccessMsg(''), 5000);
@@ -565,6 +655,13 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           </div>
         </form>
       </Modal>
+
+      {/* VERIFIED GST TAX INVOICE MODAL */}
+      <InvoiceModal
+        isOpen={Boolean(activeInvoiceModal)}
+        onClose={() => setActiveInvoiceModal(null)}
+        invoice={activeInvoiceModal}
+      />
     </div>
   );
 };

@@ -60,7 +60,7 @@ export const AppSidebar = ({
       case ROLES.DISTRIBUTOR:
         return [
           { id: 'dist_dashboard', label: 'B2B Dashboard', icon: LayoutDashboard },
-          { id: 'dist_catalog', label: 'Tier Price Catalogue', icon: Package, badge: 'Gold 15%' },
+          { id: 'dist_catalog', label: 'Price Catalogue', icon: Package },
           { id: 'dist_pricelist', label: 'Download Price List', icon: FileCheck2 },
           { id: 'dist_orders', label: 'Order & Enquiry History', icon: ShoppingCart },
           { id: 'dist_kyc', label: 'Distributor Profile / KYC', icon: Shield }

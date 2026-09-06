@@ -129,7 +129,7 @@ class DistributorController extends Controller
             'gstin' => strtoupper(trim($validated['gstin'])),
             'territory_city' => $validated['territory_city'],
             'territory_state' => $validated['territory_state'],
-            'discount_tier' => 'Pending Tier Assignment',
+            'discount_tier' => 'Pending Verification',
             'credit_limit' => 0.00,
             'account_status' => 'PENDING_REVIEW',
             'created_at' => now(),

@@ -32,7 +32,6 @@ export const ProductCard = ({
   const currentPack = packOptions[selectedPackIndex] || packOptions[0] || { size: 'Standard', sku: product.id, mrp: 0, distributorPrice: 0 };
   const price = isDistributorView ? currentPack.distributorPrice : currentPack.mrp;
   const savings = Math.max(0, currentPack.mrp - currentPack.distributorPrice);
-  const marginPercent = Math.round((savings / currentPack.mrp) * 100);
 
   // Category Color Accent Themes
   const getCategoryGradient = (cat) => {
@@ -319,14 +318,14 @@ export const ProductCard = ({
               style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                color: 'var(--status-success-text)',
-                backgroundColor: 'var(--status-success-bg)',
-                border: '1px solid var(--status-success-border)',
-                padding: '2px 6px',
+                color: 'var(--brand-cyan)',
+                backgroundColor: 'rgba(0, 200, 245, 0.1)',
+                border: '1px solid rgba(0, 200, 245, 0.25)',
+                padding: '2px 8px',
                 borderRadius: '50px'
               }}
             >
-              {marginPercent}% Margin
+              Wholesale Rate
             </span>
           ) : (
             <span style={{ fontSize: '10px', color: 'var(--brand-cyan)', fontWeight: 700 }}>

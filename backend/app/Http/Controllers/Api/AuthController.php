@@ -174,7 +174,7 @@ class AuthController extends Controller
                 'gstin' => $gstin ?: '21AAAAA' . rand(1000, 9999) . 'A1Z5',
                 'territory_city' => $location,
                 'territory_state' => 'Odisha',
-                'discount_tier' => 'Gold Tier (15% Disc)',
+                'discount_tier' => 'Authorized Partner',
                 'credit_limit' => 500000.00,
                 'account_status' => 'APPROVED',
                 'created_at' => now(),

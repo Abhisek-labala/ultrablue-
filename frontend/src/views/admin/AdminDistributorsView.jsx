@@ -359,7 +359,7 @@ export const AdminDistributorsView = ({
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Authorized B2B Partner Directory & KYC Status</h3>
           </div>
           <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Manage authorized distributor credit lines, price tiers, wholesale GST compliance, and new partner onboarding.
+            Manage authorized distributor credit lines, wholesale pricing, GST compliance, and new partner onboarding.
           </p>
         </div>
 

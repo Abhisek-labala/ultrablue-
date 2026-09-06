@@ -24,7 +24,7 @@ export const ROUTES = [
   { path: '/admin/products/compliance', role: 'admin', tab: 'admin_products_compliance', aliases: ['/admin/compliance', '/admin/standards'], title: 'ISO 22241 & BIS Quality Compliance', crumbs: ['UltraBlue+', 'Master Data Config', 'ISO / BIS Compliance'] },
   { path: '/admin/products/territories', role: 'admin', tab: 'admin_products_territories', aliases: ['/admin/territories', '/admin/regions'], title: 'Master States & Regional Territories (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'States & Territories'] },
   { path: '/admin/products/depots', role: 'admin', tab: 'admin_products_depots', aliases: ['/admin/depots-config', '/admin/stations'], title: 'Master Dispensing Depots & Hub Stations (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'Depots & Stations'] },
-  { path: '/admin/pricing', role: 'admin', tab: 'admin_prices', aliases: ['/admin/prices', '/admin/pricing-engine'], title: 'Pricing Engine & Multi-Tier Wholesale Matrix', crumbs: ['UltraBlue+', 'Admin', 'Pricing Engine'] },
+  { path: '/admin/pricing', role: 'admin', tab: 'admin_prices', aliases: ['/admin/prices', '/admin/pricing-engine'], title: 'Pricing Engine & Wholesale Matrix', crumbs: ['UltraBlue+', 'Admin', 'Pricing Engine'] },
   { path: '/admin/offers', role: 'admin', tab: 'admin_offers', aliases: ['/admin/promotions', '/admin/deals'], title: 'Offers, Promotions & Broadcast Deals', crumbs: ['UltraBlue+', 'Admin', 'Offers & Promotions'] },
   { path: '/admin/distributors', role: 'admin', tab: 'admin_distributors', aliases: ['/admin/partners', '/admin/b2b'], title: 'Authorized B2B Distributor Accounts & KYC', crumbs: ['UltraBlue+', 'Admin', 'Distributor Accounts'] },
   { path: '/admin/operators', role: 'admin', tab: 'admin_operators', aliases: ['/admin/staff', '/admin/users'], title: 'Plant & Depot Sales Operator Terminals', crumbs: ['UltraBlue+', 'Admin', 'Sales Operators'] },
@@ -37,7 +37,7 @@ export const ROUTES = [
   // Distributor Routes
   { path: '/distributor', role: 'distributor', tab: 'dist_dashboard', exact: true, title: 'B2B Distributor Operations Portal', crumbs: ['UltraBlue+', 'B2B Distributor Portal', 'Dashboard'] },
   { path: '/distributor/dashboard', role: 'distributor', tab: 'dist_dashboard', title: 'B2B Distributor Operations Portal', crumbs: ['UltraBlue+', 'Distributor Portal', 'B2B Dashboard'] },
-  { path: '/distributor/catalog', role: 'distributor', tab: 'dist_catalog', aliases: ['/distributor/catalogue', '/distributor/products'], title: 'Distributor Tier Price Catalogue', crumbs: ['UltraBlue+', 'Distributor Portal', 'Price Catalogue'] },
+  { path: '/distributor/catalog', role: 'distributor', tab: 'dist_catalog', aliases: ['/distributor/catalogue', '/distributor/products'], title: 'Distributor Wholesale Price Catalogue', crumbs: ['UltraBlue+', 'Distributor Portal', 'Price Catalogue'] },
   { path: '/distributor/pricelist', role: 'distributor', tab: 'dist_pricelist', aliases: ['/distributor/prices'], title: 'Download Official GST Price List', crumbs: ['UltraBlue+', 'Distributor Portal', 'Price List Download'] },
   { path: '/distributor/orders', role: 'distributor', tab: 'dist_orders', aliases: ['/distributor/history', '/distributor/inquiries'], title: 'Order Placement & Purchase History', crumbs: ['UltraBlue+', 'Distributor Portal', 'Order & Enquiry History'] },
   { path: '/distributor/kyc', role: 'distributor', tab: 'dist_kyc', aliases: ['/distributor/profile'], title: 'Distributor Profile & KYC Compliance', crumbs: ['UltraBlue+', 'Distributor Portal', 'Profile & KYC'] },
