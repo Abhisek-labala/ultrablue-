@@ -722,13 +722,24 @@ export const AdminDistributorsView = ({
               {
                 header: 'Credit Limit',
                 accessor: 'creditLimit',
-                render: (val) => `₹ ${(Number(val || 0)).toLocaleString('en-IN')}`
+                render: (val, row) => {
+                  const limit = typeof row.rawCreditLimit === 'number' && !isNaN(row.rawCreditLimit)
+                    ? row.rawCreditLimit
+                    : (typeof val === 'number' && !isNaN(val)
+                      ? val
+                      : (parseFloat(String(val || '').replace(/[^0-9.-]+/g, '')) || 0));
+                  return `₹ ${limit.toLocaleString('en-IN')}`;
+                }
               },
               {
                 header: 'Outstanding Debt',
                 accessor: 'outstandingCredit',
                 render: (val, row) => {
-                  const debt = Number(val || row.rawOutstandingCredit || 0);
+                  const debt = typeof row.rawOutstandingCredit === 'number' && !isNaN(row.rawOutstandingCredit)
+                    ? row.rawOutstandingCredit
+                    : (typeof val === 'number' && !isNaN(val)
+                      ? val
+                      : (parseFloat(String(val || '').replace(/[^0-9.-]+/g, '')) || 0));
                   return (
                     <strong style={{ color: debt > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>
                       ₹ {debt.toLocaleString('en-IN')}
@@ -740,8 +751,16 @@ export const AdminDistributorsView = ({
                 header: 'Available Limit',
                 accessor: 'availableCredit',
                 render: (val, row) => {
-                  const limit = Number(row.rawCreditLimit ?? row.creditLimit ?? 0);
-                  const debt = Number(row.rawOutstandingCredit ?? row.outstandingCredit ?? 0);
+                  const limit = typeof row.rawCreditLimit === 'number' && !isNaN(row.rawCreditLimit)
+                    ? row.rawCreditLimit
+                    : (typeof row.creditLimit === 'number' && !isNaN(row.creditLimit)
+                      ? row.creditLimit
+                      : (parseFloat(String(row.creditLimit || '').replace(/[^0-9.-]+/g, '')) || 0));
+                  const debt = typeof row.rawOutstandingCredit === 'number' && !isNaN(row.rawOutstandingCredit)
+                    ? row.rawOutstandingCredit
+                    : (typeof row.outstandingCredit === 'number' && !isNaN(row.outstandingCredit)
+                      ? row.outstandingCredit
+                      : (parseFloat(String(row.outstandingCredit || '').replace(/[^0-9.-]+/g, '')) || 0));
                   const avail = Math.max(0, limit - debt);
                   return (
                     <strong style={{ color: avail < 50000 ? 'var(--status-danger)' : 'var(--brand-blue)' }}>

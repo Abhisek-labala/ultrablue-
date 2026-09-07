@@ -88,7 +88,14 @@ export const AdminReportsAnalyticsView = ({
     const totalTaxable = totalGross - totalTax;
     const avgTicket = filteredInvoices.length > 0 ? totalGross / filteredInvoices.length : 0;
     const avgLitersPerTicket = filteredInvoices.length > 0 ? (totalVolumeLiters / filteredInvoices.length).toFixed(1) : 0;
-    const totalCreditLimit = (distributors || []).reduce((acc, d) => acc + (Number(d.creditLimit) || 0), 0);
+    const totalCreditLimit = (distributors || []).reduce((acc, d) => {
+      const limit = typeof d.rawCreditLimit === 'number' && !isNaN(d.rawCreditLimit)
+        ? d.rawCreditLimit
+        : (typeof d.creditLimit === 'number' && !isNaN(d.creditLimit)
+          ? d.creditLimit
+          : (parseFloat(String(d.creditLimit || '').replace(/[^0-9.-]+/g, '')) || 0));
+      return acc + limit;
+    }, 0);
 
     return {
       totalGross,
