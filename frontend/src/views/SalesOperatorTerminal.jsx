@@ -100,7 +100,8 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [vehicleNo, setVehicleNo] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('UPI / Dynamic QR');
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [partPaymentMethod, setPartPaymentMethod] = useState('UPI');
   const [paymentRef, setPaymentRef] = useState('');
 
   // Approved B2B Distributor Orders State
@@ -347,8 +348,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     setCustomerName(order.distributorCompany || order.distributorName || '');
     setCustomerPhone(order.distributorPhone || '');
     setVehicleNo('DEPOT DISPATCH');
+    setPaymentMethod('Credit');
     setB2bPaymentMode('FULL_CREDIT');
     setPartPaymentAmount('');
+    setPartPaymentMethod('UPI');
     setPaymentRef('');
     setPosError('');
     setFieldErrors({});
@@ -376,13 +379,17 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
 
   const handleClearDistributorOrder = () => {
     setSelectedDistributorOrder(null);
+    setPaymentMethod('UPI');
     setB2bPaymentMode('FULL_CREDIT');
     setPartPaymentAmount('');
+    setPartPaymentMethod('UPI');
     setCartItems([]);
     setCustomerName('');
     setCustomerPhone('');
     setVehicleNo('');
     setPaymentRef('');
+    setFieldErrors({});
+    setPosError('');
     setPosSuccess('');
   };
 
@@ -522,7 +529,16 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     const nameErr = validateCustomerName(customerName);
     const phoneErr = validateCustomerPhone(customerPhone);
     const vehicleErr = validateVehicleNo(vehicleNo);
-    const refErr = validatePaymentRef(paymentMethod, paymentRef);
+
+    // UTR validation based on Mode of Payment
+    const isCredit = paymentMethod === 'Credit';
+    const isFullCredit = isCredit && b2bPaymentMode === 'FULL_CREDIT';
+    const activeRefMethod = isCredit
+      ? (b2bPaymentMode === 'PART_CREDIT' ? partPaymentMethod : null)
+      : paymentMethod;
+    const refErr = (isFullCredit || !activeRefMethod || activeRefMethod === 'Cash')
+      ? ''
+      : validatePaymentRef(activeRefMethod, paymentRef);
 
     if (nameErr || phoneErr || vehicleErr || refErr) {
       setFieldErrors({
@@ -543,12 +559,12 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     const finalPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : customerPhone.trim();
     const finalVehicle = vehicleNo.trim() ? vehicleNo.trim().toUpperCase().replace(/\s+/g, '-') : '';
 
-    // B2B Distributor Settlement & Credit Calculations
+    // Payment Settlement & Credit Calculations
     let paidAmt = grandTotal;
     let creditAmt = 0;
     let effectivePaymentMethod = paymentMethod;
 
-    if (selectedDistributorOrder) {
+    if (isCredit) {
       if (b2bPaymentMode === 'FULL_CREDIT') {
         paidAmt = 0;
         creditAmt = grandTotal;
@@ -560,26 +576,26 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           return;
         }
         if (inputPaid >= grandTotal) {
-          setPosError('Upfront payment is equal to or greater than the grand total. Please select 100% Upfront Paid instead.');
+          setPosError('Upfront payment is equal to or greater than the grand total. Please choose Direct Cash/UPI for 100% upfront payment.');
           return;
         }
         paidAmt = inputPaid;
         creditAmt = Math.round((grandTotal - inputPaid) * 100) / 100;
-        effectivePaymentMethod = `${paymentMethod} (₹${paidAmt.toLocaleString('en-IN')}) + Credit (₹${creditAmt.toLocaleString('en-IN')})`;
-      } else {
-        paidAmt = grandTotal;
-        creditAmt = 0;
-        effectivePaymentMethod = paymentMethod;
+        effectivePaymentMethod = `${partPaymentMethod} (₹${paidAmt.toLocaleString('en-IN')}) + Credit (₹${creditAmt.toLocaleString('en-IN')})`;
       }
 
       // Check Available Credit Limit
-      if (creditAmt > 0) {
+      if (creditAmt > 0 && selectedDistributorOrder) {
         const availableLimit = selectedDistributorOrder.availableCredit != null ? selectedDistributorOrder.availableCredit : 0;
         if (creditAmt > availableLimit) {
           setPosError(`Credit limit exceeded: Required credit ₹${creditAmt.toLocaleString('en-IN')} exceeds distributor's available limit ₹${availableLimit.toLocaleString('en-IN')}. Please collect an upfront payment of at least ₹${(creditAmt - availableLimit).toLocaleString('en-IN')}.`);
           return;
         }
       }
+    } else {
+      paidAmt = grandTotal;
+      creditAmt = 0;
+      effectivePaymentMethod = paymentMethod;
     }
 
     try {
@@ -594,10 +610,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         discountType: discountType,
         couponCode: appliedCoupon?.promo_code || null,
         paymentMethod: effectivePaymentMethod,
-        paymentRef: paymentRef.trim(),
+        paymentRef: (isFullCredit || !activeRefMethod || activeRefMethod === 'Cash') ? '' : paymentRef.trim(),
         distributorId: selectedDistributorOrder?.distributorId || null,
         distributorOrderId: selectedDistributorOrder?.id || null,
-        paymentMode: selectedDistributorOrder ? b2bPaymentMode : 'FULL_PAID',
+        paymentMode: isCredit ? b2bPaymentMode : 'FULL_PAID',
         paidAmount: paidAmt,
         creditAmount: creditAmt
       });
@@ -990,51 +1006,48 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                   error={fieldErrors.vehicleNo}
                   maxLength={20}
                 />
-                {!selectedDistributorOrder ? (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
+                    Mode of Payment
+                  </label>
                   <Select
-                    label="Payment Mode"
                     value={paymentMethod}
                     onChange={(e) => {
-                      setPaymentMethod(e.target.value);
+                      const val = e.target.value;
+                      setPaymentMethod(val);
+                      if (val === 'Credit') {
+                        setB2bPaymentMode('FULL_CREDIT');
+                      } else {
+                        setB2bPaymentMode('FULL_PAID');
+                      }
                       setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
+                      setPosError('');
                     }}
                     options={[
-                      { label: 'UPI', value: 'UPI' },
-                      { label: 'Bank Transfer', value: 'Bank Transfer' },
-                      { label: 'Cash', value: 'Cash' }
+                      { label: 'UPI / QR Transfer', value: 'UPI' },
+                      { label: 'NEFT / RTGS Bank Transfer', value: 'Bank Transfer' },
+                      { label: 'Direct Cash', value: 'Cash' },
+                      { label: 'Credit (Revolving Credit)', value: 'Credit' }
                     ]}
                     style={{ marginBottom: 0 }}
                   />
-                ) : (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
-                      Immediate Mode
-                    </label>
-                    <Select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      options={[
-                        { label: 'UPI / QR Transfer', value: 'UPI' },
-                        { label: 'NEFT / RTGS Bank Transfer', value: 'Bank Transfer' },
-                        { label: 'Direct Cash', value: 'Cash' }
-                      ]}
-                      disabled={b2bPaymentMode === 'FULL_CREDIT'}
-                      style={{ marginBottom: 0 }}
-                    />
-                  </div>
-                )}
+                </div>
               </div>
 
-              {/* B2B Payment & Revolving Credit Selector */}
-              {selectedDistributorOrder && (
+              {/* Credit Settlement Options - Shown only when Mode of Payment is Credit */}
+              {paymentMethod === 'Credit' && (
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-medium)', marginBottom: 'var(--space-3)' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                    B2B Settlement / Credit Term
+                    Credit Settlement Options
                   </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: b2bPaymentMode === 'PART_CREDIT' ? '10px' : 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: b2bPaymentMode === 'PART_CREDIT' ? '10px' : 0 }}>
                     <button
                       type="button"
-                      onClick={() => setB2bPaymentMode('FULL_CREDIT')}
+                      onClick={() => {
+                        setB2bPaymentMode('FULL_CREDIT');
+                        setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
+                        setPosError('');
+                      }}
                       style={{
                         padding: '8px 6px',
                         borderRadius: '6px',
@@ -1051,7 +1064,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                     </button>
                     <button
                       type="button"
-                      onClick={() => setB2bPaymentMode('PART_CREDIT')}
+                      onClick={() => {
+                        setB2bPaymentMode('PART_CREDIT');
+                        setPosError('');
+                      }}
                       style={{
                         padding: '8px 6px',
                         borderRadius: '6px',
@@ -1066,29 +1082,12 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                     >
                       Split Part Payment
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setB2bPaymentMode('FULL_PAID')}
-                      style={{
-                        padding: '8px 6px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        border: b2bPaymentMode === 'FULL_PAID' ? '2px solid var(--brand-blue)' : '1px solid var(--border-medium)',
-                        backgroundColor: b2bPaymentMode === 'FULL_PAID' ? 'rgba(0, 143, 224, 0.12)' : 'var(--bg-surface)',
-                        color: b2bPaymentMode === 'FULL_PAID' ? 'var(--text-link)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        transition: 'all 150ms ease'
-                      }}
-                    >
-                      100% Upfront Paid
-                    </button>
                   </div>
 
                   {b2bPaymentMode === 'PART_CREDIT' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-medium)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-medium)', alignItems: 'flex-start' }}>
                       <Input
-                        label="Upfront Cash/UPI Paid (₹) *"
+                        label="Upfront Paid (₹) *"
                         type="number"
                         min="1"
                         step="any"
@@ -1096,12 +1095,31 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                         value={partPaymentAmount}
                         onChange={e => setPartPaymentAmount(e.target.value)}
                         required
+                        style={{ marginBottom: 0 }}
                       />
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                          Upfront Mode *
+                        </label>
+                        <Select
+                          value={partPaymentMethod}
+                          onChange={e => {
+                            setPartPaymentMethod(e.target.value);
+                            setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
+                          }}
+                          options={[
+                            { label: 'UPI / QR', value: 'UPI' },
+                            { label: 'Bank Transfer', value: 'Bank Transfer' },
+                            { label: 'Direct Cash', value: 'Cash' }
+                          ]}
+                          style={{ marginBottom: 0 }}
+                        />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
                           Remaining on Credit
                         </span>
-                        <strong style={{ fontSize: '14px', color: '#EF4444' }}>
+                        <strong style={{ fontSize: '14px', color: '#EF4444', display: 'block', paddingTop: '6px' }}>
                           ₹ {Math.max(0, grandTotal - (parseFloat(partPaymentAmount) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </strong>
                       </div>
@@ -1111,11 +1129,19 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
               )}
 
               {/* Dynamic UTR / Payment Ref Input for Digital / Bank Payments */}
-              {paymentMethod !== 'Cash' && b2bPaymentMode !== 'FULL_CREDIT' && (
+              {((paymentMethod !== 'Cash' && paymentMethod !== 'Credit') || (paymentMethod === 'Credit' && b2bPaymentMode === 'PART_CREDIT' && partPaymentMethod !== 'Cash')) && (
                 <div style={{ marginBottom: 'var(--space-4)' }}>
                   <Input
-                    label={paymentMethod.includes('UPI') ? 'UPI UTR / Transaction Ref No *' : 'Bank UTR / IMPS Reference No *'}
-                    placeholder={paymentMethod.includes('UPI') ? 'e.g. 423456789012 (12-digit UPI UTR)' : 'e.g. HDFCR5202609021234'}
+                    label={
+                      paymentMethod === 'Credit'
+                        ? (partPaymentMethod.includes('UPI') ? 'Upfront UPI UTR / Transaction Ref No *' : 'Upfront Bank UTR / IMPS Reference No *')
+                        : (paymentMethod.includes('UPI') ? 'UPI UTR / Transaction Ref No *' : 'Bank UTR / IMPS Reference No *')
+                    }
+                    placeholder={
+                      (paymentMethod === 'Credit' ? partPaymentMethod : paymentMethod).includes('UPI')
+                        ? 'e.g. 423456789012 (12-digit UPI UTR)'
+                        : 'e.g. HDFCR5202609021234'
+                    }
                     value={paymentRef}
                     onChange={(e) => {
                       setPaymentRef(e.target.value);
@@ -1123,7 +1149,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                         setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
                       }
                     }}
-                    onBlur={() => setFieldErrors(prev => ({ ...prev, paymentRef: validatePaymentRef(paymentMethod, paymentRef) }))}
+                    onBlur={() => {
+                      const refMethod = paymentMethod === 'Credit' ? partPaymentMethod : paymentMethod;
+                      setFieldErrors(prev => ({ ...prev, paymentRef: validatePaymentRef(refMethod, paymentRef) }));
+                    }}
                     error={fieldErrors.paymentRef}
                     required
                     style={{ marginBottom: 0 }}
