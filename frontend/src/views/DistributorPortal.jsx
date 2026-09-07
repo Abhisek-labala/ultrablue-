@@ -19,7 +19,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { KPICard } from '../components/ui/KPICard';
@@ -31,6 +32,7 @@ import { Input, Select } from '../components/ui/Input';
 import { InvoiceModal } from '../components/ui/InvoiceModal';
 import { 
   DistributorAPI, 
+  DistributorOrderAPI,
   SalesAPI, 
   InventoryAPI, 
   ProductAPI,
@@ -77,28 +79,76 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   );
 
   const currentDistributor = (authUser && authUser.role === 'distributor') ? {
-    name: authUser.organization || matchedProfile?.company_name || authUser.name || 'Shree Ganesh Fleet Logistics',
-    companyName: authUser.organization || matchedProfile?.company_name || 'Shree Ganesh Fleet Logistics',
-    gstin: matchedProfile?.gstin || authUser.gstin || '21AABCU9603R1ZM',
-    city: matchedProfile?.territory_city || authUser.city || 'Bhadrak',
-    state: matchedProfile?.territory_state || authUser.state || 'Odisha',
-    contactPerson: authUser.name || matchedProfile?.contact_person || 'Subrat Das',
-    phone: authUser.phone || matchedProfile?.phone || '+91 9853675971',
-    email: authUser.email || matchedProfile?.email || 'distributor@shreeganesh.com',
-    creditLimit: matchedProfile?.credit_limit ? `₹ ${Number(matchedProfile.credit_limit).toLocaleString('en-IN')}` : '₹ 5,00,000',
+    id: matchedProfile?.id || null,
+    name: authUser.organization || matchedProfile?.company_name || authUser.name || 'Authorized Distributor',
+    companyName: authUser.organization || matchedProfile?.company_name || authUser.name || 'Authorized Distributor',
+    gstin: matchedProfile?.gstin || authUser.gstin || '',
+    city: matchedProfile?.territory_city || authUser.city || '',
+    state: matchedProfile?.territory_state || authUser.state || '',
+    contactPerson: authUser.name || matchedProfile?.contact_person || '',
+    phone: authUser.phone || matchedProfile?.phone || '',
+    email: authUser.email || matchedProfile?.email || '',
+    creditLimit: matchedProfile?.creditLimit || (matchedProfile?.credit_limit ? `₹ ${Number(matchedProfile.credit_limit).toLocaleString('en-IN')}` : '₹ 0'),
+    rawCreditLimit: matchedProfile?.rawCreditLimit || (matchedProfile?.credit_limit ? Number(matchedProfile.credit_limit) : 0),
+    outstandingCredit: matchedProfile?.outstandingCredit || '₹ 0',
+    rawOutstandingCredit: matchedProfile?.rawOutstandingCredit || 0,
+    availableCredit: matchedProfile?.availableCredit || '₹ 0',
+    rawAvailableCredit: matchedProfile?.rawAvailableCredit || 0,
     totalOrders: distributorOrders.length
-  } : (distributors[0] || {
-    name: 'Shree Ganesh Fleet Logistics',
-    companyName: 'Shree Ganesh Fleet Logistics',
-    gstin: '21AABCU9603R1ZM',
-    city: 'Bhadrak',
-    state: 'Odisha',
-    contactPerson: 'Subrat Das',
-    phone: '+91 9853675971',
-    email: 'distributor@shreeganesh.com',
-    creditLimit: '₹ 5,00,000',
+  } : (distributors[0] ? {
+    ...distributors[0],
+    name: distributors[0].companyName || distributors[0].company_name || distributors[0].name || '',
+    companyName: distributors[0].companyName || distributors[0].company_name || distributors[0].name || '',
+    gstin: distributors[0].gstin || '',
+    city: distributors[0].city || distributors[0].territory_city || '',
+    state: distributors[0].state || distributors[0].territory_state || '',
+    contactPerson: distributors[0].contactPerson || distributors[0].contact_person || '',
+    phone: distributors[0].phone || '',
+    email: distributors[0].email || '',
+    creditLimit: distributors[0].creditLimit || (distributors[0].credit_limit ? `₹ ${Number(distributors[0].credit_limit).toLocaleString('en-IN')}` : '₹ 0'),
+    rawCreditLimit: distributors[0].rawCreditLimit || (distributors[0].credit_limit ? Number(distributors[0].credit_limit) : 0),
+    outstandingCredit: distributors[0].outstandingCredit || '₹ 0',
+    rawOutstandingCredit: distributors[0].rawOutstandingCredit || 0,
+    availableCredit: distributors[0].availableCredit || '₹ 0',
+    rawAvailableCredit: distributors[0].rawAvailableCredit || 0,
+    totalOrders: distributorOrders.length
+  } : {
+    id: null,
+    name: 'Authorized Distributor',
+    companyName: 'Authorized Distributor',
+    gstin: '',
+    city: '',
+    state: '',
+    contactPerson: '',
+    phone: '',
+    email: '',
+    creditLimit: '₹ 0',
+    rawCreditLimit: 0,
+    outstandingCredit: '₹ 0',
+    rawOutstandingCredit: 0,
+    availableCredit: '₹ 0',
+    rawAvailableCredit: 0,
     totalOrders: distributorOrders.length
   });
+
+  const [ledgerTransactions, setLedgerTransactions] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
+  const loadCreditLedger = async () => {
+    const distId = currentDistributor.id || distributors[0]?.id;
+    if (!distId) return;
+    setLedgerLoading(true);
+    try {
+      const res = await DistributorOrderAPI.getCreditLedger(distId);
+      if (res && res.transactions) {
+        setLedgerTransactions(res.transactions);
+      }
+    } catch (e) {
+      console.warn('Error fetching credit ledger:', e);
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
 
   const getStorageKey = () => {
     const raw = (currentDistributor.phone || authUser?.phone || '').replace(/\D/g, '').slice(-10);
@@ -137,13 +187,12 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   };
 
   const fetchMyOrders = async () => {
-    // 1. Read locally saved dispatch requisitions
-    let localReqs = [];
+    // 1. Fetch real B2B database orders
+    let dbOrders = [];
     try {
-      const saved = localStorage.getItem(getStorageKey());
-      if (saved) localReqs = JSON.parse(saved);
+      dbOrders = await DistributorOrderAPI.getAll({ phone: currentDistributor.phone });
     } catch (e) {
-      console.warn('Could not read saved requisitions:', e);
+      console.warn('Could not fetch distributor orders:', e);
     }
 
     // 2. Fetch invoices specifically for this distributor
@@ -161,16 +210,39 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       date: i.date,
       item: i.items?.map(it => `${it.name} x ${it.qty}`).join(', ') || 'Wholesale DEF Order',
       total: `₹ ${i.grandTotal?.toLocaleString('en-IN')}`,
-      status: i.paymentStatus || 'PAID',
+      status: i.paymentStatus === 'ON_CREDIT' ? 'BILLED (ON CREDIT)' : (i.paymentStatus === 'PART_CREDIT' ? 'BILLED (PART CREDIT)' : (i.paymentStatus || 'PAID')),
+      rawStatus: 'CONVERTED_TO_INVOICE',
       invoiceNo: i.id,
       isInvoice: true,
       rawInvoice: i
     }));
 
-    // 4. Merge: local requisitions + verified invoices
+    const mappedDbOrders = (dbOrders || []).map(o => {
+      let displayStatus = 'PENDING ADMIN APPROVAL';
+      if (o.status === 'APPROVED') displayStatus = 'APPROVED (READY FOR BILLING)';
+      else if (o.status === 'CONVERTED_TO_INVOICE') displayStatus = 'BILLED & DISPATCHED';
+      else if (o.status === 'REJECTED') displayStatus = 'REJECTED BY ADMIN';
+
+      return {
+        id: o.orderNumber || o.id,
+        rawOrderId: o.id,
+        date: o.date || (o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : ''),
+        item: o.items?.map(it => `${it.productName} (${it.packSize}) x ${it.quantity}`).join(', ') || 'Wholesale DEF Order',
+        total: `₹ ${o.totalEstimatedValue?.toLocaleString('en-IN')}`,
+        status: displayStatus,
+        rawStatus: o.status,
+        invoiceNo: o.invoiceNumber || (o.status === 'CONVERTED_TO_INVOICE' ? 'Billed' : 'Pending Billing'),
+        isInvoice: Boolean(o.invoiceId || o.invoiceNumber),
+        invoiceId: o.invoiceId,
+        adminNotes: o.adminNotes,
+        rawInvoice: myInvs.find(inv => inv.id === o.invoiceId || inv.id === o.invoiceNumber)
+      };
+    });
+
+    // 4. Merge: DB orders + verified invoices
     const combined = [
-      ...localReqs,
-      ...mappedInvs.filter(m => !localReqs.some(r => r.id === m.id || (r.invoiceNo && r.invoiceNo === m.id)))
+      ...mappedDbOrders,
+      ...mappedInvs.filter(m => !mappedDbOrders.some(r => r.id === m.id || r.invoiceNo === m.id || r.invoiceId === m.id))
     ];
 
     setDistributorOrders(combined);
@@ -278,7 +350,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         style={{
           background: 'linear-gradient(135deg, var(--brand-navy-primary) 0%, var(--brand-navy-surface) 100%)',
           color: '#FFFFFF',
-          padding: 'var(--space-6) var(--space-8)',
+          padding: 'var(--space-5)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -288,21 +360,21 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--brand-blue)', color: '#FFFFFF', padding: '2px 8px', borderRadius: 'var(--radius-pill)', textTransform: 'uppercase' }}>
               Authorized Distributor
             </span>
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--brand-cyan)' }}>GSTIN: {currentDistributor.gstin}</span>
           </div>
-          <h2 style={{ fontSize: 'var(--font-size-2xl)', color: '#FFFFFF', margin: 0, fontFamily: 'var(--font-family-heading)' }}>
+          <h2 style={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#FFFFFF', margin: 0, fontFamily: 'var(--font-family-heading)' }}>
             {currentDistributor.name}
           </h2>
-          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-on-dark-secondary)', marginTop: '4px' }}>
+          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-on-dark-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
             Authorised Distribution Zone: <strong>{currentDistributor.city}, {currentDistributor.state}</strong> • Contact: {currentDistributor.contactPerson} ({currentDistributor.phone})
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
           <Button variant="primary" icon={Download} onClick={handleDownloadPriceList}>
             Download B2B Price List
           </Button>
@@ -328,24 +400,24 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           icon={Sparkles}
         />
         <KPICard
-          title="Total Orders Dispatched"
-          value={`${distributorOrders.length || 28} Shipments`}
+          title="Orders & Requisitions"
+          value={`${distributorOrders.length} Records`}
           subtext="Lifetime B2B purchases"
           icon={ShoppingCart}
         />
         <KPICard
           title="Available Credit Limit"
-          value={currentDistributor.creditLimit}
-          subtext="30-Day Revolving Terms"
+          value={currentDistributor.availableCredit}
+          subtext={`Credit Limit: ${currentDistributor.creditLimit}`}
           icon={Building}
+          iconColor="var(--brand-cyan)"
         />
         <KPICard
-          title="Account Status"
-          value="Active & Verified"
-          subtext="KYC & GSTIN Validated"
-          icon={ShieldCheck}
-          iconColor="var(--status-success)"
-          iconBg="var(--status-success-bg)"
+          title="Outstanding Credit Debt"
+          value={currentDistributor.outstandingCredit}
+          subtext="30-Day Revolving Terms"
+          icon={CreditCard}
+          iconColor={currentDistributor.rawOutstandingCredit > 0 ? "var(--status-danger)" : "var(--status-success)"}
         />
       </div>
 
@@ -373,12 +445,23 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           icon={FileText}
           onClick={() => handleTabSwitch('orders')}
         >
-          Order & Dispatch History ({distributorOrders.length})
+          Order & Requisition History ({distributorOrders.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={currentTab === 'ledger' ? 'primary' : 'secondary'}
+          icon={CreditCard}
+          onClick={() => {
+            handleTabSwitch('ledger');
+            loadCreditLedger();
+          }}
+        >
+          Credit Ledger & Statement
         </Button>
         <Button
           size="sm"
           variant={currentTab === 'kyc' ? 'primary' : 'secondary'}
-          icon={Building}
+          icon={ShieldCheck}
           onClick={() => handleTabSwitch('kyc')}
         >
           Distributor Profile & KYC
@@ -396,7 +479,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-6)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-6)' }}>
             {products.map(product => (
               <ProductCard
                 key={product.id}
@@ -452,40 +535,233 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       {/* Tab 3: Order History */}
       {/* ========================================================================= */}
       {currentTab === 'orders' && (
-        <DataTable
-          title="B2B Supply Orders & Requisitions"
-          subtitle={`Verified Order & Billing History for ${currentDistributor.name}`}
-          data={distributorOrders}
-          emptyMessage="No orders or bills found against your account yet."
-          columns={[
-            { header: 'Order ID', accessor: 'id', render: (val) => <strong>{val}</strong> },
-            { header: 'Order Date', accessor: 'date' },
-            { header: 'Items & Packaging', accessor: 'item' },
-            { header: 'Total Value', accessor: 'total', render: (val) => <strong>{val}</strong> },
-            { header: 'Status', accessor: 'status', render: (val) => <StatusBadge status={val} /> },
-            { header: 'Invoice Reference', accessor: 'invoiceNo' },
-            { header: 'Actions', accessor: 'id', render: (val, row) => (
-              <Button 
-                size="sm" 
-                variant="secondary" 
-                icon={Download} 
-                onClick={() => {
-                  if (row.invoiceNo && row.invoiceNo !== 'Pending Dispatch') {
-                    if (row.rawInvoice) {
-                      setActiveInvoiceModal(row.rawInvoice);
-                    } else {
-                      window.open(`${API_BASE_URL}/invoices/${row.invoiceNo}/pdf`, '_blank');
-                    }
-                  } else {
-                    alert(`Requisition #${row.id} is currently under dispatch processing. The official tax invoice PDF will be generated upon factory dispatch.`);
-                  }
-                }}
-              >
-                PDF
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>B2B Supply Orders & Plant Requisitions</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Track live approval from Plant Administration and dispatch billing status from Bhadrak Depot.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button size="sm" variant="secondary" icon={RefreshCw} onClick={fetchMyOrders}>
+                Refresh Orders
               </Button>
-            )}
-          ]}
-        />
+              <Button size="sm" variant="primary" icon={Plus} onClick={() => setIsOrderModalOpen(true)}>
+                Place Stock Requisition
+              </Button>
+            </div>
+          </div>
+
+          <DataTable
+            data={distributorOrders}
+            emptyMessage="No orders or requisitions found. Click 'Place Stock Requisition' to submit a wholesale purchase order."
+            columns={[
+              { 
+                header: 'Requisition / Order ID', 
+                accessor: 'id', 
+                render: (val) => <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{val}</strong> 
+              },
+              { header: 'Order Date', accessor: 'date' },
+              { 
+                header: 'Items & Packaging', 
+                accessor: 'item',
+                render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>
+              },
+              { 
+                header: 'Estimated Value', 
+                accessor: 'total', 
+                render: (val) => <strong style={{ color: 'var(--brand-blue)' }}>{val}</strong> 
+              },
+              { 
+                header: 'Status', 
+                accessor: 'status', 
+                render: (val, row) => {
+                  const s = row.rawStatus || val;
+                  let bg = 'rgba(234, 179, 8, 0.15)';
+                  let color = '#EAB308';
+                  let border = 'rgba(234, 179, 8, 0.3)';
+                  let label = val;
+
+                  if (s === 'APPROVED') {
+                    bg = 'rgba(6, 182, 212, 0.15)';
+                    color = '#06B6D4';
+                    border = 'rgba(6, 182, 212, 0.3)';
+                    label = 'APPROVED (READY FOR BILLING)';
+                  } else if (s === 'CONVERTED_TO_INVOICE' || s === 'PAID') {
+                    bg = 'rgba(34, 197, 94, 0.15)';
+                    color = '#22C55E';
+                    border = 'rgba(34, 197, 94, 0.3)';
+                    label = 'BILLED & DISPATCHED';
+                  } else if (s === 'REJECTED') {
+                    bg = 'rgba(239, 68, 68, 0.15)';
+                    color = '#EF4444';
+                    border = 'rgba(239, 68, 68, 0.3)';
+                    label = 'REJECTED';
+                  } else if (s === 'PENDING_ADMIN_APPROVAL') {
+                    label = 'PENDING ADMIN APPROVAL';
+                  }
+
+                  return (
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      backgroundColor: bg,
+                      color: color,
+                      border: `1px solid ${border}`,
+                      display: 'inline-block'
+                    }}>
+                      {label}
+                    </span>
+                  );
+                } 
+              },
+              { 
+                header: 'Invoice Reference', 
+                accessor: 'invoiceNo',
+                render: (val, row) => (
+                  val && val !== 'Pending Billing' && val !== 'Pending Dispatch' ? (
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
+                      {val}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '11.5px', fontStyle: 'italic' }}>
+                      {row.rawStatus === 'APPROVED' ? 'Awaiting POS Bill' : 'Pending Approval'}
+                    </span>
+                  )
+                )
+              },
+              { 
+                header: 'Actions', 
+                accessor: 'id', 
+                render: (val, row) => (
+                  <Button 
+                    size="xs" 
+                    variant={row.invoiceNo && row.invoiceNo !== 'Pending Billing' && row.invoiceNo !== 'Pending Dispatch' ? "primary" : "secondary"}
+                    icon={Download} 
+                    onClick={() => {
+                      if (row.invoiceNo && row.invoiceNo !== 'Pending Billing' && row.invoiceNo !== 'Pending Dispatch') {
+                        if (row.rawInvoice) {
+                          setActiveInvoiceModal(row.rawInvoice);
+                        } else {
+                          window.open(`${API_BASE_URL}/invoices/${row.invoiceNo}/pdf`, '_blank');
+                        }
+                      } else {
+                        alert(`Requisition #${row.id} status: ${row.status}. Tax invoice PDF will be available immediately after Sales Operator bills and dispatches the order.`);
+                      }
+                    }}
+                  >
+                    {row.invoiceNo && row.invoiceNo !== 'Pending Billing' && row.invoiceNo !== 'Pending Dispatch' ? "Tax Invoice PDF" : "View Details"}
+                  </Button>
+                )
+              }
+            ]}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* Tab: Credit Ledger & Statement */}
+      {/* ========================================================================= */}
+      {currentTab === 'ledger' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CreditCard size={20} color="var(--brand-blue)" />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Revolving Credit Account Statement & Ledger</h3>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Itemized transaction history of credit billing debits and payment settlements for {currentDistributor.name}.
+              </p>
+            </div>
+            <Button size="sm" variant="secondary" icon={RefreshCw} onClick={loadCreditLedger}>
+              Refresh Statement
+            </Button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
+            <KPICard
+              title="Approved Credit Limit"
+              value={currentDistributor.creditLimit}
+              subtext="30-Day Revolving Terms"
+              icon={Building}
+            />
+            <KPICard
+              title="Total Outstanding Debt"
+              value={currentDistributor.outstandingCredit}
+              subtext="Payable to Ayush Green Energy"
+              icon={CreditCard}
+              iconColor={currentDistributor.rawOutstandingCredit > 0 ? "var(--status-danger)" : "var(--status-success)"}
+            />
+            <KPICard
+              title="Current Available Credit"
+              value={currentDistributor.availableCredit}
+              subtext="Available for immediate orders"
+              icon={ShieldCheck}
+              iconColor="var(--status-success)"
+            />
+          </div>
+
+          <DataTable
+            title="Credit Ledger Transactions"
+            data={ledgerTransactions}
+            emptyMessage="No credit transactions recorded yet. Invoices billed on credit will automatically log here."
+            columns={[
+              {
+                header: 'Date & Time',
+                accessor: 'created_at',
+                render: (val) => <span style={{ fontSize: '12px' }}>{val ? new Date(val).toLocaleString('en-IN') : '-'}</span>
+              },
+              {
+                header: 'Transaction Type',
+                accessor: 'type',
+                render: (val) => (
+                  val === 'DEBIT_INVOICE' ? (
+                    <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
+                      DEBIT (Credit Purchase)
+                    </span>
+                  ) : (
+                    <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22C55E' }}>
+                      CREDIT (Payment Settlement)
+                    </span>
+                  )
+                )
+              },
+              {
+                header: 'Amount (₹)',
+                accessor: 'amount',
+                render: (val, row) => (
+                  <strong style={{ color: row.type === 'DEBIT_INVOICE' ? '#EF4444' : '#22C55E' }}>
+                    {row.type === 'DEBIT_INVOICE' ? '+ ' : '- '}₹ {parseFloat(val || 0).toLocaleString('en-IN')}
+                  </strong>
+                )
+              },
+              {
+                header: 'Balance After (₹)',
+                accessor: 'balance_after',
+                render: (val) => <span>₹ {parseFloat(val || 0).toLocaleString('en-IN')}</span>
+              },
+              {
+                header: 'Reference / Invoice #',
+                accessor: 'reference_no',
+                render: (val) => <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{val || '-'}</span>
+              },
+              {
+                header: 'Payment Mode',
+                accessor: 'payment_method',
+                render: (val) => <span>{val || '-'}</span>
+              },
+              {
+                header: 'Notes / Remarks',
+                accessor: 'notes',
+                render: (val) => <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{val || '-'}</span>
+              }
+            ]}
+          />
+        </div>
       )}
 
       {/* ========================================================================= */}
@@ -537,31 +813,42 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
             <Button variant="secondary" onClick={() => setIsOrderModalOpen(false)}>Cancel</Button>
             <Button 
               variant="primary" 
-              onClick={() => {
+              onClick={async () => {
                 const selectedPack = products.flatMap(p => p.packOptions || []).find(pk => pk.sku === selectedPackSku);
-                const selectedProd = products.find(p => (p.packOptions || []).some(pk => pk.sku === selectedPackSku));
-                const totalVal = selectedPack ? (selectedPack.distributorPrice * orderQuantity) : (22000);
+                const unitPrice = selectedPack ? parseFloat(selectedPack.distributorPrice || selectedPack.mrp || 0) : 0;
+                const effectiveSku = selectedPackSku || (allPackOptions[0]?.value || '');
 
-                const newOrd = {
-                  id: `ORD-DIST-${Math.floor(8800 + Math.random() * 1000)}`,
-                  date: new Date().toISOString().split('T')[0],
-                  item: `${selectedProd?.name || 'UltraBlue+ Fluids'} (${selectedPack?.size || 'Pack'}) x ${orderQuantity}`,
-                  total: `₹ ${totalVal.toLocaleString('en-IN')}`,
-                  status: 'PROCESSING',
-                  invoiceNo: 'Pending Dispatch'
-                };
-                const updated = [newOrd, ...distributorOrders];
-                setDistributorOrders(updated);
-                try {
-                  const saved = localStorage.getItem(getStorageKey());
-                  const list = saved ? JSON.parse(saved) : [];
-                  localStorage.setItem(getStorageKey(), JSON.stringify([newOrd, ...list]));
-                } catch (e) {
-                  console.warn('Could not save requisition to storage:', e);
+                if (!effectiveSku) {
+                  alert('Please select a valid product pack size before submitting.');
+                  return;
                 }
-                setIsOrderModalOpen(false);
-                setOrderSuccessMsg(`Requisition #${newOrd.id} submitted! Bhadrak depot dispatch team notified.`);
-                setTimeout(() => setOrderSuccessMsg(''), 5000);
+
+                try {
+                  const resp = await DistributorOrderAPI.create({
+                    distributorName: currentDistributor.contactPerson,
+                    distributorCompany: currentDistributor.companyName || currentDistributor.name,
+                    distributorPhone: currentDistributor.phone,
+                    distributorEmail: currentDistributor.email,
+                    distributorGstin: currentDistributor.gstin,
+                    deliveryCity: currentDistributor.city,
+                    deliveryState: currentDistributor.state,
+                    orderNotes: `Direct Requisition from Distributor Portal (${orderQuantity} units)`,
+                    items: [
+                      {
+                        sku: effectiveSku,
+                        quantity: orderQuantity,
+                        unitPrice: unitPrice
+                      }
+                    ]
+                  });
+
+                  setIsOrderModalOpen(false);
+                  setOrderSuccessMsg(`Requisition #${resp.order_number} submitted successfully! It has been routed to Admin for review & approval.`);
+                  await fetchMyOrders();
+                  setTimeout(() => setOrderSuccessMsg(''), 6000);
+                } catch (err) {
+                  alert(err.message || 'Failed to submit dispatch requisition.');
+                }
               }}
             >
               Submit Dispatch Requisition
@@ -574,9 +861,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
             label="Select Product Line & Packaging"
             value={selectedPackSku}
             onChange={(e) => setSelectedPackSku(e.target.value)}
-            options={allPackOptions.length > 0 ? allPackOptions : [
-              { value: 'UB-DEF-20L', label: 'UltraBlue+ DEF 20L Bucket' }
-            ]}
+            options={allPackOptions}
           />
 
           <Input

@@ -33,11 +33,14 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { DataTable } from '../components/ui/DataTable';
 import { KPICard } from '../components/ui/KPICard';
 import { InvoiceModal } from '../components/ui/InvoiceModal';
+import { Modal } from '../components/ui/Modal';
 import {
   InventoryAPI,
   SalesAPI,
   ProductAPI,
-  PromotionAPI
+  PromotionAPI,
+  DistributorOrderAPI,
+  DistributorAPI
 } from '../services/api';
 import { ROLES } from '../config/roles';
 
@@ -99,6 +102,13 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   const [vehicleNo, setVehicleNo] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI / Dynamic QR');
   const [paymentRef, setPaymentRef] = useState('');
+
+  // Approved B2B Distributor Orders State
+  const [approvedOrders, setApprovedOrders] = useState([]);
+  const [selectedDistributorOrder, setSelectedDistributorOrder] = useState(null);
+  const [isB2BModalOpen, setIsB2BModalOpen] = useState(false);
+  const [b2bPaymentMode, setB2bPaymentMode] = useState('FULL_CREDIT'); // 'FULL_PAID' | 'FULL_CREDIT' | 'PART_CREDIT'
+  const [partPaymentAmount, setPartPaymentAmount] = useState('');
 
   // Cart State
   const [cartItems, setCartItems] = useState([]);
@@ -221,17 +231,19 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     try {
       setLoading(true);
       if (currentTab === 'pos_billing') {
-        const [inv, prods, locs, promos, invs] = await Promise.all([
+        const [inv, prods, locs, promos, invs, appOrders] = await Promise.all([
           InventoryAPI.getAll().catch(() => []),
           ProductAPI.getAll().catch(() => []),
           InventoryAPI.getLocations().catch(() => []),
           PromotionAPI.getAll().catch(() => []),
-          SalesAPI.getAllInvoices().catch(() => [])
+          SalesAPI.getAllInvoices().catch(() => []),
+          DistributorOrderAPI.getAll({ status: 'APPROVED' }).catch(() => [])
         ]);
         setInventory(inv || []);
         setProducts(prods || []);
         setAvailableCoupons(promos || []);
         setInvoices(invs || []);
+        setApprovedOrders(appOrders || []);
         if (locs && locs.length > 0) {
           const userLocs = filterLocationsForUser(locs);
           setLocations(userLocs);
@@ -328,6 +340,50 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         }
       ]);
     }
+  };
+
+  const handleLoadDistributorOrder = (order) => {
+    setSelectedDistributorOrder(order);
+    setCustomerName(order.distributorCompany || order.distributorName || '');
+    setCustomerPhone(order.distributorPhone || '');
+    setVehicleNo('DEPOT DISPATCH');
+    setB2bPaymentMode('FULL_CREDIT');
+    setPartPaymentAmount('');
+    setPaymentRef('');
+    setPosError('');
+    setFieldErrors({});
+
+    // Load items at wholesale distributor base rates
+    const newCart = (order.items || []).map(it => {
+      const batchItem = locationInventory.find(i => i.sku === it.sku);
+      return {
+        sku: it.sku,
+        name: `${it.productName} (${it.packSize})`,
+        packSize: it.packSize,
+        qty: parseInt(it.quantity, 10),
+        unitPrice: parseFloat(it.unitPrice || 0),
+        gstRate: 18,
+        isGstInclusive: true,
+        batchNo: batchItem?.batchNo || '',
+        availableStock: batchItem?.availableStock ?? 0
+      };
+    });
+
+    setCartItems(newCart);
+    setIsB2BModalOpen(false);
+    setPosSuccess(`Loaded approved B2B Order #${order.orderNumber} for ${order.distributorCompany}!`);
+  };
+
+  const handleClearDistributorOrder = () => {
+    setSelectedDistributorOrder(null);
+    setB2bPaymentMode('FULL_CREDIT');
+    setPartPaymentAmount('');
+    setCartItems([]);
+    setCustomerName('');
+    setCustomerPhone('');
+    setVehicleNo('');
+    setPaymentRef('');
+    setPosSuccess('');
   };
 
   const handleUpdateQtyRaw = (index, newQty) => {
@@ -487,6 +543,45 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     const finalPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : customerPhone.trim();
     const finalVehicle = vehicleNo.trim() ? vehicleNo.trim().toUpperCase().replace(/\s+/g, '-') : '';
 
+    // B2B Distributor Settlement & Credit Calculations
+    let paidAmt = grandTotal;
+    let creditAmt = 0;
+    let effectivePaymentMethod = paymentMethod;
+
+    if (selectedDistributorOrder) {
+      if (b2bPaymentMode === 'FULL_CREDIT') {
+        paidAmt = 0;
+        creditAmt = grandTotal;
+        effectivePaymentMethod = 'Revolving Credit (30 Days)';
+      } else if (b2bPaymentMode === 'PART_CREDIT') {
+        const inputPaid = parseFloat(partPaymentAmount || 0);
+        if (isNaN(inputPaid) || inputPaid <= 0) {
+          setPosError('Please enter a valid upfront payment amount for partial credit billing.');
+          return;
+        }
+        if (inputPaid >= grandTotal) {
+          setPosError('Upfront payment is equal to or greater than the grand total. Please select 100% Upfront Paid instead.');
+          return;
+        }
+        paidAmt = inputPaid;
+        creditAmt = Math.round((grandTotal - inputPaid) * 100) / 100;
+        effectivePaymentMethod = `${paymentMethod} (₹${paidAmt.toLocaleString('en-IN')}) + Credit (₹${creditAmt.toLocaleString('en-IN')})`;
+      } else {
+        paidAmt = grandTotal;
+        creditAmt = 0;
+        effectivePaymentMethod = paymentMethod;
+      }
+
+      // Check Available Credit Limit
+      if (creditAmt > 0) {
+        const availableLimit = selectedDistributorOrder.availableCredit != null ? selectedDistributorOrder.availableCredit : 0;
+        if (creditAmt > availableLimit) {
+          setPosError(`Credit limit exceeded: Required credit ₹${creditAmt.toLocaleString('en-IN')} exceeds distributor's available limit ₹${availableLimit.toLocaleString('en-IN')}. Please collect an upfront payment of at least ₹${(creditAmt - availableLimit).toLocaleString('en-IN')}.`);
+          return;
+        }
+      }
+    }
+
     try {
       const result = await SalesAPI.createInvoice({
         customerName: customerName.trim(),
@@ -498,8 +593,13 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         discountAmount: calculatedDiscount,
         discountType: discountType,
         couponCode: appliedCoupon?.promo_code || null,
-        paymentMethod,
-        paymentRef: paymentRef.trim()
+        paymentMethod: effectivePaymentMethod,
+        paymentRef: paymentRef.trim(),
+        distributorId: selectedDistributorOrder?.distributorId || null,
+        distributorOrderId: selectedDistributorOrder?.id || null,
+        paymentMode: selectedDistributorOrder ? b2bPaymentMode : 'FULL_PAID',
+        paidAmount: paidAmt,
+        creditAmount: creditAmt
       });
 
       if (result.success) {
@@ -530,13 +630,16 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           cgst,
           sgst,
           grandTotal: result.grand_total || grandTotal,
-          paymentMethod,
-          paymentStatus: 'PAID',
+          paymentMethod: effectivePaymentMethod,
+          paymentStatus: creditAmt > 0 ? (paidAmt > 0 ? 'PART_CREDIT' : 'ON_CREDIT') : 'PAID',
           smsSent: true,
           pdfGenerated: true
         };
 
-        // Reset form
+        // Reset form & B2B mode
+        setSelectedDistributorOrder(null);
+        setB2bPaymentMode('FULL_CREDIT');
+        setPartPaymentAmount('');
         setCartItems([]);
         setCustomerName('');
         setCustomerPhone('');
@@ -545,7 +648,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         handleRemoveDiscount();
         setFieldErrors({});
         setActiveInvoiceForModal(createdInv);
-        setPosSuccess(`Invoice #${createdInv.id} created. Stock decremented and SMS sent.`);
+        setPosSuccess(`Invoice #${createdInv.id} created successfully. Depot stock decremented and B2B order updated!`);
         loadData();
       }
     } catch (err) {
@@ -654,7 +757,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
       </div>
 
       {/* Internal Tabs Nav */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-medium)', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-medium)', paddingBottom: '8px', flexWrap: 'wrap', overflowX: 'auto' }}>
         <Button
           size="sm"
           variant={currentTab === 'pos_billing' ? 'primary' : 'secondary'}
@@ -687,6 +790,20 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         >
           Shift Summary
         </Button>
+        <Button
+          size="sm"
+          variant={approvedOrders.length > 0 ? 'gold' : 'secondary'}
+          style={{
+            marginLeft: 'auto',
+            border: approvedOrders.length > 0 ? '1.5px solid var(--brand-gold)' : '1px solid var(--border-medium)',
+            backgroundColor: approvedOrders.length > 0 ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+            fontWeight: 700
+          }}
+          icon={Package}
+          onClick={() => setIsB2BModalOpen(true)}
+        >
+          B2B Approved Orders {approvedOrders.length > 0 ? `(${approvedOrders.length})` : '(0)'}
+        </Button>
       </div>
 
       {posError && (
@@ -707,7 +824,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
       {/* TAB 1: FAST SALES POS BILLING */}
       {/* ========================================================================= */}
       {currentTab === 'pos_billing' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 'var(--space-6)', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'var(--space-6)', alignItems: 'start' }}>
 
           {/* LEFT COLUMN: Fast Product Picker */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -730,14 +847,14 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                       backgroundColor: 'var(--bg-surface-secondary)'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
                       <strong style={{ fontSize: 'var(--font-size-sm)', color: 'var(--brand-navy-primary)' }}>{prod.name}</strong>
                       <span style={{ fontSize: '11px', color: 'var(--brand-blue)', fontWeight: 700 }}>
                         {prod.category} • {prod.gstRate || 18}% GST ({prod.isGstInclusive !== false ? 'Incl.' : 'Excl.'})
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: '8px' }}>
                       {(prod.packOptions || []).map(pack => {
                         const avail = getStockForSku(pack.sku);
                         const isOutOfStock = avail <= 0;
@@ -782,9 +899,63 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
 
           {/* RIGHT COLUMN: Customer Details & Cart Desk */}
           <div className="ub-card" style={{ padding: 'var(--space-5)' }}>
-            <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)', marginBottom: 'var(--space-4)' }}>
-              2. Customer Invoice Details & Checkout
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)', margin: 0 }}>
+                2. Customer Invoice Details & Checkout
+              </h3>
+              {approvedOrders.length > 0 && !selectedDistributorOrder && (
+                <button
+                  type="button"
+                  onClick={() => setIsB2BModalOpen(true)}
+                  style={{
+                    backgroundColor: '#06B6D4',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(6, 182, 212, 0.3)'
+                  }}
+                >
+                  <Package size={14} />
+                  <span>{approvedOrders.length} Approved B2B Orders</span>
+                </button>
+              )}
+            </div>
+
+            {/* Active B2B Distributor Order Banner */}
+            {selectedDistributorOrder && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: 'rgba(6, 182, 212, 0.12)',
+                border: '1.5px solid #06B6D4',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                marginBottom: '16px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Authorized B2B Distributor Dispatch Mode
+                  </div>
+                  <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+                    {selectedDistributorOrder.orderNumber}: {selectedDistributorOrder.distributorCompany}
+                  </strong>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Contact: {selectedDistributorOrder.distributorName} ({selectedDistributorOrder.distributorPhone}) • Avail Credit: <strong style={{ color: 'var(--brand-blue)' }}>₹{(selectedDistributorOrder.availableCredit ?? 0).toLocaleString('en-IN')}</strong>
+                  </div>
+                </div>
+                <Button size="xs" variant="secondary" onClick={handleClearDistributorOrder}>
+                  Cancel B2B Mode
+                </Button>
+              </div>
+            )}
 
             <form onSubmit={handleGenerateInvoice}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
@@ -809,7 +980,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: paymentMethod !== 'Cash' ? 'var(--space-3)' : 'var(--space-4)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
                 <Input
                   label="Vehicle / Fleet Reg. No"
                   placeholder="e.g. OD-05-AX-4892 (or leave blank)"
@@ -819,24 +990,128 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                   error={fieldErrors.vehicleNo}
                   maxLength={20}
                 />
-                <Select
-                  label="Payment Mode"
-                  value={paymentMethod}
-                  onChange={(e) => {
-                    setPaymentMethod(e.target.value);
-                    setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
-                  }}
-                  options={[
-                    { label: 'UPI', value: 'UPI' },
-                    { label: 'Bank Transfer', value: 'Bank Transfer' },
-                    { label: 'Cash', value: 'Cash' }
-                  ]}
-                  style={{ marginBottom: 0 }}
-                />
+                {!selectedDistributorOrder ? (
+                  <Select
+                    label="Payment Mode"
+                    value={paymentMethod}
+                    onChange={(e) => {
+                      setPaymentMethod(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, paymentRef: '' }));
+                    }}
+                    options={[
+                      { label: 'UPI', value: 'UPI' },
+                      { label: 'Bank Transfer', value: 'Bank Transfer' },
+                      { label: 'Cash', value: 'Cash' }
+                    ]}
+                    style={{ marginBottom: 0 }}
+                  />
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
+                      Immediate Mode
+                    </label>
+                    <Select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      options={[
+                        { label: 'UPI / QR Transfer', value: 'UPI' },
+                        { label: 'NEFT / RTGS Bank Transfer', value: 'Bank Transfer' },
+                        { label: 'Direct Cash', value: 'Cash' }
+                      ]}
+                      disabled={b2bPaymentMode === 'FULL_CREDIT'}
+                      style={{ marginBottom: 0 }}
+                    />
+                  </div>
+                )}
               </div>
 
+              {/* B2B Payment & Revolving Credit Selector */}
+              {selectedDistributorOrder && (
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-medium)', marginBottom: 'var(--space-3)' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    B2B Settlement / Credit Term
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: b2bPaymentMode === 'PART_CREDIT' ? '10px' : 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setB2bPaymentMode('FULL_CREDIT')}
+                      style={{
+                        padding: '8px 6px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        border: b2bPaymentMode === 'FULL_CREDIT' ? '2px solid var(--brand-blue)' : '1px solid var(--border-medium)',
+                        backgroundColor: b2bPaymentMode === 'FULL_CREDIT' ? 'rgba(0, 143, 224, 0.12)' : 'var(--bg-surface)',
+                        color: b2bPaymentMode === 'FULL_CREDIT' ? 'var(--text-link)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease'
+                      }}
+                    >
+                      100% Revolving Credit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setB2bPaymentMode('PART_CREDIT')}
+                      style={{
+                        padding: '8px 6px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        border: b2bPaymentMode === 'PART_CREDIT' ? '2px solid var(--brand-blue)' : '1px solid var(--border-medium)',
+                        backgroundColor: b2bPaymentMode === 'PART_CREDIT' ? 'rgba(0, 143, 224, 0.12)' : 'var(--bg-surface)',
+                        color: b2bPaymentMode === 'PART_CREDIT' ? 'var(--text-link)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease'
+                      }}
+                    >
+                      Split Part Payment
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setB2bPaymentMode('FULL_PAID')}
+                      style={{
+                        padding: '8px 6px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        border: b2bPaymentMode === 'FULL_PAID' ? '2px solid var(--brand-blue)' : '1px solid var(--border-medium)',
+                        backgroundColor: b2bPaymentMode === 'FULL_PAID' ? 'rgba(0, 143, 224, 0.12)' : 'var(--bg-surface)',
+                        color: b2bPaymentMode === 'FULL_PAID' ? 'var(--text-link)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        transition: 'all 150ms ease'
+                      }}
+                    >
+                      100% Upfront Paid
+                    </button>
+                  </div>
+
+                  {b2bPaymentMode === 'PART_CREDIT' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-medium)' }}>
+                      <Input
+                        label="Upfront Cash/UPI Paid (₹) *"
+                        type="number"
+                        min="1"
+                        step="any"
+                        placeholder="e.g. 15000"
+                        value={partPaymentAmount}
+                        onChange={e => setPartPaymentAmount(e.target.value)}
+                        required
+                      />
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                          Remaining on Credit
+                        </span>
+                        <strong style={{ fontSize: '14px', color: '#EF4444' }}>
+                          ₹ {Math.max(0, grandTotal - (parseFloat(partPaymentAmount) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Dynamic UTR / Payment Ref Input for Digital / Bank Payments */}
-              {paymentMethod !== 'Cash' && (
+              {paymentMethod !== 'Cash' && b2bPaymentMode !== 'FULL_CREDIT' && (
                 <div style={{ marginBottom: 'var(--space-4)' }}>
                   <Input
                     label={paymentMethod.includes('UPI') ? 'UPI UTR / Transaction Ref No *' : 'Bank UTR / IMPS Reference No *'}
@@ -1082,8 +1357,8 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                             fontSize: '11px',
                             borderRadius: '4px',
                             border: Number(discountValue) === pct ? '1px solid var(--brand-blue)' : '1px solid var(--border-light)',
-                            backgroundColor: Number(discountValue) === pct ? '#E0F2FE' : '#FFFFFF',
-                            color: 'var(--brand-blue)',
+                            backgroundColor: Number(discountValue) === pct ? 'rgba(0, 143, 224, 0.2)' : 'var(--bg-surface)',
+                            color: Number(discountValue) === pct ? 'var(--brand-blue-light, #00C8F5)' : 'var(--text-secondary)',
                             cursor: 'pointer',
                             fontWeight: 600
                           }}
@@ -1112,6 +1387,8 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                           fontSize: '12px',
                           borderRadius: '4px',
                           border: '1px solid var(--border-medium)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
                           fontWeight: 600
                         }}
                       />
@@ -1128,8 +1405,8 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                             fontSize: '11px',
                             borderRadius: '4px',
                             border: Number(discountValue) === amt ? '1px solid var(--brand-blue)' : '1px solid var(--border-light)',
-                            backgroundColor: Number(discountValue) === amt ? '#E0F2FE' : '#FFFFFF',
-                            color: 'var(--brand-blue)',
+                            backgroundColor: Number(discountValue) === amt ? 'rgba(0, 143, 224, 0.2)' : 'var(--bg-surface)',
+                            color: Number(discountValue) === amt ? 'var(--brand-blue-light, #00C8F5)' : 'var(--text-secondary)',
                             cursor: 'pointer',
                             fontWeight: 600
                           }}
@@ -1194,6 +1471,8 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                               fontSize: '11px',
                               borderRadius: '4px',
                               border: '1px solid var(--border-medium)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
                               fontWeight: 700,
                               textTransform: 'uppercase'
                             }}
@@ -1235,11 +1514,11 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                                   onClick={() => handleApplyCouponByCode(promo.promo_code)}
                                   style={{
                                     padding: '4px 8px',
-                                    backgroundColor: '#FFFFFF',
+                                    backgroundColor: 'var(--bg-surface)',
                                     border: '1px dashed var(--brand-blue)',
                                     borderRadius: '4px',
                                     fontSize: '10px',
-                                    color: 'var(--brand-blue)',
+                                    color: 'var(--brand-blue-light, #00C8F5)',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1461,6 +1740,128 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           </div>
         </div>
       )}
+
+      {/* Approved B2B Distributor Orders Modal */}
+      <Modal
+        isOpen={isB2BModalOpen}
+        onClose={() => setIsB2BModalOpen(false)}
+        title="Approved Distributor Requisitions (Ready for Billing)"
+        subtitle="Select an admin-approved B2B order to load items and generate an official GST Tax Invoice."
+        maxWidth="840px"
+        icon={Package}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {approvedOrders.length === 0 ? (
+            <div style={{ padding: '40px 20px', textAlign: 'center', backgroundColor: 'var(--bg-app)', borderRadius: '8px' }}>
+              <Package size={42} style={{ color: 'var(--text-muted)', margin: '0 auto 12px auto' }} />
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--brand-navy-primary)', marginBottom: '6px' }}>
+                No Approved Orders Awaiting Billing
+              </h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto' }}>
+                When distributors place purchase orders from their portal and Admin approves them, they will appear here ready to convert to an invoice and deduct depot stock.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {approvedOrders.map((order) => {
+                const totalAmt = parseFloat(order.totalAmount || 0);
+                const availCredit = parseFloat(order.availableCredit || 0);
+                const hasSufficientCredit = availCredit >= totalAmt;
+
+                return (
+                  <div
+                    key={order.id}
+                    style={{
+                      border: '1.5px solid var(--border-medium)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      backgroundColor: 'var(--bg-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      transition: 'border-color 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <strong style={{ fontSize: '15px', color: 'var(--brand-navy-primary)' }}>
+                            {order.orderNumber}
+                          </strong>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            color: '#059669'
+                          }}>
+                            {order.status || 'APPROVED'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {order.distributorCompany}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          Contact: {order.distributorName} ({order.distributorPhone}) • Date: {order.orderDate ? new Date(order.orderDate).toLocaleDateString('en-IN') : 'Recent'}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                          Order Total
+                        </div>
+                        <strong style={{ fontSize: '18px', color: 'var(--brand-blue)' }}>
+                          ₹ {totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
+                        <div style={{ fontSize: '11px', color: hasSufficientCredit ? '#059669' : '#EF4444', fontWeight: 600, marginTop: '2px' }}>
+                          Credit Avail: ₹ {availCredit.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Items table preview */}
+                    <div style={{ backgroundColor: 'var(--bg-app)', borderRadius: '6px', padding: '8px 12px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Requested Requisition Items ({(order.items || []).length}):
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+                        {(order.items || []).map((it, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-medium)', paddingBottom: '4px' }}>
+                            <span style={{ color: 'var(--text-primary)' }}>
+                              <strong>{it.quantity}x</strong> {it.productName} ({it.packSize})
+                            </span>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                              @ ₹{parseFloat(it.unitPrice || 0).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {order.deliveryAddress && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <strong>Dispatch Address:</strong> {order.deliveryAddress}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '6px', borderTop: '1px solid var(--border-light)' }}>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={ShoppingCart}
+                        onClick={() => handleLoadDistributorOrder(order)}
+                      >
+                        Convert to Bill & Dispense
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Printable Invoice Modal */}
       <InvoiceModal

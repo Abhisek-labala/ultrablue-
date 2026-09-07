@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   Building2,
   Database,
-  MapPin
+  MapPin,
+  X
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { COMPANY_INFO } from '../../config/companyInfo';
@@ -37,7 +38,9 @@ export const AppSidebar = ({
   onTabChange,
   isCollapsed = false,
   onToggleCollapse,
-  authUser = null
+  authUser = null,
+  isMobileOpen = false,
+  onCloseMobile
 }) => {
   // Track open/collapsed submenu groups (Closed by default as requested)
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -108,298 +111,328 @@ export const AppSidebar = ({
   const navItems = getNavItems();
 
   return (
-    <aside
-      style={{
-        width: isCollapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width-expanded)',
-        backgroundColor: '#040D1E',
-        color: '#FFFFFF',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        position: 'sticky',
-        top: 0,
-        zIndex: 120,
-        transition: 'width var(--transition-normal)',
-        borderRight: '1px solid #13274F',
-        userSelect: 'none'
-      }}
-    >
-      {/* Sidebar Header with Brand Logo */}
-      <div
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileOpen && (
+        <div
+          className="sidebar-mobile-backdrop"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`app-sidebar ${isMobileOpen ? 'mobile-open' : ''} ${isCollapsed ? 'collapsed' : 'expanded'}`}
         style={{
-          height: 'var(--header-height)',
+          width: isCollapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width-expanded)',
+          backgroundColor: '#040D1E',
+          color: '#FFFFFF',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: isCollapsed ? 'center' : 'space-between',
-          padding: isCollapsed ? '0' : '0 var(--space-5)',
-          borderBottom: '1px solid var(--brand-navy-border)',
-          overflow: 'hidden'
+          flexDirection: 'column',
+          height: '100vh',
+          position: 'sticky',
+          top: 0,
+          zIndex: 120,
+          transition: 'width var(--transition-normal), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRight: '1px solid #13274F',
+          userSelect: 'none'
         }}
       >
-        {!isCollapsed ? (
-          <Logo size="small" variant="dark" />
-        ) : (
-          <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'var(--brand-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#FFFFFF' }}>
-            UB+
-          </div>
-        )}
-      </div>
-
-      {/* Role Indicator Banner */}
-      {!isCollapsed && (
+        {/* Sidebar Header with Brand Logo and Mobile Close Button */}
         <div
           style={{
-            padding: '10px 16px',
-            backgroundColor: 'var(--brand-navy-dark)',
-            borderBottom: '1px solid var(--brand-navy-border)',
+            height: 'var(--header-height)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11px'
+            justifyContent: isCollapsed ? 'center' : 'space-between',
+            padding: isCollapsed ? '0' : '0 var(--space-5)',
+            borderBottom: '1px solid var(--brand-navy-border)',
+            overflow: 'hidden'
           }}
         >
-          <span style={{ color: 'var(--brand-cyan)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {currentRole.replace('_', ' ')}
-          </span>
-          <span style={{ color: '#94A3B8', fontSize: '10px' }}>v2.4 Enterprise</span>
+          {!isCollapsed ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <Logo size="small" variant="dark" />
+              <button
+                type="button"
+                className="sidebar-mobile-close-btn"
+                onClick={onCloseMobile}
+                aria-label="Close Navigation"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  display: 'none'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'var(--brand-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#FFFFFF' }}>
+              UB+
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Navigation Links */}
-      <nav style={{ flex: 1, padding: 'var(--space-3) var(--space-2)', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
-            const isParentActive = activeTab === item.id || (hasSubItems && item.subItems.some(sub => sub.id === activeTab));
-            const isSubOpen = Boolean(expandedMenus[item.id]);
+        {/* Role Indicator Banner */}
+        {!isCollapsed && (
+          <div
+            style={{
+              padding: '10px 16px',
+              backgroundColor: 'var(--brand-navy-dark)',
+              borderBottom: '1px solid var(--brand-navy-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '11px'
+            }}
+          >
+            <span style={{ color: 'var(--brand-cyan)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {currentRole.replace('_', ' ')}
+            </span>
+            <span style={{ color: '#94A3B8', fontSize: '10px' }}>v2.4 Enterprise</span>
+          </div>
+        )}
 
-            return (
-              <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (hasSubItems) {
-                      if (isCollapsed) {
-                        onTabChange(item.subItems[0].id);
-                      } else {
-                        toggleSubMenu(item.id);
-                        if (!isParentActive) {
+        {/* Navigation Links */}
+        <nav style={{ flex: 1, padding: 'var(--space-3) var(--space-2)', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
+              const isParentActive = activeTab === item.id || (hasSubItems && item.subItems.some(sub => sub.id === activeTab));
+              const isSubOpen = Boolean(expandedMenus[item.id]);
+
+              return (
+                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (hasSubItems) {
+                        if (isCollapsed) {
                           onTabChange(item.subItems[0].id);
+                          if (onCloseMobile) onCloseMobile();
+                        } else {
+                          toggleSubMenu(item.id);
+                          if (!isParentActive) {
+                            onTabChange(item.subItems[0].id);
+                            if (onCloseMobile) onCloseMobile();
+                          }
                         }
+                      } else {
+                        onTabChange(item.id);
+                        if (onCloseMobile) onCloseMobile();
                       }
-                    } else {
-                      onTabChange(item.id);
-                    }
-                  }}
-                  title={isCollapsed ? item.label : undefined}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: isCollapsed ? '12px 0' : '10px 14px',
-                    justifyContent: isCollapsed ? 'center' : 'flex-start',
-                    backgroundColor: isParentActive ? 'rgba(0, 200, 245, 0.14)' : 'transparent',
-                    color: isParentActive ? '#FFFFFF' : '#CBD5E1',
-                    border: isParentActive ? '1px solid rgba(0, 200, 245, 0.3)' : '1px solid transparent',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: isParentActive ? 700 : 500,
-                    position: 'relative',
-                    transition: 'all var(--transition-fast)',
-                    textAlign: 'left'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isParentActive) {
-                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.color = '#FFFFFF';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isParentActive) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#CBD5E1';
-                    }
-                  }}
-                >
-                  {/* Active Indicator Bar on the Left */}
-                  {isParentActive && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '4px',
-                        bottom: '4px',
-                        width: '3px',
-                        backgroundColor: 'var(--brand-cyan)',
-                        borderRadius: '0 2px 2px 0',
-                        boxShadow: '0 0 10px var(--brand-cyan)'
-                      }}
-                    />
-                  )}
-
-                  <Icon
-                    size={18}
-                    color={isParentActive ? 'var(--brand-cyan)' : '#94A3B8'}
-                    style={{ flexShrink: 0 }}
-                  />
-
-                  {!isCollapsed && (
-                    <>
-                      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.label}
-                      </span>
-
-                      {item.badge && (
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            backgroundColor: isParentActive ? 'var(--brand-blue)' : 'rgba(255, 255, 255, 0.16)',
-                            color: '#FFFFFF',
-                            padding: '2px 6px',
-                            borderRadius: 'var(--radius-pill)',
-                            marginLeft: 'auto'
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-
-                      {hasSubItems && (
-                        <ChevronDown
-                          size={15}
-                          style={{
-                            color: '#94A3B8',
-                            transform: isSubOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s ease',
-                            marginLeft: '4px'
-                          }}
-                        />
-                      )}
-                    </>
-                  )}
-                </button>
-
-                {/* Submenu Accordion Items */}
-                {!isCollapsed && hasSubItems && isSubOpen && (
-                  <div
+                    }}
+                    title={isCollapsed ? item.label : undefined}
                     style={{
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                      paddingLeft: '24px',
-                      marginTop: '2px',
-                      borderLeft: '2px solid rgba(0, 200, 245, 0.2)',
-                      marginLeft: '18px'
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: isCollapsed ? '12px 0' : '10px 14px',
+                      justifyContent: isCollapsed ? 'center' : 'flex-start',
+                      backgroundColor: isParentActive ? 'rgba(0, 200, 245, 0.14)' : 'transparent',
+                      color: isParentActive ? '#FFFFFF' : '#CBD5E1',
+                      border: isParentActive ? '1px solid rgba(0, 200, 245, 0.3)' : '1px solid transparent',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: isParentActive ? 700 : 500,
+                      position: 'relative',
+                      transition: 'all var(--transition-fast)',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isParentActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.color = '#FFFFFF';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isParentActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#CBD5E1';
+                      }
                     }}
                   >
-                    {item.subItems.map((sub) => {
-                      const SubIcon = sub.icon;
-                      const isSubActive = activeTab === sub.id || (sub.id === 'admin_products_master' && activeTab === 'admin_products');
+                    {/* Active Indicator Bar on the Left */}
+                    {isParentActive && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: '4px',
+                          bottom: '4px',
+                          width: '3px',
+                          backgroundColor: 'var(--brand-cyan)',
+                          borderRadius: '0 2px 2px 0',
+                          boxShadow: '0 0 10px var(--brand-cyan)'
+                        }}
+                      />
+                    )}
 
-                      return (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          onClick={() => onTabChange(sub.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            width: '100%',
-                            padding: '7px 10px',
-                            backgroundColor: isSubActive ? 'rgba(0, 200, 245, 0.22)' : 'transparent',
-                            color: isSubActive ? 'var(--brand-cyan)' : '#94A3B8',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            fontWeight: isSubActive ? 700 : 500,
-                            textAlign: 'left',
-                            transition: 'all var(--transition-fast)'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSubActive) {
-                              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
-                              e.currentTarget.style.color = '#FFFFFF';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isSubActive) {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#94A3B8';
-                            }
-                          }}
-                        >
-                          <SubIcon size={14} color={isSubActive ? 'var(--brand-cyan)' : '#64748B'} />
-                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {sub.label}
+                    <Icon
+                      size={18}
+                      color={isParentActive ? 'var(--brand-cyan)' : '#94A3B8'}
+                      style={{ flexShrink: 0 }}
+                    />
+
+                    {!isCollapsed && (
+                      <>
+                        <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.label}
+                        </span>
+
+                        {item.badge && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '2px 7px',
+                              borderRadius: '10px',
+                              backgroundColor: item.badge === 'Live GST' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 200, 245, 0.15)',
+                              color: item.badge === 'Live GST' ? '#34D399' : 'var(--brand-cyan)',
+                              fontWeight: 700,
+                              border: item.badge === 'Live GST' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(0, 200, 245, 0.3)'
+                            }}
+                          >
+                            {item.badge}
                           </span>
-                          {sub.badge && (
-                            <span style={{ fontSize: '9px', opacity: 0.8, color: isSubActive ? 'var(--brand-cyan)' : '#64748B' }}>
-                              {sub.badge}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </nav>
+                        )}
 
-      {/* Support & Plant Quick Help */}
-      {!isCollapsed && (
+                        {hasSubItems && (
+                          <ChevronDown
+                            size={14}
+                            color="#94A3B8"
+                            style={{
+                              transform: isSubOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform var(--transition-fast)'
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+                  </button>
+
+                  {/* Submenu Accordion Items */}
+                  {!isCollapsed && hasSubItems && isSubOpen && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        paddingLeft: '24px',
+                        marginTop: '2px',
+                        borderLeft: '2px solid rgba(0, 200, 245, 0.2)',
+                        marginLeft: '18px'
+                      }}
+                    >
+                      {item.subItems.map((sub) => {
+                        const SubIcon = sub.icon;
+                        const isSubActive = activeTab === sub.id || (sub.id === 'admin_products_master' && activeTab === 'admin_products');
+
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => {
+                              onTabChange(sub.id);
+                              if (onCloseMobile) onCloseMobile();
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              width: '100%',
+                              padding: '7px 10px',
+                              backgroundColor: isSubActive ? 'rgba(0, 200, 245, 0.22)' : 'transparent',
+                              color: isSubActive ? 'var(--brand-cyan)' : '#94A3B8',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: isSubActive ? 700 : 500,
+                              textAlign: 'left',
+                              transition: 'all var(--transition-fast)'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSubActive) {
+                                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                                e.currentTarget.style.color = '#FFFFFF';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSubActive) {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = '#94A3B8';
+                              }
+                            }}
+                          >
+                            <SubIcon size={14} color={isSubActive ? 'var(--brand-cyan)' : '#64748B'} />
+                            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {sub.label}
+                            </span>
+                            {sub.badge && (
+                              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#94A3B8', fontWeight: 600 }}>
+                                {sub.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Footer info in Sidebar */}
+        {!isCollapsed && (
+          <div
+            style={{
+              padding: '12px 16px',
+              borderTop: '1px solid var(--brand-navy-border)',
+              backgroundColor: 'var(--brand-navy-dark)',
+              fontSize: '11px',
+              color: 'var(--text-on-dark-secondary)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand-cyan)', marginBottom: '3px' }}>
+              <ShieldCheck size={14} />
+              <span style={{ fontWeight: 700 }}>ISO 22241 & BIS Certified</span>
+            </div>
+            <strong style={{ color: '#E2E8F0', display: 'block', fontSize: '10px' }}>
+              Ayush Green Energy • Bhadrak
+            </strong>
+          </div>
+        )}
+
+        {/* Sidebar Collapse Toggle Button */}
         <div
           style={{
-            margin: 'var(--space-3)',
-            padding: '12px',
-            backgroundColor: 'var(--brand-navy-surface)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--brand-navy-border)',
-            fontSize: '11px'
+            padding: '10px',
+            borderTop: '1px solid var(--brand-navy-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'flex-end'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand-gold)', fontWeight: 700, marginBottom: '4px' }}>
-            <PhoneCall size={13} />
-            <span>{COMPANY_INFO.name} Helpline</span>
-          </div>
-          <p style={{ color: 'var(--text-on-dark-secondary)', margin: '0 0 6px 0', lineHeight: 1.3 }}>
-            {(currentRole === ROLES.OPERATOR && (authUser?.assignedDepot || authUser?.organization))
-              ? `${(authUser?.assignedDepot || authUser?.organization)} Dispatch Desk:`
-              : '24/7 Dispatch Desk:'}
-          </p>
-          <strong style={{ color: '#FFFFFF', fontSize: '12px', letterSpacing: '0.02em' }}>
-            {COMPANY_INFO.salesHotline}
-          </strong>
+          <button
+            onClick={onToggleCollapse}
+            className="ub-btn ub-btn-ghost ub-btn-icon sidebar-collapse-btn"
+            style={{ color: 'var(--text-on-dark-secondary)', padding: '6px' }}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
-      )}
-
-      {/* Sidebar Collapse Toggle Button */}
-      <div
-        style={{
-          padding: '10px',
-          borderTop: '1px solid var(--brand-navy-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: isCollapsed ? 'center' : 'flex-end'
-        }}
-      >
-        <button
-          onClick={onToggleCollapse}
-          className="ub-btn ub-btn-ghost ub-btn-icon"
-          style={{ color: 'var(--text-on-dark-secondary)', padding: '6px' }}
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };

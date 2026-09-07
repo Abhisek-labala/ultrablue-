@@ -8,10 +8,11 @@ import {
   Building, 
   LogOut, 
   Globe, 
-  ShieldCheck,
-  ExternalLink,
-  Sun,
-  Moon
+  ShieldCheck, 
+  ExternalLink, 
+  Sun, 
+  Moon,
+  Menu
 } from 'lucide-react';
 import { ROLES, ROLE_LABELS } from '../../config/roles';
 
@@ -22,6 +23,7 @@ export const AppHeader = ({
   authUser = null,
   onLogout,
   onViewPublicWebsite,
+  onToggleMobileSidebar,
   notifications = [],
   onNotificationClick
 }) => {
@@ -84,6 +86,7 @@ export const AppHeader = ({
 
   return (
     <header
+      className="app-header"
       style={{
         height: 'var(--header-height)',
         backgroundColor: 'var(--bg-surface)',
@@ -99,23 +102,45 @@ export const AppHeader = ({
         boxShadow: 'var(--shadow-sm)'
       }}
     >
-      {/* Left: Breadcrumbs & Title */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
-          {breadcrumbs.map((crumb, idx) => (
-            <React.Fragment key={idx}>
-              <span>{crumb}</span>
-              {idx < breadcrumbs.length - 1 && <span>/</span>}
-            </React.Fragment>
-          ))}
+      {/* Left: Mobile Drawer Button & Title/Breadcrumbs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+        <button
+          type="button"
+          className="header-mobile-menu-btn"
+          onClick={onToggleMobileSidebar}
+          aria-label="Toggle navigation menu"
+          style={{
+            display: 'none',
+            background: 'transparent',
+            border: '1px solid var(--border-medium)',
+            borderRadius: '6px',
+            padding: '6px',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Menu size={20} />
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="header-breadcrumbs" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+            {breadcrumbs.map((crumb, idx) => (
+              <React.Fragment key={idx}>
+                <span>{crumb}</span>
+                {idx < breadcrumbs.length - 1 && <span>/</span>}
+              </React.Fragment>
+            ))}
+          </div>
+          <h1 className="header-page-title" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--brand-navy-primary)', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {title}
+          </h1>
         </div>
-        <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--brand-navy-primary)', margin: 0, lineHeight: 1.2 }}>
-          {title}
-        </h1>
       </div>
 
       {/* Center: Global Search */}
-      <div style={{ flex: 1, maxWidth: '420px', position: 'relative' }}>
+      <div className="header-search-box" style={{ flex: 1, maxWidth: '420px', position: 'relative' }}>
         <Search
           size={16}
           style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
@@ -311,7 +336,7 @@ export const AppHeader = ({
             >
               {initials}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+            <div className="header-user-text" style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
               <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
                 {displayName}
               </span>

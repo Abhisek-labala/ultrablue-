@@ -8,14 +8,19 @@ import {
   Building2,
   MapPin,
   CreditCard,
-  MapPinned
+  MapPinned,
+  ShoppingCart,
+  Clock,
+  RefreshCw,
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { DistributorAPI, TerritoryAPI } from '../../services/api';
+import { DistributorAPI, TerritoryAPI, DistributorOrderAPI } from '../../services/api';
 
 // Validation helper utilities
 const validateEmail = (email) => {
@@ -62,6 +67,7 @@ const validateContact = (name) => {
 };
 
 export const AdminDistributorsView = ({ 
+  authUser,
   distributors = [], 
   onRefresh, 
   onShowToast, 
@@ -71,6 +77,115 @@ export const AdminDistributorsView = ({
   const [isKycModalOpen, setIsKycModalOpen] = useState(false);
   const [isCreateDistributorModalOpen, setIsCreateDistributorModalOpen] = useState(false);
   const [isAddTerritoryModalOpen, setIsAddTerritoryModalOpen] = useState(false);
+
+  // Sub-tabs: 'orders' (B2B Purchase Orders) vs 'accounts' (Distributor Directory)
+  const [activeSubTab, setActiveSubTab] = useState('orders');
+  const [distributorOrders, setDistributorOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Credit Ledger & Settlement Modal State
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settlementDistributor, setSettlementDistributor] = useState(null);
+  const [settlementLedger, setSettlementLedger] = useState([]);
+  const [settlementForm, setSettlementForm] = useState({
+    amount: '',
+    paymentMethod: 'UPI',
+    referenceNo: '',
+    notes: ''
+  });
+  const [settlementError, setSettlementError] = useState('');
+
+  const fetchOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      const ords = await DistributorOrderAPI.getAll();
+      setDistributorOrders(ords || []);
+    } catch (e) {
+      console.warn('Error fetching distributor orders in admin:', e);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleApproveOrder = async (orderId) => {
+    try {
+      await DistributorOrderAPI.approve(orderId, {
+        admin_name: authUser?.name || 'Admin'
+      });
+      if (onShowToast) onShowToast('Distributor order approved! Routed to Sales Operator POS for billing.');
+      await fetchOrders();
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error approving order.');
+    }
+  };
+
+  const handleRejectOrder = async (orderId) => {
+    const reason = prompt('Specify rejection reason for the distributor:');
+    if (!reason) return;
+    try {
+      await DistributorOrderAPI.reject(orderId, reason);
+      if (onShowToast) onShowToast('Distributor order rejected.');
+      await fetchOrders();
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Error rejecting order.');
+    }
+  };
+
+  const handleOpenSettlement = async (dist) => {
+    setSettlementDistributor(dist);
+    setSettlementForm({ amount: '', paymentMethod: 'UPI', referenceNo: '', notes: '' });
+    setSettlementError('');
+    setIsSettlementModalOpen(true);
+    try {
+      const res = await DistributorOrderAPI.getCreditLedger(dist.id);
+      if (res && res.transactions) {
+        setSettlementLedger(res.transactions);
+      }
+    } catch (e) {
+      console.warn('Error loading ledger:', e);
+    }
+  };
+
+  const handleSettlementSubmit = async (e) => {
+    e.preventDefault();
+    if (!settlementDistributor) return;
+    const amt = parseFloat(settlementForm.amount);
+    const maxOutstanding = settlementDistributor.rawOutstandingCredit || 0;
+    if (isNaN(amt) || amt <= 0) {
+      setSettlementError('Please enter a valid positive payment amount.');
+      return;
+    }
+    if (amt > maxOutstanding) {
+      setSettlementError(`Payment amount (₹${amt.toLocaleString('en-IN')}) cannot exceed total outstanding debt (₹${maxOutstanding.toLocaleString('en-IN')}).`);
+      return;
+    }
+    if (!settlementForm.referenceNo.trim()) {
+      setSettlementError('Payment reference / UTR / Cheque number is required.');
+      return;
+    }
+
+    try {
+      await DistributorOrderAPI.settleCredit({
+        distributorId: settlementDistributor.id,
+        amount: amt,
+        paymentMethod: settlementForm.paymentMethod,
+        referenceNo: settlementForm.referenceNo.trim(),
+        notes: settlementForm.notes.trim(),
+        recordedBy: authUser?.name || 'Admin Accounts'
+      });
+      if (onShowToast) onShowToast(`Settlement of ₹${amt.toLocaleString('en-IN')} recorded successfully!`);
+      setIsSettlementModalOpen(false);
+      if (onRefresh) onRefresh();
+      await fetchOrders();
+    } catch (err) {
+      setSettlementError(err.message || 'Error recording settlement payment.');
+    }
+  };
 
   // Validation errors
   const [newDistErrors, setNewDistErrors] = useState({});
@@ -167,7 +282,7 @@ export const AdminDistributorsView = ({
       ? dist.rawCreditLimit 
       : (typeof dist.creditLimit === 'number' ? dist.creditLimit : (parseFloat(String(dist.creditLimit || '').replace(/[^0-9.]/g, '')) || ''));
     
-    const distState = dist.state || dist.territory_state || 'Odisha';
+    const distState = dist.state || dist.territory_state || '';
     const distCity = dist.city || dist.territory_city || '';
 
     setEditForm({
@@ -349,94 +464,463 @@ export const AdminDistributorsView = ({
     }
   };
 
+  const pendingCount = distributorOrders.filter(o => o.status === 'PENDING_ADMIN_APPROVAL').length;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Header Action Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={20} color="var(--brand-gold)" />
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Authorized B2B Partner Directory & KYC Status</h3>
-          </div>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Manage authorized distributor credit lines, wholesale pricing, GST compliance, and new partner onboarding.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <Button size="sm" variant="secondary" icon={MapPinned} onClick={() => setIsAddTerritoryModalOpen(true)}>
-            Manage Territories in DB
-          </Button>
-          <Button size="sm" variant="secondary" icon={Download} onClick={() => exportToCSV('UltraBlue_Distributors', distributors)}>
-            Export Partners CSV
-          </Button>
-          <Button size="sm" variant="gold" icon={Plus} onClick={() => setIsCreateDistributorModalOpen(true)}>
-            Create Distributor
-          </Button>
-        </div>
+      {/* Navigation Sub-tabs */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-medium)', paddingBottom: '8px', flexWrap: 'wrap' }}>
+        <Button
+          size="sm"
+          variant={activeSubTab === 'orders' ? 'primary' : 'secondary'}
+          icon={ShoppingCart}
+          onClick={() => setActiveSubTab('orders')}
+        >
+          B2B Purchase Orders & Requisitions {pendingCount > 0 && (
+            <span style={{ 
+              marginLeft: '6px', 
+              padding: '2px 7px', 
+              borderRadius: '10px', 
+              backgroundColor: '#EF4444', 
+              color: '#FFFFFF', 
+              fontSize: '10.5px', 
+              fontWeight: 800 
+            }}>
+              {pendingCount} Pending
+            </span>
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant={activeSubTab === 'accounts' ? 'primary' : 'secondary'}
+          icon={Users}
+          onClick={() => setActiveSubTab('accounts')}
+        >
+          Distributor Directory & Credit Accounts ({distributors.length})
+        </Button>
       </div>
 
-      {/* Distributors DataTable */}
-      <DataTable
-        title="B2B Network & Wholesale Partners"
-        data={distributors}
-        columns={[
-          {
-            header: 'Company & Contact',
-            accessor: 'companyName',
-            render: (val, row) => (
-              <div>
-                <strong style={{ fontSize: 'var(--font-size-md)' }}>{val}</strong>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {row.contactPerson} • {row.phone}
-                </div>
+      {/* ========================================================================= */}
+      {/* Sub-tab 1: B2B Purchase Orders & Admin Approvals */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'orders' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShoppingCart size={20} color="var(--brand-blue)" />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Distributor B2B Purchase Orders & Requisitions</h3>
               </div>
-            )
-          },
-          {
-            header: 'GSTIN / Territory',
-            accessor: 'gstin',
-            render: (val, row) => (
-              <div>
-                <code style={{ fontSize: '11px', fontWeight: 600 }}>{val}</code>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.city || row.state || 'Odisha'}</div>
-              </div>
-            )
-          },
-          {
-            header: 'Revolving Credit Limit',
-            accessor: 'creditLimit',
-            render: (val) => `₹ ${(val || 0).toLocaleString('en-IN')}`
-          },
-          {
-            header: 'Available Balance',
-            accessor: 'availableCredit',
-            render: (val, row) => (
-              <strong style={{ color: (val || 0) < 50000 ? 'var(--status-danger)' : 'var(--text-primary)' }}>
-                ₹ {(val || 0).toLocaleString('en-IN')}
-              </strong>
-            )
-          },
-          {
-            header: 'KYC Status',
-            accessor: 'accountStatus',
-            render: (val, row) => <StatusBadge status={val || row.status} />
-          },
-          {
-            header: 'Actions',
-            accessor: 'id',
-            render: (val, row) => (
-              <Button
-                size="sm"
-                variant={(row.accountStatus === 'PENDING_REVIEW' || row.status === 'PENDING_REVIEW') ? 'gold' : 'secondary'}
-                onClick={() => handleOpenKycReview(row)}
-              >
-                {(row.accountStatus === 'PENDING_REVIEW' || row.status === 'PENDING_REVIEW') ? 'Review KYC' : 'Edit Partner'}
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Review wholesale supply requisitions placed by distributors. Approved orders are routed to Sales Operator POS terminals for billing & stock deduction.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Button size="sm" variant="secondary" icon={RefreshCw} onClick={fetchOrders}>
+                Refresh Orders
               </Button>
-            )
-          }
-        ]}
-      />
+              <Button size="sm" variant="secondary" icon={Download} onClick={() => exportToCSV('UltraBlue_B2B_Orders', distributorOrders)}>
+                Export Orders CSV
+              </Button>
+            </div>
+          </div>
+
+          <DataTable
+            title="Incoming B2B Purchase Orders & Dispatch Queue"
+            data={distributorOrders}
+            emptyMessage="No distributor orders found yet. When distributors place orders in their portal, they will appear here."
+            columns={[
+              {
+                header: 'Order Number',
+                accessor: 'orderNumber',
+                render: (val, row) => (
+                  <div>
+                    <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{val || row.id}</strong>
+                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{row.date || row.createdAt}</div>
+                  </div>
+                )
+              },
+              {
+                header: 'Distributor & Firm',
+                accessor: 'distributorCompany',
+                render: (val, row) => (
+                  <div>
+                    <strong style={{ fontSize: 'var(--font-size-md)' }}>{val}</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {row.distributorName} • {row.distributorPhone}
+                    </div>
+                    {row.deliveryCity && (
+                      <div style={{ fontSize: '10.5px', color: 'var(--brand-cyan)' }}>
+                        Hub: {row.deliveryCity}, {row.deliveryState}
+                      </div>
+                    )}
+                  </div>
+                )
+              },
+              {
+                header: 'Ordered Items & Packaging',
+                accessor: 'items',
+                render: (_, row) => (
+                  <div>
+                    {(row.items || []).map((it, idx) => (
+                      <div key={idx} style={{ fontSize: '12px', fontWeight: 600 }}>
+                        {it.productName} ({it.packSize}) <span style={{ color: 'var(--brand-blue)' }}>x {it.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              },
+              {
+                header: 'Estimated Value',
+                accessor: 'totalEstimatedValue',
+                render: (val) => (
+                  <strong style={{ color: 'var(--brand-blue)', fontSize: '13px' }}>
+                    ₹ {(Number(val || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </strong>
+                )
+              },
+              {
+                header: 'Status',
+                accessor: 'status',
+                render: (val, row) => {
+                  if (val === 'PENDING_ADMIN_APPROVAL') {
+                    return (
+                      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#EAB308', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                        PENDING APPROVAL
+                      </span>
+                    );
+                  } else if (val === 'APPROVED') {
+                    return (
+                      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(6, 182, 212, 0.15)', color: '#06B6D4', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
+                        APPROVED FOR POS BILLING
+                      </span>
+                    );
+                  } else if (val === 'CONVERTED_TO_INVOICE') {
+                    return (
+                      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22C55E', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                        BILLED: {row.invoiceNumber || 'Completed'}
+                      </span>
+                    );
+                  } else if (val === 'REJECTED') {
+                    return (
+                      <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                        REJECTED
+                      </span>
+                    );
+                  }
+                  return <StatusBadge status={val} />;
+                }
+              },
+              {
+                header: 'Admin Actions',
+                accessor: 'id',
+                render: (val, row) => {
+                  if (row.status === 'PENDING_ADMIN_APPROVAL') {
+                    return (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <Button
+                          size="xs"
+                          variant="gold"
+                          icon={CheckCircle2}
+                          onClick={() => handleApproveOrder(row.id)}
+                          title="Approve Order for Sales Operator Billing"
+                        >
+                          Approve for Billing
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="secondary"
+                          icon={XCircle}
+                          onClick={() => handleRejectOrder(row.id)}
+                          title="Reject Order"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    );
+                  } else if (row.status === 'APPROVED') {
+                    return (
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Ready for Operator POS
+                      </span>
+                    );
+                  } else if (row.status === 'CONVERTED_TO_INVOICE') {
+                    return (
+                      <span style={{ fontSize: '11px', color: 'var(--status-success)', fontWeight: 600 }}>
+                        Dispatched
+                      </span>
+                    );
+                  }
+                  return <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>;
+                }
+              }
+            ]}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* Sub-tab 2: Distributor Directory & KYC */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'accounts' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header Action Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border-medium)', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} color="var(--brand-gold)" />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Authorized B2B Partner Directory & KYC Status</h3>
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Manage authorized distributor credit lines, wholesale pricing, GST compliance, and new partner onboarding.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <Button size="sm" variant="secondary" icon={MapPinned} onClick={() => setIsAddTerritoryModalOpen(true)}>
+                Manage Territories in DB
+              </Button>
+              <Button size="sm" variant="secondary" icon={Download} onClick={() => exportToCSV('UltraBlue_Distributors', distributors)}>
+                Export Partners CSV
+              </Button>
+              <Button size="sm" variant="gold" icon={Plus} onClick={() => setIsCreateDistributorModalOpen(true)}>
+                Create Distributor
+              </Button>
+            </div>
+          </div>
+
+          {/* Distributors DataTable */}
+          <DataTable
+            title="B2B Network & Wholesale Partners"
+            data={distributors}
+            columns={[
+              {
+                header: 'Company & Contact',
+                accessor: 'companyName',
+                render: (val, row) => (
+                  <div>
+                    <strong style={{ fontSize: 'var(--font-size-md)' }}>{val}</strong>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {row.contactPerson} • {row.phone}
+                    </div>
+                  </div>
+                )
+              },
+              {
+                header: 'GSTIN / Territory',
+                accessor: 'gstin',
+                render: (val, row) => (
+                  <div>
+                    <code style={{ fontSize: '11px', fontWeight: 600 }}>{val}</code>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {[row.city, row.state].filter(Boolean).join(', ') || '-'}
+                    </div>
+                  </div>
+                )
+              },
+              {
+                header: 'Credit Limit',
+                accessor: 'creditLimit',
+                render: (val) => `₹ ${(Number(val || 0)).toLocaleString('en-IN')}`
+              },
+              {
+                header: 'Outstanding Debt',
+                accessor: 'outstandingCredit',
+                render: (val, row) => {
+                  const debt = Number(val || row.rawOutstandingCredit || 0);
+                  return (
+                    <strong style={{ color: debt > 0 ? 'var(--status-danger)' : 'var(--status-success)' }}>
+                      ₹ {debt.toLocaleString('en-IN')}
+                    </strong>
+                  );
+                }
+              },
+              {
+                header: 'Available Limit',
+                accessor: 'availableCredit',
+                render: (val, row) => {
+                  const limit = Number(row.rawCreditLimit ?? row.creditLimit ?? 0);
+                  const debt = Number(row.rawOutstandingCredit ?? row.outstandingCredit ?? 0);
+                  const avail = Math.max(0, limit - debt);
+                  return (
+                    <strong style={{ color: avail < 50000 ? 'var(--status-danger)' : 'var(--brand-blue)' }}>
+                      ₹ {avail.toLocaleString('en-IN')}
+                    </strong>
+                  );
+                }
+              },
+              {
+                header: 'KYC Status',
+                accessor: 'accountStatus',
+                render: (val, row) => <StatusBadge status={val || row.status} />
+              },
+              {
+                header: 'Actions',
+                accessor: 'id',
+                render: (val, row) => (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <Button
+                      size="xs"
+                      variant={(row.accountStatus === 'PENDING_REVIEW' || row.status === 'PENDING_REVIEW') ? 'gold' : 'secondary'}
+                      onClick={() => handleOpenKycReview(row)}
+                    >
+                      {(row.accountStatus === 'PENDING_REVIEW' || row.status === 'PENDING_REVIEW') ? 'Review KYC' : 'Edit'}
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="primary"
+                      icon={CreditCard}
+                      onClick={() => handleOpenSettlement(row)}
+                      title="View credit statement and record payment settlement"
+                    >
+                      Settle Debt
+                    </Button>
+                  </div>
+                )
+              }
+            ]}
+          />
+        </div>
+      )}
+
+      {/* RECORD CREDIT SETTLEMENT & STATEMENT MODAL */}
+      <Modal
+        isOpen={isSettlementModalOpen}
+        onClose={() => setIsSettlementModalOpen(false)}
+        title={`Credit Ledger & Debt Settlement: ${settlementDistributor?.companyName || 'Distributor'}`}
+        subtitle={`Available Credit: ₹${(settlementDistributor?.rawAvailableCredit ?? 0).toLocaleString('en-IN')} • Current Debt: ₹${(settlementDistributor?.rawOutstandingCredit ?? 0).toLocaleString('en-IN')}`}
+        icon={CreditCard}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Quick Balance Banner */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '8px' }}>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Approved Limit</span>
+              <div style={{ fontWeight: 700 }}>₹{(settlementDistributor?.rawCreditLimit ?? 0).toLocaleString('en-IN')}</div>
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Current Outstanding</span>
+              <div style={{ fontWeight: 800, color: (settlementDistributor?.rawOutstandingCredit || 0) > 0 ? '#EF4444' : '#22C55E' }}>
+                ₹{(settlementDistributor?.rawOutstandingCredit || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Remaining Limit</span>
+              <div style={{ fontWeight: 700, color: 'var(--brand-cyan)' }}>
+                ₹{(settlementDistributor?.rawAvailableCredit ?? 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+          </div>
+
+          {/* Record Settlement Form */}
+          <form onSubmit={handleSettlementSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid var(--border-medium)', padding: '14px', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: '13px' }}>Record Payment Settlement (Pay Off Debt)</strong>
+              {(settlementDistributor?.rawOutstandingCredit || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSettlementForm(prev => ({ ...prev, amount: settlementDistributor.rawOutstandingCredit }))}
+                  style={{ fontSize: '11px', color: 'var(--brand-blue)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Pay Full Debt (₹{settlementDistributor.rawOutstandingCredit.toLocaleString('en-IN')})
+                </button>
+              )}
+            </div>
+
+            {settlementError && (
+              <div style={{ color: '#EF4444', fontSize: '11.5px', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '8px 10px', borderRadius: '6px' }}>
+                {settlementError}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <Input
+                label="Payment Amount (₹) *"
+                type="number"
+                min="1"
+                step="any"
+                value={settlementForm.amount}
+                onChange={e => setSettlementForm({ ...settlementForm, amount: e.target.value })}
+                placeholder="e.g. 25000"
+                required
+              />
+              <Select
+                label="Payment Mode *"
+                value={settlementForm.paymentMethod}
+                onChange={e => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })}
+                options={[
+                  { value: 'UPI', label: 'UPI / QR Transfer' },
+                  { value: 'NEFT', label: 'NEFT / RTGS Bank Transfer' },
+                  { value: 'Cheque', label: 'Bank Cheque' },
+                  { value: 'Cash', label: 'Direct Cash' }
+                ]}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <Input
+                label="Payment Reference / UTR / Cheque # *"
+                value={settlementForm.referenceNo}
+                onChange={e => setSettlementForm({ ...settlementForm, referenceNo: e.target.value })}
+                placeholder="e.g. UTR-99882244"
+                required
+              />
+              <Input
+                label="Notes / Remarks"
+                value={settlementForm.notes}
+                onChange={e => setSettlementForm({ ...settlementForm, notes: e.target.value })}
+                placeholder="e.g. Part payment against invoice"
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <Button type="submit" variant="primary" icon={CheckCircle2} size="sm">
+                Record Payment & Settle Balance
+              </Button>
+            </div>
+          </form>
+
+          {/* Credit Statement History */}
+          <div>
+            <strong style={{ display: 'block', fontSize: '12px', marginBottom: '8px', color: 'var(--text-muted)' }}>
+              Recent Credit Ledger Transactions ({settlementLedger.length})
+            </strong>
+            {settlementLedger.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                No credit transactions on record. When invoices are billed on credit, they will appear here.
+              </p>
+            ) : (
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-medium)', borderRadius: '6px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-app)', textAlign: 'left', borderBottom: '1px solid var(--border-medium)' }}>
+                      <th style={{ padding: '8px' }}>Date</th>
+                      <th style={{ padding: '8px' }}>Type</th>
+                      <th style={{ padding: '8px' }}>Amount</th>
+                      <th style={{ padding: '8px' }}>Balance After</th>
+                      <th style={{ padding: '8px' }}>Ref #</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settlementLedger.map((tx, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <td style={{ padding: '8px' }}>{new Date(tx.created_at).toLocaleDateString('en-IN')}</td>
+                        <td style={{ padding: '8px', fontWeight: 600, color: tx.type === 'DEBIT_INVOICE' ? '#EF4444' : '#22C55E' }}>
+                          {tx.type === 'DEBIT_INVOICE' ? 'Debit (Credit Sale)' : 'Credit (Settlement)'}
+                        </td>
+                        <td style={{ padding: '8px', fontWeight: 700 }}>₹{parseFloat(tx.amount).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '8px' }}>₹{parseFloat(tx.balance_after).toLocaleString('en-IN')}</td>
+                        <td style={{ padding: '8px', fontFamily: 'monospace' }}>{tx.reference_no || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* KYC REVIEW & EDIT PARTNER MODAL */}
       <Modal

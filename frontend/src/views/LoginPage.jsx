@@ -446,6 +446,7 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                   onClick={() => handleRoleTabChange(tab.id)}
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     padding: '8px 4px',
                     borderRadius: '50px',
                     border: 'none',
@@ -455,7 +456,7 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                     color: isActive
                       ? (isDark ? '#FFFFFF' : '#06142F')
                       : (isDark ? '#94A3B8' : '#475569'),
-                    fontSize: '11px',
+                    fontSize: 'clamp(9px, 2.7vw, 11px)',
                     fontWeight: isActive ? 800 : 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -466,11 +467,12 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '4px',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden'
                   }}
                 >
-                  <tab.icon size={13} color={isActive ? (isDark ? '#FFFFFF' : 'var(--brand-blue)') : 'currentColor'} />
-                  <span>{tab.label}</span>
+                  <tab.icon size={13} style={{ flexShrink: 0 }} color={isActive ? (isDark ? '#FFFFFF' : 'var(--brand-blue)') : 'currentColor'} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
                 </button>
               );
             })}

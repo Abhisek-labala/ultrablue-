@@ -103,7 +103,7 @@ export const Modal = ({
         </div>
 
         {/* Modal Body */}
-        <div className="ub-card-body" style={{ overflowY: 'auto', flex: 1 }}>
+        <div className="ub-card-body" style={{ overflowY: 'auto', overflowX: 'auto', WebkitOverflowScrolling: 'touch', flex: 1, padding: 'var(--space-4)' }}>
           {children}
         </div>
 

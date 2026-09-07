@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\TerritoryController;
+use App\Http\Controllers\Api\DistributorOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -80,6 +81,14 @@ Route::post('/distributors', [DistributorController::class, 'store']);
 Route::put('/distributors/{id}', [DistributorController::class, 'update']);
 Route::patch('/distributors/{id}/status', [DistributorController::class, 'updateStatus']);
 Route::get('/distributors/pricelist', [DistributorController::class, 'downloadPriceList']);
+Route::get('/distributors/{id}/credit-ledger', [DistributorOrderController::class, 'creditLedger']);
+Route::post('/distributors/settle-credit', [DistributorOrderController::class, 'settleCredit']);
+
+// B2B Distributor Requisitions & Orders (Lifecycle: Placed -> Admin Approval -> Operator Billing)
+Route::get('/distributor-orders', [DistributorOrderController::class, 'index']);
+Route::post('/distributor-orders', [DistributorOrderController::class, 'store']);
+Route::patch('/distributor-orders/{id}/approve', [DistributorOrderController::class, 'approve']);
+Route::patch('/distributor-orders/{id}/reject', [DistributorOrderController::class, 'reject']);
 
 // Territory & Geographic Locations (Stored in Database)
 Route::get('/territories', [TerritoryController::class, 'index']);

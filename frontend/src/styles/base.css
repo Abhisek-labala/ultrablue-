@@ -451,3 +451,149 @@ a:hover {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   RESPONSIVE LAYOUT & MOBILE ADAPTATION SYSTEM
+   ========================================================================== */
+
+/* Tablet & Mobile Navigation (< 1024px) */
+@media (max-width: 1024px) {
+  .header-mobile-menu-btn {
+    display: inline-flex !important;
+  }
+
+  .sidebar-collapse-btn {
+    display: none !important;
+  }
+
+  .sidebar-mobile-close-btn {
+    display: flex !important;
+  }
+
+  /* Off-canvas mobile drawer sidebar */
+  aside.app-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    z-index: 1000 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 4px 0 28px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  aside.app-sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  .sidebar-mobile-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(3px) !important;
+    z-index: 999 !important;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .main-content-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* Smartphone Screens (< 768px) */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 12px !important;
+    gap: 8px !important;
+  }
+
+  .header-breadcrumbs {
+    display: none !important;
+  }
+
+  .header-page-title {
+    font-size: 14px !important;
+    max-width: 170px !important;
+  }
+
+  .header-search-box {
+    display: none !important;
+  }
+
+  .header-user-text {
+    display: none !important;
+  }
+
+  .page-body {
+    padding: 12px 10px !important;
+    width: 100% !important;
+  }
+
+  /* Cards & Toolbars */
+  .ub-card-header {
+    padding: 10px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .ub-card-body {
+    padding: 12px !important;
+  }
+
+  .ub-card-footer {
+    padding: 10px 12px !important;
+  }
+
+  /* Responsive Data Tables */
+  .data-table-container,
+  .table-responsive {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Form and Input Elements */
+  .ub-form-group {
+    margin-bottom: 12px !important;
+  }
+
+  .ub-btn {
+    padding: 0.45rem 0.8rem !important;
+    font-size: 13px !important;
+  }
+
+  /* Modals */
+  .ub-card[style*="max-width"],
+  .modal-container {
+    width: 96% !important;
+    max-width: 96vw !important;
+    max-height: 94vh !important;
+    margin: 0 auto !important;
+  }
+
+  /* Auth / Login Form Card */
+  .auth-card {
+    padding: 20px 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .login-page-container {
+    padding: 12px 8px 24px 8px !important;
+  }
+}
+
+/* Extra Small Smartphones (< 480px) */
+@media (max-width: 480px) {
+  .header-page-title {
+    max-width: 130px !important;
+    font-size: 13px !important;
+  }
+
+  .ub-btn {
+    font-size: 12px !important;
+  }
+}

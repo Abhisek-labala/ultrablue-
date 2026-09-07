@@ -113,6 +113,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState(initialRoute.tab);
   const [currentRouteInfo, setCurrentRouteInfo] = useState(initialRoute);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [authUser, setAuthUser] = useState(() => {
     const session = JWT_AUTH.getSession();
@@ -161,6 +162,7 @@ export function App() {
       setCurrentRole(route.role);
       setActiveTab(route.tab);
       setCurrentRouteInfo(route);
+      setIsMobileSidebarOpen(false);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -172,6 +174,7 @@ export function App() {
     setActiveTab(route.tab);
     setCurrentRole(route.role);
     setCurrentRouteInfo(route);
+    setIsMobileSidebarOpen(false);
 
     if (updateUrl && window.location.pathname !== route.path) {
       window.history.pushState({ role: route.role, tab: route.tab }, '', route.path);
@@ -243,6 +246,8 @@ export function App() {
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         authUser={authUser}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -256,6 +261,7 @@ export function App() {
           onRoleChange={handleRoleChange}
           onLogout={handleLogout}
           onViewPublicWebsite={() => handleRoleChange('public')}
+          onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
           notifications={notifications}
           onNotificationClick={(notif) => {
             if (notif.action === 'GO_TO_INVENTORY') {

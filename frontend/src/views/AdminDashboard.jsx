@@ -333,6 +333,7 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
       case 'distributors':
         return (
           <AdminDistributorsView
+            authUser={authUser}
             distributors={distributors}
             onRefresh={fetchDistributors}
             onShowToast={showToast}

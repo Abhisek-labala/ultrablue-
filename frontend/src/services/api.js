@@ -357,7 +357,12 @@ export const SalesAPI = {
     discountType = 'none',
     couponCode = null,
     paymentMethod = 'UPI',
-    paymentRef = ''
+    paymentRef = '',
+    distributorId = null,
+    distributorOrderId = null,
+    paymentMode = 'FULL_PAID',
+    paidAmount = 0,
+    creditAmount = 0
   }) => {
     const res = await fetch(`${API_BASE_URL}/invoices/create`, {
       method: 'POST',
@@ -377,7 +382,12 @@ export const SalesAPI = {
           unit_price: parseFloat(i.unitPrice)
         })),
         payment_method: paymentMethod,
-        payment_ref: paymentRef
+        payment_ref: paymentRef,
+        distributor_id: distributorId,
+        distributor_order_id: distributorOrderId,
+        payment_mode: paymentMode,
+        paid_amount: parseFloat(paidAmount) || 0,
+        credit_amount: parseFloat(creditAmount) || 0
       })
     });
 
@@ -390,31 +400,170 @@ export const SalesAPI = {
 };
 
 // ----------------------------------------------------
+// 3b. B2B DISTRIBUTOR ORDERS API (Order -> Approval -> Billing Lifecycle)
+// ----------------------------------------------------
+export const DistributorOrderAPI = {
+  getAll: async (params = {}) => {
+    const cleanParams = Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null && v !== ''));
+    const query = new URLSearchParams(cleanParams).toString();
+    const url = `${API_BASE_URL}/distributor-orders${query ? `?${query}` : ''}`;
+    const res = await fetch(url, { headers });
+    const json = await res.json();
+    return (json.data || []).map(o => ({
+      id: o.id,
+      orderNumber: o.order_number,
+      distributorId: o.distributor_id,
+      distributorName: o.distributor_name,
+      distributorCompany: o.distributor_company,
+      distributorPhone: o.distributor_phone,
+      distributorEmail: o.distributor_email,
+      distributorGstin: o.distributor_gstin,
+      deliveryCity: o.delivery_city,
+      deliveryState: o.delivery_state,
+      totalEstimatedValue: parseFloat(o.total_estimated_value || 0),
+      status: o.status,
+      orderNotes: o.order_notes,
+      adminNotes: o.admin_notes,
+      approvedBy: o.approved_by,
+      approvedAt: o.approved_at,
+      invoiceId: o.invoice_id,
+      invoiceNumber: o.invoice_number,
+      createdAt: o.created_at,
+      date: o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '',
+      creditLimit: parseFloat(o.credit_limit || 0),
+      outstandingCredit: parseFloat(o.outstanding_credit || 0),
+      availableCredit: parseFloat(o.available_credit || 0),
+      items: (o.items || []).map(it => ({
+        id: it.id,
+        variantId: it.variant_id,
+        sku: it.sku,
+        productName: it.product_name,
+        packSize: it.pack_size,
+        quantity: parseInt(it.quantity, 10),
+        unitPrice: parseFloat(it.unit_price || 0),
+        lineTotal: parseFloat(it.line_total || 0)
+      }))
+    }));
+  },
+
+  create: async (orderData) => {
+    const res = await fetch(`${API_BASE_URL}/distributor-orders`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        distributor_name: orderData.distributorName,
+        distributor_company: orderData.distributorCompany,
+        distributor_phone: orderData.distributorPhone,
+        distributor_email: orderData.distributorEmail,
+        distributor_gstin: orderData.distributorGstin,
+        delivery_city: orderData.deliveryCity,
+        delivery_state: orderData.deliveryState,
+        order_notes: orderData.orderNotes,
+        items: (orderData.items || []).map(it => ({
+          sku: it.sku,
+          quantity: parseInt(it.quantity || it.qty, 10),
+          unit_price: parseFloat(it.unitPrice || 0)
+        }))
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to place distributor order.');
+    }
+    return json;
+  },
+
+  approve: async (orderId, payload = {}) => {
+    const res = await fetch(`${API_BASE_URL}/distributor-orders/${orderId}/approve`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to approve order.');
+    }
+    return json;
+  },
+
+  reject: async (orderId, reason = '') => {
+    const res = await fetch(`${API_BASE_URL}/distributor-orders/${orderId}/reject`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ reason })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to reject order.');
+    }
+    return json;
+  },
+
+  getCreditLedger: async (distributorId) => {
+    const res = await fetch(`${API_BASE_URL}/distributors/${distributorId}/credit-ledger`, { headers });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to fetch credit ledger.');
+    }
+    return json;
+  },
+
+  settleCredit: async ({ distributorId, amount, paymentMethod, referenceNo, notes, recordedBy }) => {
+    const res = await fetch(`${API_BASE_URL}/distributors/settle-credit`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        distributor_id: distributorId,
+        amount: parseFloat(amount),
+        payment_method: paymentMethod,
+        reference_no: referenceNo,
+        notes: notes || '',
+        recorded_by: recordedBy || 'Admin Accounts'
+      })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to record credit settlement.');
+    }
+    return json;
+  }
+};
+
+// ----------------------------------------------------
 // 4. DISTRIBUTORS API
 // ----------------------------------------------------
 export const DistributorAPI = {
   getAll: async () => {
     const res = await fetch(`${API_BASE_URL}/distributors`, { headers });
     const json = await res.json();
-    return (json.data || []).map(d => ({
-      id: d.id,
-      name: d.company_name,
-      companyName: d.company_name,
-      contactPerson: d.contact_person,
-      phone: d.phone,
-      email: d.email,
-      gstin: d.gstin,
-      city: d.territory_city || '',
-      state: d.territory_state || '',
-      tier: d.discount_tier || '',
-      creditLimit: `₹ ${parseFloat(d.credit_limit || 0).toLocaleString('en-IN')}`,
-      rawCreditLimit: parseFloat(d.credit_limit || 0),
-      accountStatus: d.account_status,
-      status: d.account_status,
-      totalOrders: 0,
-      totalPurchases: '₹ 0',
-      joinedDate: new Date(d.created_at).toISOString().split('T')[0]
-    }));
+    return (json.data || []).map(d => {
+      const rawLimit = parseFloat(d.credit_limit || 0);
+      const rawOutstanding = parseFloat(d.outstanding_credit || 0);
+      const rawAvailable = Math.max(0, rawLimit - rawOutstanding);
+      return {
+        id: d.id,
+        name: d.company_name,
+        companyName: d.company_name,
+        contactPerson: d.contact_person,
+        phone: d.phone,
+        email: d.email,
+        gstin: d.gstin,
+        city: d.territory_city || '',
+        state: d.territory_state || '',
+        tier: d.discount_tier || '',
+        creditLimit: `₹ ${rawLimit.toLocaleString('en-IN')}`,
+        rawCreditLimit: rawLimit,
+        outstandingCredit: `₹ ${rawOutstanding.toLocaleString('en-IN')}`,
+        rawOutstandingCredit: rawOutstanding,
+        availableCredit: `₹ ${rawAvailable.toLocaleString('en-IN')}`,
+        rawAvailableCredit: rawAvailable,
+        accountStatus: d.account_status,
+        status: d.account_status,
+        totalOrders: 0,
+        totalPurchases: '₹ 0',
+        joinedDate: new Date(d.created_at).toISOString().split('T')[0]
+      };
+    });
   },
 
   create: async (distData) => {

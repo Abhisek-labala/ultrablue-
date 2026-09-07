@@ -49,7 +49,7 @@ import { Input, Select } from '../components/ui/Input';
 import { ProductDetailModal } from '../components/ui/ProductDetailModal';
 import { CertificationModal } from '../components/ui/CertificationModal';
 import { OfferNotificationCenter } from '../components/ui/OfferNotificationCenter';
-import { InquiryAPI, ProductAPI, PromotionAPI } from '../services/api';
+import { InquiryAPI, ProductAPI, PromotionAPI, ComplianceAPI } from '../services/api';
 import { COMPANY_INFO } from '../config/companyInfo';
 
 export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperatorLoginClick, onAdminLoginClick }) => {
@@ -97,9 +97,10 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     const fetchDynamicData = async () => {
       try {
         setLoadingData(true);
-        const [dbProducts, dbPromos] = await Promise.all([
+        const [dbProducts, dbPromos, dbCerts] = await Promise.all([
           ProductAPI.getAll().catch(() => []),
-          PromotionAPI.getAll().catch(() => [])
+          PromotionAPI.getAll().catch(() => []),
+          ComplianceAPI.getBatchCertificates().catch(() => [])
         ]);
 
         setProducts(dbProducts || []);
@@ -109,12 +110,30 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
             title: p.title,
             description: p.description,
             badge: p.badge || 'Live Offer',
-            promoCode: p.promo_code || 'UBP2026',
-            discountPercent: p.discount_percent || 'Special Rate',
-            targetProduct: p.target_product || 'UltraBlue+ Fluids',
-            validUntil: '30-Sep-2026',
-            isActive: true
+            promoCode: p.promo_code || '',
+            discountPercent: p.discount_percent ? `${p.discount_percent}% OFF` : (p.offer_tag || 'Special Offer'),
+            targetProduct: p.target_product || '',
+            validUntil: p.valid_until || p.expiry_date || '',
+            isActive: Boolean(p.is_active ?? true)
           })));
+        }
+        if (dbCerts && Array.isArray(dbCerts) && dbCerts.length > 0) {
+          setBatchCertificates(dbCerts);
+          const latest = dbCerts[0];
+          setBatchQuery(latest.batch_no || '');
+          setBatchResult({
+            certNo: latest.cert_no,
+            batchNo: latest.batch_no,
+            mfgDate: latest.date || 'Active Production',
+            expDate: 'Standard 18 Months',
+            ureaPercent: latest.purity || '32.5%',
+            density: latest.density || '1.089 g/cm³',
+            refractiveIndex: '1.3824',
+            traceMetals: '< 0.05 ppm',
+            status: latest.status ? `${latest.status} (ISO 22241-1)` : 'PASSED (ISO 22241-1)',
+            testedBy: latest.chemist ? `${latest.chemist} (${latest.location || 'Central QA Lab'})` : (latest.location || 'Quality Assurance Lab'),
+            waterConductivity: '< 0.1 µS/cm'
+          });
         }
       } catch (err) {
         console.error('Error fetching live data:', err);
@@ -184,20 +203,12 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     }
   };
 
-  // Interactive Batch Verifier State
-  const [batchQuery, setBatchQuery] = useState('UBP-2026-B0812');
-  const [batchResult, setBatchResult] = useState({
-    batchNo: 'UBP-2026-B0812',
-    mfgDate: '18-Aug-2026',
-    expDate: '17-Feb-2028',
-    ureaPercent: '32.52%',
-    density: '1.090 g/cm³',
-    refractiveIndex: '1.3824',
-    traceMetals: '< 0.04 ppm',
-    status: 'PASSED (ISO 22241-1)',
-    testedBy: 'Bhadrak QA Lab #3',
-    waterConductivity: '0.08 µS/cm'
-  });
+  // Dynamic Batch Verifier State
+  const [batchQuery, setBatchQuery] = useState('');
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchNotFound, setBatchNotFound] = useState(false);
+  const [batchResult, setBatchResult] = useState(null);
+  const [batchCertificates, setBatchCertificates] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -379,22 +390,51 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     }
   };
 
-  const handleVerifyBatch = (e) => {
-    e.preventDefault();
+  const handleVerifyBatch = async (e) => {
+    if (e) e.preventDefault();
     const query = batchQuery.trim().toUpperCase();
-    if (query.includes('UBP') || query.length > 3) {
-      setBatchResult({
-        batchNo: query || 'UBP-2026-B0812',
-        mfgDate: '18-Aug-2026',
-        expDate: '17-Feb-2028',
-        ureaPercent: '32.52%',
-        density: '1.090 g/cm³',
-        refractiveIndex: '1.3824',
-        traceMetals: '< 0.04 ppm',
-        status: 'PASSED (ISO 22241-1)',
-        testedBy: 'Bhadrak QA Lab #3',
-        waterConductivity: '0.08 µS/cm'
-      });
+    if (!query) {
+      setBatchResult(null);
+      setBatchNotFound(false);
+      return;
+    }
+    setBatchLoading(true);
+    setBatchNotFound(false);
+    try {
+      let certs = batchCertificates;
+      if (!certs || certs.length === 0) {
+        certs = await ComplianceAPI.getBatchCertificates();
+        setBatchCertificates(certs || []);
+      }
+      const match = (certs || []).find(c =>
+        (c.batch_no && c.batch_no.toUpperCase().includes(query)) ||
+        (c.cert_no && c.cert_no.toUpperCase().includes(query))
+      );
+      if (match) {
+        setBatchResult({
+          certNo: match.cert_no,
+          batchNo: match.batch_no,
+          mfgDate: match.date || 'Active Production',
+          expDate: 'Standard 18 Months',
+          ureaPercent: match.purity || '32.5%',
+          density: match.density || '1.089 g/cm³',
+          refractiveIndex: '1.3824',
+          traceMetals: '< 0.05 ppm',
+          status: match.status ? `${match.status} (ISO 22241-1)` : 'PASSED (ISO 22241-1)',
+          testedBy: match.chemist ? `${match.chemist} (${match.location || 'Central QA Lab'})` : (match.location || 'Quality Assurance Lab'),
+          waterConductivity: '< 0.1 µS/cm'
+        });
+        setBatchNotFound(false);
+      } else {
+        setBatchResult(null);
+        setBatchNotFound(true);
+      }
+    } catch (err) {
+      console.error('Error verifying batch:', err);
+      setBatchResult(null);
+      setBatchNotFound(true);
+    } finally {
+      setBatchLoading(false);
     }
   };
 
@@ -470,10 +510,10 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                 ⚡ LIVE OFFER
               </span>
               <span className="announcement-text-full" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {promotions[0]?.title || 'Monsoon Fleet Special: Flat 12% Off on DEF 20L Buckets!'} • Code: <strong>{promotions[0]?.promoCode || 'FLEET12'}</strong>
+                {promotions[0]?.title} {promotions[0]?.promoCode ? `• Code: ` : ''}{promotions[0]?.promoCode && <strong>{promotions[0]?.promoCode}</strong>}
               </span>
               <span className="announcement-text-short" style={{ display: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {promotions[0]?.promoCode ? `Use Code: ${promotions[0]?.promoCode}` : 'Monsoon Special: Flat 12% Off'}
+                {promotions[0]?.promoCode ? `Use Code: ${promotions[0]?.promoCode}` : (promotions[0]?.title || 'Live Promotional Offer')}
               </span>
               <button
                 onClick={() => setIsOfferDrawerOpen(true)}
@@ -1917,21 +1957,30 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                   className="ub-input"
                   value={batchQuery}
                   onChange={e => setBatchQuery(e.target.value)}
-                  placeholder="e.g. UBP-2026-B0812"
+                  placeholder={batchCertificates[0]?.batch_no || "e.g. UB-26H-991"}
                   style={{ width: '100%', backgroundColor: '#020A1C', color: '#FFFFFF', borderColor: '#1F3E7A', padding: '10px 14px', fontSize: '14px' }}
                 />
               </div>
-              <Button type="submit" variant="primary" icon={Search} size="md">
-                Verify Batch
+              <Button type="submit" variant="primary" icon={Search} size="md" disabled={batchLoading}>
+                {batchLoading ? 'Verifying...' : 'Verify Batch'}
               </Button>
             </form>
+
+            {/* Batch Not Found Feedback */}
+            {batchNotFound && (
+              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '12px', padding: '16px 20px', maxWidth: '650px', margin: '0 auto 24px auto', textAlign: 'center', color: '#FCA5A5', fontSize: '13px', lineHeight: 1.5 }}>
+                ⚠️ No laboratory quality certificate found matching batch code "<strong>{batchQuery}</strong>". Please check the batch stamp on your container or carton label.
+              </div>
+            )}
 
             {/* Batch QC Certificate Display Box */}
             {batchResult && (
               <div style={{ backgroundColor: 'rgba(2, 10, 28, 0.6)', borderRadius: '14px', padding: '24px', border: '1px solid rgba(0, 200, 245, 0.25)', maxWidth: '1100px', margin: '0 auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '14px', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
-                    <span style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 700, textTransform: 'uppercase' }}>Batch Certificate:</span>
+                    <span style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 700, textTransform: 'uppercase' }}>
+                      {batchResult.certNo ? `Batch Certificate: ${batchResult.certNo}` : 'Verified Batch:'}
+                    </span>
                     <h3 style={{ color: '#FFFFFF', fontSize: '20px', fontWeight: 800 }}>{batchResult.batchNo}</h3>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

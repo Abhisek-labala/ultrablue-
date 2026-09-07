@@ -634,10 +634,10 @@ export const AdminProductsView = ({
         cert_no: batchCertForm.certNo,
         batch_no: batchCertForm.batchNo,
         date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        location: batchCertForm.location || 'Bhadrak Mother Plant',
-        purity: batchCertForm.purity || '32.5% Urea',
-        density: batchCertForm.density || '1.0895 g/cm³',
-        chemist: batchCertForm.chemist || 'Dr. A. K. Mohapatra',
+        location: batchCertForm.location || (depotsList[0]?.name),
+        purity: batchCertForm.purity,
+        density: batchCertForm.density,
+        chemist: batchCertForm.chemist,
         status: 'PASSED'
       };
       const res = await ComplianceAPI.createBatchCertificate(payload);

@@ -112,8 +112,8 @@ export const AdminReportsAnalyticsView = ({
         depotMap[loc.name] = {
           id: loc.id,
           name: loc.name,
-          city: loc.city || 'Hub',
-          state: loc.state || 'Odisha',
+          city: loc.city || '',
+          state: loc.state || '',
           volume: 0,
           revenue: 0,
           invoicesCount: 0,
@@ -124,13 +124,13 @@ export const AdminReportsAnalyticsView = ({
 
     // Accumulate invoice sales data into respective depots
     invoices.forEach(inv => {
-      const hubName = inv.depotName || inv.location || (locations[0]?.name || 'Bhadrak Central Plant');
+      const hubName = inv.depotName || inv.location || (locations[0]?.name || 'Direct Sales');
       if (!depotMap[hubName]) {
         depotMap[hubName] = {
           id: hubName,
           name: hubName,
-          city: 'Hub',
-          state: 'Odisha',
+          city: '',
+          state: '',
           volume: 0,
           revenue: 0,
           invoicesCount: 0,
@@ -184,8 +184,8 @@ export const AdminReportsAnalyticsView = ({
   const packDistribution = useMemo(() => {
     const packs = {};
     filteredInvoices.forEach(inv => {
-      const sku = inv.sku || 'UB-DEF-20L';
-      const name = inv.productName || 'UltraBlue+ AUS 32 DEF';
+      const sku = inv.sku || inv.items?.[0]?.sku || '';
+      const name = inv.productName || inv.items?.[0]?.name || (sku ? `Product (${sku})` : 'DEF Fluid');
       const vol = Number(inv.quantityLiters) || Number(inv.quantity) || 1;
       const amt = Number(inv.grandTotal) || 0;
 
