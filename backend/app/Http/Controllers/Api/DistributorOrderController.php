@@ -316,11 +316,12 @@ class DistributorOrderController extends Controller
      */
     public function settleCredit(Request $request)
     {
+        $isCash = strtoupper($request->input('payment_method', '')) === 'CASH';
         $validated = $request->validate([
             'distributor_id' => 'required|uuid|exists:distributor_profiles,id',
             'amount' => 'required|numeric|min:1',
             'payment_method' => 'required|string|max:50',
-            'reference_no' => 'required|string|max:100',
+            'reference_no' => $isCash ? 'nullable|string|max:100' : 'required|string|max:100',
             'notes' => 'nullable|string|max:255',
             'recorded_by' => 'nullable|string|max:100'
         ], [
@@ -328,7 +329,7 @@ class DistributorOrderController extends Controller
             'reference_no.required' => 'Payment reference / UTR / Cheque number is required.'
         ]);
 
-        return DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated, $isCash) {
             $distId = $validated['distributor_id'];
             $settleAmount = floatval($validated['amount']);
 
@@ -357,6 +358,7 @@ class DistributorOrderController extends Controller
             ]);
 
             $txId = (string) Str::uuid();
+            $finalRefNo = !empty($validated['reference_no']) ? trim($validated['reference_no']) : ($isCash ? 'CASH-RECEIPT' : null);
             DB::table('distributor_credit_transactions')->insert([
                 'id' => $txId,
                 'distributor_id' => $distId,
@@ -365,7 +367,7 @@ class DistributorOrderController extends Controller
                 'amount' => $settleAmount,
                 'balance_after' => $newOutstanding,
                 'payment_method' => $validated['payment_method'],
-                'reference_no' => $validated['reference_no'],
+                'reference_no' => $finalRefNo,
                 'notes' => $validated['notes'] ?? 'Credit balance settlement payment',
                 'recorded_by' => $validated['recorded_by'] ?? 'Admin Accounts',
                 'created_at' => now(),

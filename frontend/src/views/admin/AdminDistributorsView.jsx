@@ -164,7 +164,7 @@ export const AdminDistributorsView = ({
       setSettlementError(`Payment amount (₹${amt.toLocaleString('en-IN')}) cannot exceed total outstanding debt (₹${maxOutstanding.toLocaleString('en-IN')}).`);
       return;
     }
-    if (!settlementForm.referenceNo.trim()) {
+    if (settlementForm.paymentMethod !== 'Cash' && !settlementForm.referenceNo.trim()) {
       setSettlementError('Payment reference / UTR / Cheque number is required.');
       return;
     }
@@ -867,7 +867,15 @@ export const AdminDistributorsView = ({
               <Select
                 label="Payment Mode *"
                 value={settlementForm.paymentMethod}
-                onChange={e => setSettlementForm({ ...settlementForm, paymentMethod: e.target.value })}
+                onChange={e => {
+                  const newMode = e.target.value;
+                  setSettlementForm(prev => ({
+                    ...prev,
+                    paymentMethod: newMode,
+                    referenceNo: newMode === 'Cash' ? '' : prev.referenceNo
+                  }));
+                  setSettlementError('');
+                }}
                 options={[
                   { value: 'UPI', label: 'UPI / QR Transfer' },
                   { value: 'NEFT', label: 'NEFT / RTGS Bank Transfer' },
@@ -879,11 +887,14 @@ export const AdminDistributorsView = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <Input
-                label="Payment Reference / UTR / Cheque # *"
+                label={settlementForm.paymentMethod === 'Cash' ? 'Payment Reference / Receipt No (Optional)' : 'Payment Reference / UTR / Cheque # *'}
                 value={settlementForm.referenceNo}
-                onChange={e => setSettlementForm({ ...settlementForm, referenceNo: e.target.value })}
-                placeholder="e.g. UTR-99882244"
-                required
+                onChange={e => {
+                  setSettlementForm({ ...settlementForm, referenceNo: e.target.value });
+                  if (settlementError) setSettlementError('');
+                }}
+                placeholder={settlementForm.paymentMethod === 'Cash' ? 'e.g. CASH-RECEIPT (or leave blank)' : 'e.g. UTR-99882244'}
+                required={settlementForm.paymentMethod !== 'Cash'}
               />
               <Input
                 label="Notes / Remarks"
