@@ -347,8 +347,8 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
       >
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-          <div style={{ display: 'inline-block', marginBottom: '8px' }}>
-            <Logo size="small" variant={isDark ? "dark" : "light"} />
+          <div style={{ display: 'inline-block', marginBottom: '12px' }}>
+            <Logo size="medium" variant={isDark ? "dark" : "light"} />
           </div>
           <h2 style={{ fontSize: '20px', fontWeight: 800, color: textHeading, margin: '0 0 4px 0', fontFamily: 'var(--font-family-heading)' }}>
             {authMode === 'login' ? 'Portal Login' : 'Registration'}

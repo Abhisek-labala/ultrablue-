@@ -34,9 +34,9 @@ sudo -u postgres psql
 
 
 CREATE DATABASE ultrablueplus;
-CREATE USER postgres WITH ENCRYPTED PASSWORD 'abhisek';
-GRANT ALL PRIVILEGES ON DATABASE ultrablueplus TO postgres;
-ALTER DATABASE ultrablueplus OWNER TO postgres;
+CREATE USER ultrablue_user WITH ENCRYPTED PASSWORD 'Ultr@Blueplus2026prod';
+GRANT ALL PRIVILEGES ON DATABASE ultrablueplus TO ultrablue_user;
+ALTER DATABASE ultrablueplus OWNER TO ultrablue_user;
 \q
 
 
@@ -44,7 +44,7 @@ mkdir -p /var/www/ultrablueplus
 cd /var/www/ultrablueplus
 
 # Clone your repository (or copy your files here)
-git clone <YOUR_GIT_REPO_URL> .
+git clone https://github.com/Abhisek-labala/ultrablue-.git
 
 
 
