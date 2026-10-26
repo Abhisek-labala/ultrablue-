@@ -20,26 +20,22 @@ export const ProductAPI = {
       return json.data.map(p => ({
         id: p.id,
         name: p.name,
-        category: p.category_name || p.category || '',
-        subCategory: p.viscosity_grade || p.category_name || '',
-        description: p.description || '',
-        imageUrl: p.image_url || '',
+        category: p.category || p.category_name || 'DEF',
+        categoryName: p.category_name || p.category || 'DEF',
+        capacity: p.capacity || '',
+        shortName: p.short_name || p.name,
         badge: p.badge || '',
+        imageUrl: p.image_url || '/images/def_bucket_20l.jpg',
+        bestFor: p.best_for || p.description || '',
+        description: p.description || p.best_for || '',
+        defaultQty: p.default_qty || '1 Unit',
+        mrp: parseFloat(p.mrp) || (p.pack_variants?.[0]?.standard_mrp ? parseFloat(p.pack_variants[0].standard_mrp) : 0),
+        distributorPrice: parseFloat(p.distributor_price) || (p.pack_variants?.[0]?.distributor_base_price ? parseFloat(p.pack_variants[0].distributor_base_price) : 0),
+        isActive: p.is_active !== undefined ? Boolean(p.is_active) : true,
+        sortOrder: p.sort_order || 0,
         offerTag: p.offer_tag || null,
         offerDiscount: p.offer_discount || null,
-        isiMarked: Boolean(p.is_isi_marked),
-        bisCompliant: Boolean(p.is_bis_compliant),
-        isiNumber: p.isi_number || '',
-        bisLicence: p.bis_licence || '',
-        isoStandard: p.iso_standard || '',
-        ureaContent: p.urea_content || '',
-        density: p.density || '',
-        metals: p.metals || '',
-        insolubles: p.insolubles || '',
-        viscosityGrade: p.viscosity_grade || '',
-        flashPoint: p.flash_point || '',
-        oemApprovals: p.oem_approvals || '',
-        hsnCode: p.hsn_code || '',
+        hsnCode: p.hsn_code || '31021000',
         gstRate: parseFloat(p.gst_rate) || 18,
         isGstInclusive: p.is_gst_inclusive !== undefined ? Boolean(p.is_gst_inclusive) : true,
         features: Array.isArray(p.features) ? p.features : (p.features_json ? JSON.parse(p.features_json) : []),
@@ -133,6 +129,32 @@ export const ProductAPI = {
     const json = await res.json();
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Error deleting product.');
+    }
+    return json;
+  },
+
+  toggleStatus: async (id) => {
+    const res = await fetch(`${API_BASE_URL}/products/${id}/toggle-status`, {
+      method: 'PATCH',
+      headers
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error updating product status.');
+    }
+    return json;
+  },
+
+  uploadImage: async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Image upload failed.');
     }
     return json;
   }
@@ -746,19 +768,48 @@ export const InquiryAPI = {
   getAll: async () => {
     const res = await fetch(`${API_BASE_URL}/enquiries`, { headers });
     const json = await res.json();
-    return (json.data || []).map(q => ({
-      id: q.inquiry_code || q.id,
-      name: q.name,
-      company: q.company_name,
-      phone: q.phone,
-      email: q.email,
-      location: q.location,
-      packagingNeeded: q.product_requested,
-      estimatedQuantity: q.estimated_quantity,
-      message: q.message,
-      status: q.status,
-      date: new Date(q.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-    }));
+    return (json.data || []).map(q => {
+      const code = q.inquiry_code || (q.id ? `INQ-${String(q.id).slice(0, 6)}` : 'INQ-NEW');
+      const dateStr = q.created_at
+        ? new Date(q.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+        : 'Recent';
+      return {
+        id: q.id,
+        rawId: q.id,
+        inquiryCode: code,
+        inquiryNumber: code,
+        customerName: q.name,
+        name: q.name,
+        companyName: q.company_name,
+        company: q.company_name,
+        phone: q.phone,
+        email: q.email || 'N/A',
+        city: q.location,
+        location: q.location,
+        state: 'Odisha',
+        productInterest: q.product_requested,
+        packagingNeeded: q.product_requested,
+        estimatedVolume: q.estimated_quantity,
+        estimatedQuantity: q.estimated_quantity,
+        message: q.message,
+        status: q.status || 'NEW_INQUIRY',
+        createdAt: dateStr,
+        date: dateStr
+      };
+    });
+  },
+
+  updateStatus: async (id, status) => {
+    const res = await fetch(`${API_BASE_URL}/enquiries/${id}/status`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ status })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error updating enquiry status.');
+    }
+    return json;
   },
 
   create: async (inqData) => {
@@ -767,18 +818,20 @@ export const InquiryAPI = {
       headers,
       body: JSON.stringify({
         name: inqData.name,
-        company_name: inqData.company,
+        company_name: inqData.company || inqData.company_name,
         phone: inqData.phone,
         email: inqData.email || null,
-        location: inqData.location,
-        product_requested: inqData.packagingNeeded || inqData.product || '',
-        estimated_quantity: inqData.quantity || '',
+        location: inqData.location || inqData.city,
+        product_requested: inqData.packagingNeeded || inqData.productInterest || inqData.product || '',
+        estimated_quantity: inqData.quantity || inqData.estimatedVolume || inqData.estimatedQuantity || '',
         message: inqData.message || null
       })
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Enquiry submission failed.');
+      const err = new Error(json.message || 'Enquiry submission failed.');
+      err.errors = json.errors || {};
+      throw err;
     }
     return json;
   }

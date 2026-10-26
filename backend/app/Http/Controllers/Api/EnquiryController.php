@@ -14,18 +14,23 @@ class EnquiryController extends Controller
         $enquiries = DB::table('enquiries')->orderBy('created_at', 'desc')->get();
         return response()->json(['success' => true, 'data' => $enquiries]);
     }
-
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'company_name' => 'required|string|max:200',
-            'phone' => 'required|string|max:20',
+            'name' => 'required|string|min:2|max:150',
+            'company_name' => 'required|string|min:2|max:200',
+            'phone' => ['required', 'string', 'regex:/^(\+91[\-\s]?)?[0]?[6-9]\d{9}$/'],
             'email' => 'nullable|email|max:150',
-            'location' => 'required|string|max:150',
+            'location' => 'required|string|min:2|max:150',
             'product_requested' => 'required|string|max:150',
-            'estimated_quantity' => 'required|string|max:100',
-            'message' => 'nullable|string'
+            'estimated_quantity' => 'required|string|min:1|max:100',
+            'message' => 'nullable|string|max:2000'
+        ], [
+            'name.min' => 'Contact person name must be at least 2 characters.',
+            'company_name.min' => 'Fleet or company name must be at least 2 characters.',
+            'phone.regex' => 'Please enter a valid 10-digit Indian mobile number (e.g. 9853675971 or +91 9853675971).',
+            'location.min' => 'Delivery location must be at least 2 characters.',
+            'estimated_quantity.required' => 'Please enter the estimated volume or quantity.'
         ]);
 
         $inqId = (string) Str::uuid();
@@ -69,10 +74,13 @@ class EnquiryController extends Controller
             'status' => 'required|string'
         ]);
 
-        DB::table('enquiries')->where('id', $id)->update([
-            'status' => $validated['status'],
-            'updated_at' => now()
-        ]);
+        DB::table('enquiries')
+            ->where('id', $id)
+            ->orWhere('inquiry_code', $id)
+            ->update([
+                'status' => $validated['status'],
+                'updated_at' => now()
+            ]);
 
         return response()->json([
             'success' => true,

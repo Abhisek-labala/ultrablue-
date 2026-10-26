@@ -29,9 +29,16 @@ export const ProductCard = ({
     return popIdx >= 0 ? popIdx : 0;
   });
 
-  const currentPack = packOptions[selectedPackIndex] || packOptions[0] || { size: 'Standard', sku: product.id, mrp: 0, distributorPrice: 0 };
-  const price = isDistributorView ? currentPack.distributorPrice : currentPack.mrp;
-  const savings = Math.max(0, currentPack.mrp - currentPack.distributorPrice);
+  const currentPack = packOptions[selectedPackIndex] || packOptions[0] || { 
+    size: product?.capacity || 'Standard', 
+    sku: product?.id, 
+    mrp: product?.mrp || 0, 
+    distributorPrice: product?.distributorPrice || 0 
+  };
+  const price = isDistributorView 
+    ? (currentPack.distributorPrice || product?.distributorPrice || 0) 
+    : (currentPack.mrp || product?.mrp || 0);
+  const savings = Math.max(0, (currentPack.mrp || product?.mrp || 0) - (currentPack.distributorPrice || product?.distributorPrice || 0));
 
   // Category Color Accent Themes
   const getCategoryGradient = (cat) => {
@@ -90,33 +97,21 @@ export const ProductCard = ({
           {product.category}
         </span>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {product.isiMarked && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewCertification?.();
-              }}
-              title="Click to view BIS & ISI Certifications"
-              style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: '4px', 
-                fontSize: '11px', 
-                fontWeight: 700, 
-                background: 'rgba(0, 200, 245, 0.15)',
-                color: '#FFFFFF',
-                padding: '2px 8px',
-                borderRadius: '50px',
-                border: '1px solid rgba(0, 200, 245, 0.35)',
-                cursor: 'pointer'
-              }}
-            >
-              <ShieldCheck size={13} color="var(--brand-cyan)" />
-              <span>BIS / ISI</span>
-            </button>
-          )}
-        </div>
+        {product.badge && (
+          <span 
+            style={{ 
+              fontSize: '11px', 
+              fontWeight: 700, 
+              background: 'rgba(0, 200, 245, 0.15)',
+              color: '#FFFFFF',
+              padding: '2px 10px',
+              borderRadius: '50px',
+              border: '1px solid rgba(0, 200, 245, 0.35)'
+            }}
+          >
+            {product.badge}
+          </span>
+        )}
       </div>
 
       {/* Product Image Showcase Container */}
@@ -229,55 +224,57 @@ export const ProductCard = ({
           }}
         >
           <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px' }}>Purity Grade</span>
-            <strong style={{ color: 'var(--text-primary)' }}>{product.ureaContent || product.viscosityGrade || 'Automotive Grade'}</strong>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px' }}>Capacity / Pack</span>
+            <strong style={{ color: 'var(--text-primary)' }}>{product.capacity || currentPack.size || 'Standard Pack'}</strong>
           </div>
           <div>
-            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px' }}>Heavy Metals</span>
-            <strong style={{ color: '#10B981' }}>{product.metals || '< 0.05 ppm'}</strong>
+            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '10px' }}>Standard Batch</span>
+            <strong style={{ color: 'var(--brand-cyan)' }}>{product.defaultQty || '1 Unit'}</strong>
           </div>
         </div>
 
-        {/* Pack Size Selector */}
-        <div style={{ marginBottom: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Select Packaging Size:
-            </label>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              {packOptions.length} pack options
-            </span>
-          </div>
+        {/* Pack Size Selector (Only if multiple packs exist) */}
+        {packOptions.length > 1 && (
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                Select Packaging Size:
+              </label>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                {packOptions.length} pack options
+              </span>
+            </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {packOptions.map((pack, idx) => {
-              const isSelected = selectedPackIndex === idx;
-              return (
-                <button
-                  key={pack.sku || idx}
-                  type="button"
-                  onClick={() => setSelectedPackIndex(idx)}
-                  style={{
-                    padding: '5px 8px',
-                    borderRadius: '6px',
-                    border: isSelected ? '1.5px solid var(--brand-blue)' : '1px solid var(--border-medium)',
-                    backgroundColor: isSelected ? 'var(--brand-blue-light)' : 'var(--bg-app)',
-                    color: isSelected ? 'var(--brand-blue)' : 'var(--text-primary)',
-                    fontSize: '11px',
-                    fontWeight: isSelected ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {pack.size}
-                  {pack.isPopular && (
-                    <span style={{ marginLeft: '3px', color: 'var(--brand-gold)', fontWeight: 800 }}>★</span>
-                  )}
-                </button>
-              );
-            })}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {packOptions.map((pack, idx) => {
+                const isSelected = selectedPackIndex === idx;
+                return (
+                  <button
+                    key={pack.sku || idx}
+                    type="button"
+                    onClick={() => setSelectedPackIndex(idx)}
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      border: isSelected ? '1.5px solid var(--brand-blue)' : '1px solid var(--border-medium)',
+                      backgroundColor: isSelected ? 'var(--brand-blue-light)' : 'var(--bg-app)',
+                      color: isSelected ? 'var(--brand-blue)' : 'var(--text-primary)',
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pack.size}
+                    {pack.isPopular && (
+                      <span style={{ marginLeft: '3px', color: 'var(--brand-gold)', fontWeight: 800 }}>★</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Pricing Matrix */}
         <div 

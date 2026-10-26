@@ -49,7 +49,8 @@ export const Input = ({
           className={`ub-input ${error ? 'ub-input-error' : ''}`}
           style={{
             paddingLeft: Icon ? '36px' : '12px',
-            paddingRight: suffix ? '50px' : '12px'
+            paddingRight: suffix ? '50px' : '12px',
+            ...(error ? { borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.06)', boxShadow: '0 0 0 1px #EF4444' } : {})
           }}
           {...props}
         />
@@ -67,7 +68,22 @@ export const Input = ({
           </span>
         )}
       </div>
-      {error && <span className="ub-form-error-msg">{error}</span>}
+      {error && (
+        <span 
+          className="ub-form-error-msg" 
+          style={{ 
+            color: '#EF4444', 
+            fontSize: '11px', 
+            fontWeight: 700, 
+            marginTop: '5px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '4px' 
+          }}
+        >
+          <span>⚠️</span> {error}
+        </span>
+      )}
       {!error && hint && <span className="ub-form-hint">{hint}</span>}
     </div>
   );

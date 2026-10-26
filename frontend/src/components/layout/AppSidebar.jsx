@@ -81,20 +81,7 @@ export const AppSidebar = ({
       default:
         return [
           { id: 'admin_dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
-          {
-            id: 'admin_products',
-            label: 'Master Data Config',
-            icon: Database,
-            badge: 'Config',
-            subItems: [
-              { id: 'admin_products_master', label: 'Product Master', icon: Package, badge: 'SKUs' },
-              { id: 'admin_products_categories', label: 'Product Categories', icon: Layers, badge: 'Categories' },
-              { id: 'admin_products_packsizes', label: 'Pack Sizes & Variants', icon: Warehouse, badge: 'Packs' },
-              { id: 'admin_products_compliance', label: 'ISO / BIS Compliance', icon: ShieldCheck, badge: 'ISO' },
-              { id: 'admin_products_territories', label: 'States & Territories', icon: Globe, badge: 'DB' },
-              { id: 'admin_products_depots', label: 'Depots & Stations', icon: Building2, badge: 'Multi-Hub' }
-            ]
-          },
+          { id: 'admin_products', label: 'Products & Storefront', icon: Package, badge: 'Live' },
           { id: 'admin_prices', label: 'Pricing Engine', icon: BadgePercent, badge: 'Live GST' },
           { id: 'admin_offers', label: 'Offers & Promotions', icon: Sparkles, badge: 'Deals' },
           { id: 'admin_distributors', label: 'Distributor Accounts', icon: Users, badge: 'B2B' },

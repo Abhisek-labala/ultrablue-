@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   Clock, 
   Building2, 
-  MapPin 
+  MapPin,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -23,6 +24,7 @@ export const AdminCustomerEnquiriesView = ({
 }) => {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleOpenInquiryDetails = (inq) => {
     setSelectedInquiry(inq);
@@ -30,14 +32,39 @@ export const AdminCustomerEnquiriesView = ({
   };
 
   const handleUpdateInquiryStatus = async (inqId, newStatus) => {
+    setIsUpdating(true);
     try {
       await InquiryAPI.updateStatus(inqId, newStatus);
-      if (onShowToast) onShowToast(`Enquiry status updated to ${newStatus}`);
+      const friendlyStatus = newStatus === 'RESOLVED' ? 'Quote Dispatched' : newStatus === 'IN_REVIEW' ? 'Under Review' : newStatus;
+      if (onShowToast) onShowToast(`Enquiry status updated to ${friendlyStatus}`);
       setIsInquiryModalOpen(false);
       if (onRefresh) onRefresh();
     } catch (err) {
       if (onShowToast) onShowToast(err.message || 'Error updating enquiry status.');
+    } finally {
+      setIsUpdating(false);
     }
+  };
+
+  const handleSendWhatsAppQuote = (inq) => {
+    if (!inq?.phone) {
+      if (onShowToast) onShowToast('No customer phone number available.');
+      return;
+    }
+    const cleanPhone = inq.phone.replace(/[^0-9]/g, '');
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const clientName = inq.customerName || inq.name || 'Customer';
+    const prodName = inq.productInterest || inq.packagingNeeded || 'UltraBlue+ DEF';
+    const qty = inq.estimatedVolume || inq.estimatedQuantity || 'Required Volume';
+    const inqCode = inq.inquiryCode || inq.inquiryNumber || inq.id;
+    
+    const message = `Hello ${clientName}, greetings from UltraBlue+ (Ayush Green Energy Mother Plant, Bhadrak).\n\nRegarding your quotation inquiry #${inqCode} for ${prodName} (${qty}):\nOur commercial sales desk has processed your requirement. Attached is your formal factory quote schedule with direct freight and GST breakdown.\n\nPlease let us know if you need any adjustments or immediate highway tanker dispatch.`;
+    
+    const waUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+
+    // Automatically mark status as RESOLVED / Quote Dispatched
+    handleUpdateInquiryStatus(inq.id || inq.rawId, 'RESOLVED');
   };
 
   return (
@@ -67,21 +94,26 @@ export const AdminCustomerEnquiriesView = ({
           {
             header: 'Enquiry Code',
             accessor: 'inquiryNumber',
-            render: (val, row) => (
-              <div>
-                <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{val || `INQ-${row.id?.slice(0, 6)}`}</strong>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{row.createdAt || 'Recent'}</div>
-              </div>
-            )
+            render: (val, row) => {
+              const codeDisplay = val || row.inquiryCode || (row.id ? `INQ-${String(row.id).slice(0, 6)}` : 'INQ-NEW');
+              return (
+                <div>
+                  <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{codeDisplay}</strong>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{row.createdAt || row.date || 'Recent'}</div>
+                </div>
+              );
+            }
           },
           {
             header: 'Contact & Company',
             accessor: 'customerName',
             render: (val, row) => (
               <div>
-                <strong style={{ fontSize: 'var(--font-size-md)' }}>{val}</strong>
-                <div style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 600 }}>{row.companyName || 'Fleet Operator'}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.email} • {row.phone}</div>
+                <strong style={{ fontSize: 'var(--font-size-md)' }}>{val || row.name || 'Anonymous Customer'}</strong>
+                <div style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 600 }}>{row.companyName || row.company || 'Enterprise Fleet'}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {row.phone}{row.email && row.email !== 'N/A' ? ` • ${row.email}` : ''}
+                </div>
               </div>
             )
           },
@@ -90,26 +122,26 @@ export const AdminCustomerEnquiriesView = ({
             accessor: 'city',
             render: (val, row) => (
               <div>
-                <strong>{val || 'Odisha Central'}</strong>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{row.state || 'Highway Corridor'}</div>
+                <strong>{val || row.location || 'Direct Dispatch'}</strong>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Odisha Corridor</div>
               </div>
             )
           },
           {
             header: 'Product Requested',
             accessor: 'productInterest',
-            render: (val) => (
-              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-medium)' }}>
-                {val || 'UltraBlue+ Fleet AUS 32 DEF'}
+            render: (val, row) => (
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                {val || row.packagingNeeded || 'UltraBlue+ DEF'}
               </span>
             )
           },
           {
             header: 'Estimated Volume',
             accessor: 'estimatedVolume',
-            render: (val) => (
+            render: (val, row) => (
               <div>
-                <strong style={{ color: 'var(--brand-gold)' }}>{val || '5,000 Litres / Mo'}</strong>
+                <strong style={{ color: 'var(--brand-gold)' }}>{val || row.estimatedQuantity || 'On Request'}</strong>
                 <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Fleet Requirement</div>
               </div>
             )
@@ -132,12 +164,12 @@ export const AdminCustomerEnquiriesView = ({
                 >
                   View
                 </Button>
-                {row.status !== 'RESOLVED' && (
+                {row.status !== 'RESOLVED' && row.status !== 'QUOTE_DISPATCHED' && (
                   <Button
                     size="sm"
                     variant="gold"
                     icon={Send}
-                    onClick={() => handleUpdateInquiryStatus(row.id, 'RESOLVED')}
+                    onClick={() => handleUpdateInquiryStatus(row.id || row.rawId || row.inquiryCode, 'RESOLVED')}
                   >
                     Quote
                   </Button>
@@ -152,20 +184,23 @@ export const AdminCustomerEnquiriesView = ({
       <Modal
         isOpen={isInquiryModalOpen}
         onClose={() => setIsInquiryModalOpen(false)}
-        title={`Commercial Lead Details: ${selectedInquiry?.companyName || selectedInquiry?.customerName}`}
+        title={`Commercial Lead: ${selectedInquiry?.companyName || selectedInquiry?.company || selectedInquiry?.customerName || selectedInquiry?.name || 'Inquiry Details'}`}
       >
         {selectedInquiry && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--border-medium)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
-                <div><span style={{ color: 'var(--text-muted)' }}>Contact Person:</span> <strong>{selectedInquiry.customerName}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Enterprise:</span> <strong>{selectedInquiry.companyName || 'N/A'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Mobile Number:</span> <strong>{selectedInquiry.phone}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Email Address:</span> <strong>{selectedInquiry.email}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>City / Territory:</span> <strong>{selectedInquiry.city}, {selectedInquiry.state}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Product Interest:</span> <strong>{selectedInquiry.productInterest}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Required Volume:</span> <strong style={{ color: 'var(--brand-gold)' }}>{selectedInquiry.estimatedVolume}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Lead Status:</span> <StatusBadge status={selectedInquiry.status} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
+                <div><span style={{ color: 'var(--text-muted)' }}>Contact Person:</span> <strong>{selectedInquiry.customerName || selectedInquiry.name || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Fleet / Enterprise:</span> <strong>{selectedInquiry.companyName || selectedInquiry.company || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Mobile Number:</span> <strong style={{ color: 'var(--brand-cyan)' }}>{selectedInquiry.phone || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Email Address:</span> <strong>{selectedInquiry.email && selectedInquiry.email !== 'N/A' ? selectedInquiry.email : 'Not Provided'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Destination / City:</span> <strong>{selectedInquiry.city || selectedInquiry.location || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Product Requested:</span> <strong style={{ color: 'var(--text-primary)' }}>{selectedInquiry.productInterest || selectedInquiry.packagingNeeded || 'UltraBlue+ DEF'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Estimated Volume:</span> <strong style={{ color: 'var(--brand-gold)' }}>{selectedInquiry.estimatedVolume || selectedInquiry.estimatedQuantity || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Enquiry Code:</span> <code style={{ color: 'var(--brand-blue)' }}>{selectedInquiry.inquiryCode || selectedInquiry.inquiryNumber || selectedInquiry.id}</code></div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Lead Status:</span> <StatusBadge status={selectedInquiry.status} />
+                </div>
               </div>
             </div>
 
@@ -178,12 +213,13 @@ export const AdminCustomerEnquiriesView = ({
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border-medium)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ borderTop: '1px solid var(--border-medium)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={() => handleUpdateInquiryStatus(selectedInquiry.id, 'IN_REVIEW')}
+                  disabled={isUpdating}
+                  onClick={() => handleUpdateInquiryStatus(selectedInquiry.id || selectedInquiry.rawId, 'IN_REVIEW')}
                 >
                   Mark Under Review
                 </Button>
@@ -191,10 +227,22 @@ export const AdminCustomerEnquiriesView = ({
                   size="sm"
                   variant="gold"
                   icon={CheckCircle2}
-                  onClick={() => handleUpdateInquiryStatus(selectedInquiry.id, 'RESOLVED')}
+                  disabled={isUpdating}
+                  onClick={() => handleUpdateInquiryStatus(selectedInquiry.id || selectedInquiry.rawId, 'RESOLVED')}
                 >
                   Dispatch Formal Quote
                 </Button>
+                {selectedInquiry.phone && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={MessageCircle}
+                    onClick={() => handleSendWhatsAppQuote(selectedInquiry)}
+                    style={{ backgroundColor: '#10B981', borderColor: '#059669' }}
+                  >
+                    WhatsApp Quote
+                  </Button>
+                )}
               </div>
               <Button variant="secondary" onClick={() => setIsInquiryModalOpen(false)}>
                 Close

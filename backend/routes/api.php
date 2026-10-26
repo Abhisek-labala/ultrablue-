@@ -30,31 +30,14 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 // Public & Product Endpoints
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/categories', [ProductController::class, 'categories']);
-Route::post('/products/categories', [ProductController::class, 'storeCategory']);
-Route::delete('/products/categories/{id}', [ProductController::class, 'deleteCategory']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::post('/products', [ProductController::class, 'store']);
 Route::put('/products/{id}', [ProductController::class, 'update']);
+Route::patch('/products/{id}/toggle-status', [ProductController::class, 'toggleStatus']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+Route::post('/upload', [ProductController::class, 'uploadImage']);
 Route::post('/enquiries', [EnquiryController::class, 'store']);
 Route::post('/distributors/register', [DistributorController::class, 'register']);
-
-// ISO 22241 / BIS Compliance & Pack Registry Endpoints
-Route::get('/compliance/parameters', [ComplianceController::class, 'getParameters']);
-Route::post('/compliance/parameters', [ComplianceController::class, 'storeParameter']);
-Route::delete('/compliance/parameters/{id}', [ComplianceController::class, 'deleteParameter']);
-
-Route::get('/compliance/oem-approvals', [ComplianceController::class, 'getOemApprovals']);
-Route::post('/compliance/oem-approvals', [ComplianceController::class, 'storeOemApproval']);
-Route::delete('/compliance/oem-approvals/{id}', [ComplianceController::class, 'deleteOemApproval']);
-
-Route::get('/compliance/pack-sizes', [ComplianceController::class, 'getPackSizes']);
-Route::post('/compliance/pack-sizes', [ComplianceController::class, 'storePackSize']);
-Route::delete('/compliance/pack-sizes/{id}', [ComplianceController::class, 'deletePackSize']);
-
-Route::get('/compliance/batch-certificates', [ComplianceController::class, 'getBatchCertificates']);
-Route::post('/compliance/batch-certificates', [ComplianceController::class, 'storeBatchCertificate']);
-Route::delete('/compliance/batch-certificates/{id}', [ComplianceController::class, 'deleteBatchCertificate']);
 
 // Dynamic Promotions & Push Notifications
 Route::get('/promotions', [PromotionController::class, 'index']);

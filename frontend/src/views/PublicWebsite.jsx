@@ -10,6 +10,7 @@ import {
   Truck,
   Award,
   ChevronRight,
+  ChevronLeft,
   Package,
   Layers,
   MessageCircle,
@@ -31,7 +32,8 @@ import {
   TrendingUp,
   Cpu,
   RefreshCw,
-  Gauge
+  Gauge,
+  Eye
 } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 import { Button } from '../components/ui/Button';
@@ -91,104 +93,86 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     quantity: '25 Buckets',
     message: ''
   });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmittingInquiry, setIsSubmittingInquiry] = useState(false);
+  const [submittedInquiryCode, setSubmittedInquiryCode] = useState('');
 
   // Highlight state for quotes section when an item is clicked
   const [quoteHighlighted, setQuoteHighlighted] = useState(false);
 
-  // Packaging variants specified in the client draft:
-  // 5L / 10L, 20L Bucket, 210L Barrel, 1000L IBC, Bulk Tanker
-  const packagingOptions = [
-    {
-      id: '5L-10L',
-      category: 'CANS',
-      name: '5L & 10L Emergency Cans',
-      shortName: '5L / 10L Cans',
-      image: '/images/def_cans_pack.jpg',
-      badge: 'LCV & Emergency',
-      capacity: '5 / 10 Litres',
-      bestFor: 'Light Commercial Vehicles (LCVs), SUVs, Roadside Emergency Top-ups',
-      features: [
-        'Spill-proof flexible pouring nozzle included',
-        'Tamper-evident child-resistant induction cap',
-        'Compact form factor for vehicle cabin / boot storage',
-        'UV-stabilized virgin HDPE polymer'
-      ],
-      defaultQty: '10 Cans'
-    },
-    {
-      id: '20L',
-      category: 'BUCKETS',
-      name: '20L Smart Bucket',
-      shortName: '20L Bucket',
-      image: '/images/def_bucket_20l.jpg',
-      badge: 'Most Popular • Fleet Choice',
-      capacity: '20 Litres',
-      bestFor: 'Medium & Heavy Commercial Vehicles (M&HCV), Highway Fleets, Retail',
-      features: [
-        'Airtight tamper-evident induction heat seal',
-        'Integrated flexible retractable pouring spout',
-        'Drop-tested reinforced ergonomic steel & polymer handle',
-        'Full batch QR code for instant lab purity verification'
-      ],
-      defaultQty: '25 Buckets'
-    },
-    {
-      id: '210L',
-      category: 'BARRELS',
-      name: '210L Industrial Barrel / Drum',
-      shortName: '210L Barrel',
-      image: '/images/def_barrel_210l.jpg',
-      badge: 'Depot & Workshop Grade',
-      capacity: '210 Litres',
-      bestFor: 'Fleet Workshops, Transport Depots, Service Bays, Garages',
-      features: [
-        'Standard 2" BSP threaded bungs for manual/pneumatic pumps',
-        'Heavy-duty virgin polymer with high hoop strength',
-        '18-month certified shelf life under depot storage',
-        'Zero crystallization guaranteed with sealed delivery'
-      ],
-      defaultQty: '2 Barrels'
-    },
-    {
-      id: '1000L',
-      category: 'IBC',
-      name: '1000L IBC Tank Tote & Dispenser',
-      shortName: '1000L IBC Tank',
-      image: '/images/def_ibc_1000l.jpg',
-      badge: 'Lowest Cost per Litre',
-      capacity: '1,000 Litres',
-      bestFor: 'Large Fleet Terminals, Mining Haulers, Bus Corporation Yards',
-      features: [
-        'Galvanized tubular steel cage with composite pallet base',
-        '2" bottom camlock discharge valve with dust cap',
-        'Compatible with dedicated digital flow-meter pump kits',
-        'Ayush Green Energy door-to-door swap & refill service'
-      ],
-      defaultQty: '1 IBC Tank'
-    },
-    {
-      id: 'BULK',
-      category: 'BULK',
-      name: 'Bulk Road Tanker Supply',
-      shortName: 'Bulk Tanker (10 KL - 25 KL)',
-      image: '/images/def_bulk_tanker.jpg',
-      badge: 'Plant Direct Refill',
-      capacity: '10,000 – 25,000 Litres',
-      bestFor: 'Underground Fleet Tanks, Mining Captive Pumps, Large Transporters',
-      features: [
-        'Pharma/chemical grade SS-316 insulated road tankers',
-        'Calibrated digital positive-displacement flow meters',
-        'Factory sealed valves with certified batch CoA at delivery',
-        'Direct dispatch from Bhadrak mother plant within 24 hours'
-      ],
-      defaultQty: '1 Tanker (10,000L)'
-    }
+  // Dynamic packaging options driven 100% directly by backend products database
+  const packagingOptions = (products || [])
+    .filter(p => p.isActive !== false)
+    .map(p => ({
+      id: p.id,
+      category: (p.category || 'DEF').toUpperCase(),
+      name: p.name,
+      shortName: p.shortName || p.name,
+      image: p.imageUrl || '',
+      badge: p.badge || '',
+      capacity: p.capacity || '',
+      bestFor: p.bestFor || p.description || '',
+      features: Array.isArray(p.features) ? p.features : [],
+      defaultQty: p.defaultQty || '1 Unit',
+      mrp: p.mrp || 0,
+      distributorPrice: p.distributorPrice || 0,
+      hsnCode: p.hsnCode,
+      gstRate: p.gstRate,
+      rawProduct: p
+    }));
+
+  // Dynamic categories computed from active products
+  const availableCategories = [
+    { id: 'ALL', label: 'All Packaging' },
+    ...Array.from(new Set(packagingOptions.map(p => p.category).filter(Boolean))).map(cat => ({
+      id: cat,
+      label: cat.charAt(0) + cat.slice(1).toLowerCase()
+    }))
   ];
 
   // Filter packaging options
   const filteredPackaging = activeProductFilter === 'ALL'
     ? packagingOptions
-    : packagingOptions.filter(p => p.category === activeProductFilter);
+    : packagingOptions.filter(p => (p.category || '').toUpperCase() === activeProductFilter.toUpperCase());
+
+  // Product Slider / Auto-Carousel State
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isSliderHovered, setIsSliderHovered] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // Responsive items in view tracking
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const itemsPerView = windowWidth < 680 ? 1 : windowWidth < 1024 ? 2 : windowWidth < 1340 ? 3 : 4;
+  const maxSlide = Math.max(0, filteredPackaging.length - itemsPerView);
+
+  // Reset to slide 0 when category filter changes or item count changes
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [activeProductFilter, filteredPackaging.length]);
+
+  // Auto-slide effect every 3.8s (automatically pauses when user hovers over carousel)
+  useEffect(() => {
+    if (isSliderHovered || filteredPackaging.length <= itemsPerView) return;
+
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev >= maxSlide ? 0 : prev + 1));
+    }, 3800);
+
+    return () => clearInterval(timer);
+  }, [isSliderHovered, maxSlide, filteredPackaging.length, itemsPerView]);
+
+  const handlePrevSlide = () => {
+    setCurrentSlide(prev => (prev <= 0 ? maxSlide : prev - 1));
+  };
+
+  const handleNextSlide = () => {
+    setCurrentSlide(prev => (prev >= maxSlide ? 0 : prev + 1));
+  };
 
   // Fetch dynamic products & promotions from DB on mount
   useEffect(() => {
@@ -296,23 +280,113 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     scrollToSection('quotes');
   };
 
-  // Submit quote form to backend InquiryAPI
+  // Validate individual field for real-time validation
+  const validateInquiryField = (fieldName, value) => {
+    switch (fieldName) {
+      case 'name': {
+        const val = (value || '').trim();
+        if (!val) return 'Contact person name is required';
+        if (val.length < 2) return 'Name must be at least 2 characters';
+        if (!/^[a-zA-Z\s.'-]+$/.test(val)) return 'Name should contain letters and spaces only';
+        return '';
+      }
+      case 'company': {
+        const val = (value || '').trim();
+        if (!val) return 'Fleet / Company name is required';
+        if (val.length < 2) return 'Company name must be at least 2 characters';
+        return '';
+      }
+      case 'phone': {
+        const val = (value || '').trim();
+        if (!val) return 'Mobile number is required (WhatsApp / Call)';
+        const clean = val.replace(/\D/g, '');
+        // Valid 10-digit starting with 6-9
+        if (clean.length === 10 && /^[6-9]\d{9}$/.test(clean)) return '';
+        // Valid 12-digit with 91 prefix
+        if (clean.length === 12 && /^91[6-9]\d{9}$/.test(clean)) return '';
+        // Valid 11-digit with 0 prefix
+        if (clean.length === 11 && /^0[6-9]\d{9}$/.test(clean)) return '';
+        return 'Please enter a valid 10-digit mobile number (e.g. 9853675971)';
+      }
+      case 'location': {
+        const val = (value || '').trim();
+        if (!val) return 'Delivery location (City / State) is required';
+        if (val.length < 2) return 'Please enter a valid city or location';
+        return '';
+      }
+      case 'packVariant': {
+        if (!value) return 'Please select a required packaging variant';
+        return '';
+      }
+      case 'quantity': {
+        const val = (value || '').trim();
+        if (!val) return 'Estimated volume or quantity is required';
+        const numOnly = parseFloat(val);
+        if (!isNaN(numOnly) && numOnly <= 0) return 'Quantity must be greater than 0';
+        return '';
+      }
+      default:
+        return '';
+    }
+  };
+
+  // Validate all fields
+  const validateInquiryForm = (values = formData) => {
+    const fields = ['name', 'company', 'phone', 'location', 'packVariant', 'quantity'];
+    const errors = {};
+    for (const f of fields) {
+      const err = validateInquiryField(f, values[f]);
+      if (err) errors[f] = err;
+    }
+    return errors;
+  };
+
+  // Submit quote form with full client and server validation
   const handleInquirySubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    const errors = validateInquiryForm(formData);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Focus on the first invalid field
+      const firstErrorField = Object.keys(errors)[0];
+      const el = document.getElementById(`inquiry-${firstErrorField}`);
+      if (el) {
+        el.focus();
+      }
+      return;
+    }
+
+    setIsSubmittingInquiry(true);
     try {
-      await InquiryAPI.create({
-        name: formData.name,
-        company: formData.company,
-        phone: formData.phone,
-        email: formData.email,
-        location: formData.location,
+      const res = await InquiryAPI.create({
+        name: formData.name.trim(),
+        company: formData.company.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email ? formData.email.trim() : null,
+        location: formData.location.trim(),
         packagingNeeded: `UltraBlue+ DEF - ${formData.packVariant}`,
-        quantity: formData.quantity,
-        message: formData.message
+        quantity: formData.quantity.trim(),
+        message: formData.message ? formData.message.trim() : null
       });
+
+      setSubmittedInquiryCode(res.inquiry_code || 'INQ-' + Math.floor(1000 + Math.random() * 9000));
       setInquirySuccess(true);
+      setFormErrors({});
     } catch (err) {
-      alert(err.message || 'Error submitting quote inquiry. Please call +91 9853675971 directly.');
+      if (err.errors && typeof err.errors === 'object') {
+        // Map backend errors
+        const mappedErrors = {};
+        for (const [key, msgs] of Object.entries(err.errors)) {
+          const fieldKey = key === 'company_name' ? 'company' : (key === 'estimated_quantity' ? 'quantity' : key);
+          mappedErrors[fieldKey] = Array.isArray(msgs) ? msgs[0] : msgs;
+        }
+        setFormErrors(mappedErrors);
+      } else {
+        alert(err.message || 'Error submitting quote inquiry. Please call +91 9853675971 directly.');
+      }
+    } finally {
+      setIsSubmittingInquiry(false);
     }
   };
 
@@ -1164,11 +1238,6 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
 
           </div>
         </section>
-
-        {/* ======================================================================= */}
-        {/* SECTION 3: PRODUCTS & SERVICES (MODERN PACKAGING SHOWCASE)              */}
-        {/* 5 Packaging formats with exact branded images & interactive filters    */}
-        {/* ======================================================================= */}
         <section
           id="products"
           className="content-section"
@@ -1197,14 +1266,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
 
             {/* Interactive Category Filter Pills */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '40px' }}>
-              {[
-                { id: 'ALL', label: 'All Packaging Formats' },
-                { id: 'BUCKETS', label: '20L Smart Buckets' },
-                { id: 'CANS', label: '5L & 10L Cans' },
-                { id: 'BARRELS', label: '210L Industrial Barrels' },
-                { id: 'IBC', label: '1000L IBC Tanks' },
-                { id: 'BULK', label: 'Bulk Road Tankers' }
-              ].map(tab => {
+              {availableCategories.map(tab => {
                 const isActive = activeProductFilter === tab.id;
                 return (
                   <button
@@ -1229,155 +1291,375 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
               })}
             </div>
 
-            {/* Packaging Cards Grid with 3D Hover & Image Display */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '28px', marginBottom: '52px' }}>
-              {filteredPackaging.map(pack => (
-                <div
-                  key={pack.id}
-                  className="modern-card-hover"
-                  style={{
-                    backgroundColor: themeStyles.bgCard,
-                    borderRadius: '22px',
-                    border: pack.id === '20L' ? '2px solid var(--brand-blue)' : `1px solid ${themeStyles.borderColor}`,
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.4)' : '0 8px 24px rgba(0,0,0,0.06)',
-                    position: 'relative'
-                  }}
-                >
-                  <div>
-                    {/* Top Badge & Category */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-                      <span
-                        style={{
-                          backgroundColor: pack.id === '20L' ? 'var(--brand-blue)' : (isDark ? 'rgba(0, 200, 245, 0.15)' : 'rgba(0, 143, 224, 0.08)'),
-                          color: pack.id === '20L' ? '#FFFFFF' : (isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'),
-                          padding: '5px 12px',
-                          borderRadius: '50px',
-                          fontSize: '11px',
-                          fontWeight: 900
-                        }}
-                      >
-                        {pack.badge}
-                      </span>
-                      <Package size={20} color={pack.id === '20L' ? 'var(--brand-blue)' : 'var(--brand-cyan)'} />
-                    </div>
+            {/* Carousel Header Controls: Status Indicator & Prev/Next Arrows */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '22px',
+              padding: '0 6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: isSliderHovered ? '#F59E0B' : '#10B981',
+                  boxShadow: isSliderHovered ? '0 0 10px #F59E0B' : '0 0 10px #10B981',
+                  transition: 'background-color 0.2s ease'
+                }} />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: themeStyles.textMuted }}>
+                  {filteredPackaging.length <= itemsPerView
+                    ? `Showing ${filteredPackaging.length} Products`
+                    : isSliderHovered
+                      ? 'Paused on hover'
+                      : `Auto-sliding • ${filteredPackaging.length} Products`}
+                </span>
+              </div>
 
-                    {/* Branded Product Image Frame */}
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '210px',
-                        backgroundColor: isDark ? '#051126' : '#F8FAFC',
-                        borderRadius: '16px',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '18px',
-                        border: `1px solid ${themeStyles.borderColor}`,
-                        boxSizing: 'border-box',
-                        padding: '12px'
-                      }}
-                    >
-                      <img
-                        src={pack.image}
-                        alt={pack.name}
-                        className="img-zoom-hover"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          borderRadius: '8px'
-                        }}
-                      />
-                    </div>
-
-                    {/* Title & Capacity */}
-                    <h3 style={{ fontSize: '20px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '6px' }}>
-                      {pack.name}
-                    </h3>
-                    <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '14px' }}>
-                      Capacity: {pack.capacity}
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: themeStyles.textMuted, marginBottom: '16px', lineHeight: 1.5, minHeight: '36px' }}>
-                      <strong>Recommended:</strong> {pack.bestFor}
-                    </div>
-
-                    {/* Features list */}
-                    <div style={{ borderTop: `1px solid ${themeStyles.borderColor}`, paddingTop: '16px', marginBottom: '22px' }}>
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '9px' }}>
-                        {pack.features.map((feat, idx) => (
-                          <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: themeStyles.textBody, lineHeight: 1.45 }}>
-                            <Check size={15} color="#10B981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                            <span>{feat}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Quote Action Button */}
+              {/* Manual Slide Controls */}
+              {filteredPackaging.length > itemsPerView && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <button
-                    onClick={() => handleSelectPackageForQuote(pack)}
+                    type="button"
+                    onClick={handlePrevSlide}
+                    aria-label="Previous Product"
                     style={{
-                      width: '100%',
-                      padding: '13px',
-                      borderRadius: '50px',
-                      backgroundColor: pack.id === '20L' ? 'var(--brand-blue)' : (isDark ? 'rgba(0, 200, 245, 0.15)' : '#F1F5F9'),
-                      color: pack.id === '20L' ? '#FFFFFF' : (isDark ? 'var(--brand-cyan)' : 'var(--brand-navy-primary)'),
-                      border: pack.id === '20L' ? 'none' : (isDark ? '1px solid rgba(0, 200, 245, 0.3)' : '1px solid #CBD5E1'),
-                      fontSize: '13px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: themeStyles.bgCard,
+                      border: `1px solid ${themeStyles.borderColor}`,
+                      color: themeStyles.textHeading,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px',
-                      boxShadow: pack.id === '20L' ? '0 6px 20px rgba(0, 143, 224, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = themeStyles.borderColor;
+                      e.currentTarget.style.backgroundColor = themeStyles.bgCard;
+                      e.currentTarget.style.color = themeStyles.textHeading;
                     }}
                   >
-                    <span>Get Quote for {pack.shortName}</span>
-                    <ArrowRight size={15} />
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextSlide}
+                    aria-label="Next Product"
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: themeStyles.bgCard,
+                      border: `1px solid ${themeStyles.borderColor}`,
+                      color: themeStyles.textHeading,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = themeStyles.borderColor;
+                      e.currentTarget.style.backgroundColor = themeStyles.bgCard;
+                      e.currentTarget.style.color = themeStyles.textHeading;
+                    }}
+                  >
+                    <ChevronRight size={20} />
                   </button>
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* Dynamic Products From Database if Available */}
-            {products.length > 0 && (
-              <div style={{ marginTop: '40px', borderTop: `1px solid ${themeStyles.borderColor}`, paddingTop: '40px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
-                  <h3 style={{ fontSize: '22px', fontWeight: 900, color: themeStyles.textHeading }}>
-                    Complete Industrial Product Range
-                  </h3>
-                  <span style={{ fontSize: '12px', color: themeStyles.textMuted, fontWeight: 700 }}>
-                    {products.length} Products Available in Master DB
-                  </span>
-                </div>
+            {/* Packaging Carousel Overflow Container */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                overflow: 'hidden',
+                padding: '6px 2px 14px 2px',
+                marginBottom: '24px'
+              }}
+              onMouseEnter={() => setIsSliderHovered(true)}
+              onMouseLeave={() => setIsSliderHovered(false)}
+            >
+              {/* Sliding Flex Track */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '24px',
+                  transition: 'transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)',
+                  transform: `translateX(calc(-${currentSlide} * (100% + 24px) / ${itemsPerView}))`
+                }}
+              >
+                {filteredPackaging.map(pack => (
+                  <div
+                    key={pack.id}
+                    className="modern-card-hover"
+                    style={{
+                      flex: `0 0 calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
+                      minWidth: `calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
+                      boxSizing: 'border-box',
+                      backgroundColor: themeStyles.bgCard,
+                      borderRadius: '22px',
+                      border: pack.id === '20L' ? '2px solid var(--brand-blue)' : `1px solid ${themeStyles.borderColor}`,
+                      padding: '24px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.4)' : '0 8px 24px rgba(0,0,0,0.06)',
+                      position: 'relative'
+                    }}
+                  >
+                    <div>
+                      {/* Top Badge & Category */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '8px', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            backgroundColor: pack.badge ? 'var(--brand-blue)' : (isDark ? 'rgba(0, 200, 245, 0.15)' : 'rgba(0, 143, 224, 0.08)'),
+                            color: pack.badge ? '#FFFFFF' : (isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'),
+                            padding: '4px 12px',
+                            borderRadius: '50px',
+                            fontSize: '11px',
+                            fontWeight: 900,
+                            letterSpacing: '0.04em'
+                          }}
+                        >
+                          {pack.badge || pack.category}
+                        </span>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '22px' }}>
-                  {products.map(prod => (
-                    <ProductCard
-                      key={prod.id}
-                      product={prod}
-                      onInquireClick={(p, pk) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          packVariant: `${p.name} (${pk?.size || 'Standard'})`,
-                          quantity: pk?.size?.includes('20L') ? '25 Buckets' : '500 Litres'
-                        }));
-                        scrollToSection('quotes');
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-cyan)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {pack.category}
+                          </span>
+                          <Package size={17} color="var(--brand-cyan)" />
+                        </div>
+                      </div>
+
+                      {/* Branded Product Image Frame */}
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '200px',
+                          backgroundColor: isDark ? '#051126' : '#F8FAFC',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '18px',
+                          border: `1px solid ${themeStyles.borderColor}`,
+                          boxSizing: 'border-box',
+                          padding: '12px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+                        title="Click to view full specifications"
+                      >
+                        <img
+                          src={pack.image}
+                          alt={pack.name}
+                          className="img-zoom-hover"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain',
+                            borderRadius: '8px'
+                          }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/images/def_bucket_20l.jpg';
+                          }}
+                        />
+                      </div>
+
+                      {/* Title & Capacity */}
+                      <h3
+                        style={{
+                          fontSize: '19px',
+                          fontWeight: 900,
+                          color: themeStyles.textHeading,
+                          marginBottom: '6px',
+                          lineHeight: 1.3,
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+                      >
+                        {pack.name}
+                      </h3>
+                      <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '12px' }}>
+                        Capacity: {pack.capacity}
+                      </div>
+
+                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, marginBottom: '16px', lineHeight: 1.5, minHeight: '36px' }}>
+                        <strong>Recommended:</strong> {pack.bestFor}
+                      </div>
+
+                      {/* Key Features from DB */}
+                      {pack.features && pack.features.length > 0 && (
+                        <div style={{ borderTop: `1px solid ${themeStyles.borderColor}`, paddingTop: '14px', marginBottom: '18px' }}>
+                          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {pack.features.slice(0, 3).map((feat, idx) => (
+                              <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: themeStyles.textBody, lineHeight: 1.4 }}>
+                                <Check size={14} color="#10B981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                <span>{feat}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Live Database Pricing & Order Batch Box */}
+                    <div>
+                      <div
+                        style={{
+                          backgroundColor: isDark ? 'rgba(4, 14, 34, 0.7)' : '#F1F5F9',
+                          borderRadius: '14px',
+                          padding: '12px 14px',
+                          marginBottom: '16px',
+                          border: `1px solid ${themeStyles.borderColor}`
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', color: themeStyles.textMuted, fontWeight: 700 }}>
+                            Suggested Retail Price (MRP):
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--brand-cyan)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Direct Factory Rate
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontSize: '22px', fontWeight: 900, color: themeStyles.textHeading, letterSpacing: '-0.02em' }}>
+                            ₹ {Number(pack.mrp || 0).toLocaleString('en-IN')}
+                          </span>
+                          {pack.distributorPrice > 0 && (
+                            <span style={{ fontSize: '12px', color: '#10B981', fontWeight: 800 }}>
+                              Wholesale: ₹ {Number(pack.distributorPrice).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                        {pack.defaultQty && (
+                          <div style={{ fontSize: '11px', color: themeStyles.textMuted, marginTop: '6px', paddingTop: '6px', borderTop: `1px dashed ${themeStyles.borderColor}`, display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Standard Order Batch:</span>
+                            <strong style={{ color: themeStyles.textBody }}>{pack.defaultQty}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons: View Specs & Order/RFQ */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+                          style={{
+                            flex: 1,
+                            padding: '11px 8px',
+                            borderRadius: '50px',
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E2E8F0',
+                            color: themeStyles.textHeading,
+                            border: `1px solid ${themeStyles.borderColor}`,
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--brand-cyan)';
+                            e.currentTarget.style.color = 'var(--brand-cyan)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = themeStyles.borderColor;
+                            e.currentTarget.style.color = themeStyles.textHeading;
+                          }}
+                        >
+                          <Eye size={14} />
+                          <span>View Specs</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSelectPackageForQuote(pack)}
+                          style={{
+                            flex: 1.4,
+                            padding: '11px 12px',
+                            borderRadius: '50px',
+                            backgroundColor: 'var(--brand-blue)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 4px 16px rgba(0, 143, 224, 0.4)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 143, 224, 0.6)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 143, 224, 0.4)';
+                          }}
+                        >
+                          <span>Order / RFQ</span>
+                          <ArrowRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pagination Navigation Dots */}
+            {filteredPackaging.length > itemsPerView && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '50px' }}>
+                {Array.from({ length: maxSlide + 1 }).map((_, idx) => {
+                  const isActive = currentSlide === idx;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentSlide(idx)}
+                      style={{
+                        width: isActive ? '28px' : '8px',
+                        height: '8px',
+                        borderRadius: '50px',
+                        backgroundColor: isActive ? 'var(--brand-blue)' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'),
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isActive ? '0 0 10px rgba(0, 143, 224, 0.6)' : 'none'
                       }}
-                      onQuickViewClick={(p) => setActiveQuickViewProduct(p)}
-                      onViewCertification={() => setIsCertModalOpen(true)}
+                      aria-label={`Slide to product ${idx + 1}`}
                     />
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             )}
 
@@ -1440,6 +1722,11 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                   >
                     <CheckCircle2 size={52} color="var(--status-success)" style={{ margin: '0 auto 16px auto' }} />
                     <h3 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '8px' }}>Quotation Inquiry Received!</h3>
+                    {submittedInquiryCode && (
+                      <div style={{ display: 'inline-block', backgroundColor: 'rgba(0, 200, 245, 0.15)', color: 'var(--brand-cyan)', padding: '4px 14px', borderRadius: '50px', fontSize: '13px', fontWeight: 800, marginBottom: '12px', border: '1px solid rgba(0, 200, 245, 0.3)' }}>
+                        Reference Code: {submittedInquiryCode}
+                      </div>
+                    )}
                     <p style={{ fontSize: '14px', lineHeight: 1.65, maxWidth: '440px', margin: '0 auto' }}>
                       Thank you! Our Bhadrak dispatch desk has received your request for <strong>{formData.packVariant}</strong>. Our commercial manager will contact you within <strong>30 minutes</strong> with customized pricing.
                     </p>
@@ -1482,40 +1769,77 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleInquirySubmit}>
+                  <form onSubmit={handleInquirySubmit} noValidate>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '16px' }}>
                       <Input
+                        id="inquiry-name"
                         label="Contact Person Name"
                         placeholder="e.g. Subrat Das"
                         value={formData.name}
-                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, name: e.target.value });
+                          if (formErrors.name) setFormErrors(prev => ({ ...prev, name: undefined }));
+                        }}
+                        onBlur={e => {
+                          const err = validateInquiryField('name', e.target.value);
+                          if (err) setFormErrors(prev => ({ ...prev, name: err }));
+                        }}
+                        error={formErrors.name}
                         required
                       />
 
                       <Input
+                        id="inquiry-company"
                         label="Fleet / Company Name"
                         placeholder="e.g. Kalinga Transport Depot"
                         value={formData.company}
-                        onChange={e => setFormData({ ...formData, company: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, company: e.target.value });
+                          if (formErrors.company) setFormErrors(prev => ({ ...prev, company: undefined }));
+                        }}
+                        onBlur={e => {
+                          const err = validateInquiryField('company', e.target.value);
+                          if (err) setFormErrors(prev => ({ ...prev, company: err }));
+                        }}
+                        error={formErrors.company}
                         required
                       />
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '16px' }}>
                       <Input
+                        id="inquiry-phone"
                         label="Mobile Number (Call / WhatsApp)"
                         type="tel"
-                        placeholder="+91 98536 75971"
+                        placeholder="e.g. 9853675971"
                         value={formData.phone}
-                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, phone: e.target.value });
+                          if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: undefined }));
+                        }}
+                        onBlur={e => {
+                          const err = validateInquiryField('phone', e.target.value);
+                          if (err) setFormErrors(prev => ({ ...prev, phone: err }));
+                        }}
+                        error={formErrors.phone}
+                        hint="10-digit Indian mobile number"
                         required
                       />
 
                       <Input
+                        id="inquiry-location"
                         label="Delivery Location (City / State)"
                         placeholder="e.g. Bhadrak / Cuttack / Kolkata"
                         value={formData.location}
-                        onChange={e => setFormData({ ...formData, location: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, location: e.target.value });
+                          if (formErrors.location) setFormErrors(prev => ({ ...prev, location: undefined }));
+                        }}
+                        onBlur={e => {
+                          const err = validateInquiryField('location', e.target.value);
+                          if (err) setFormErrors(prev => ({ ...prev, location: err }));
+                        }}
+                        error={formErrors.location}
                         required
                       />
                     </div>
@@ -1538,7 +1862,10 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                             <button
                               key={variant}
                               type="button"
-                              onClick={() => setFormData({ ...formData, packVariant: variant })}
+                              onClick={() => {
+                                setFormData({ ...formData, packVariant: variant });
+                                if (formErrors.packVariant) setFormErrors(prev => ({ ...prev, packVariant: undefined }));
+                              }}
                               style={{
                                 padding: '10px 12px',
                                 borderRadius: '12px',
@@ -1562,21 +1889,35 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                           );
                         })}
                       </div>
+                      {formErrors.packVariant && (
+                        <span style={{ color: '#EF4444', fontSize: '11px', fontWeight: 700, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>⚠️</span> {formErrors.packVariant}
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ marginBottom: '18px' }}>
                       <Input
+                        id="inquiry-quantity"
                         label="Estimated Volume / Quantity"
                         placeholder="e.g. 25 Buckets, 2 Barrels, 1 IBC, or 5000 Litres"
                         value={formData.quantity}
-                        onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                        onChange={e => {
+                          setFormData({ ...formData, quantity: e.target.value });
+                          if (formErrors.quantity) setFormErrors(prev => ({ ...prev, quantity: undefined }));
+                        }}
+                        onBlur={e => {
+                          const err = validateInquiryField('quantity', e.target.value);
+                          if (err) setFormErrors(prev => ({ ...prev, quantity: err }));
+                        }}
+                        error={formErrors.quantity}
                         required
                       />
                     </div>
 
                     <div style={{ marginBottom: '24px' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: themeStyles.textHeading, marginBottom: '6px' }}>
-                        Additional Notes / Requirements
+                        Additional Notes / Requirements (Optional)
                       </label>
                       <textarea
                         rows="3"
@@ -1600,6 +1941,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
 
                     <button
                       type="submit"
+                      disabled={isSubmittingInquiry}
                       className="glow-btn-primary"
                       style={{
                         width: '100%',
@@ -1609,7 +1951,8 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                         border: 'none',
                         fontSize: '15px',
                         fontWeight: 900,
-                        cursor: 'pointer',
+                        cursor: isSubmittingInquiry ? 'not-allowed' : 'pointer',
+                        opacity: isSubmittingInquiry ? 0.75 : 1,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1618,7 +1961,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                       }}
                     >
                       <Send size={16} />
-                      <span>Submit Factory Quote Request</span>
+                      <span>{isSubmittingInquiry ? 'Submitting Quote Request...' : 'Submit Factory Quote Request'}</span>
                     </button>
                   </form>
                 )}
@@ -1907,17 +2250,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
         isOpen={Boolean(activeQuickViewProduct)}
         onClose={() => setActiveQuickViewProduct(null)}
         product={activeQuickViewProduct}
-        onApplyRfq={(prod, pack) => {
+        onApplyRfq={(prod) => {
           setFormData(prev => ({
             ...prev,
-            packVariant: `${prod.name} (${pack?.size || 'Standard'})`,
-            quantity: pack?.size?.includes('20L') ? '25 Buckets' : '500 Litres'
+            packVariant: prod.shortName || prod.name,
+            quantity: prod.defaultQty || '1 Unit',
+            message: `Quotation requested for ${prod.name} (${prod.capacity || ''}).`
           }));
           scrollToSection('quotes');
-        }}
-        onViewCertification={() => {
-          setActiveQuickViewProduct(null);
-          setIsCertModalOpen(true);
         }}
       />
 
