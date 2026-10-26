@@ -309,20 +309,20 @@ class ProductController extends Controller
 
             $destinationPath = public_path('uploads/products');
             if (!file_exists($destinationPath)) {
-                if (!@mkdir($destinationPath, 0775, true) && !is_dir($destinationPath)) {
+                if (!@mkdir($destinationPath, 0777, true) && !is_dir($destinationPath)) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Upload directory could not be created at: {$destinationPath}. Server permission error: please run 'chmod -R 775 " . public_path('uploads') . "' on the server."
+                        'message' => "Upload directory could not be created at {$destinationPath}. Please run: chmod -R 777 " . public_path('uploads')
                     ], 500);
                 }
             }
 
             if (!is_writable($destinationPath)) {
-                @chmod($destinationPath, 0775);
+                @chmod($destinationPath, 0777);
                 if (!is_writable($destinationPath)) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Upload directory is not writable by web server: {$destinationPath}. Please run 'chown -R www-data:www-data " . public_path('uploads') . " && chmod -R 775 " . public_path('uploads') . "' on the server."
+                        'message' => "Upload directory is not writable. Please run on server: chown -R www-data:www-data " . public_path('uploads') . " && chmod -R 777 " . public_path('uploads')
                     ], 500);
                 }
             }
