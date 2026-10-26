@@ -803,7 +803,7 @@ export const AdminProductsView = ({
                   onChange={handleFileChange}
                 />
 
-                {formData.imageUrl ? (
+                {(previewUrl || formData.imageUrl) ? (
                   <div style={{
                     position: 'relative',
                     border: '1px solid var(--border-color)',
@@ -827,9 +827,14 @@ export const AdminProductsView = ({
                       flexShrink: 0
                     }}>
                       <img
-                        src={formData.imageUrl}
+                        src={previewUrl || formData.imageUrl}
                         alt="Uploaded product"
                         style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onError={(e) => {
+                          if (previewUrl && e.target.src !== previewUrl) {
+                            e.target.src = previewUrl;
+                          }
+                        }}
                       />
                     </div>
 
@@ -856,7 +861,10 @@ export const AdminProductsView = ({
                           variant="danger"
                           size="sm"
                           icon={X}
-                          onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                          onClick={() => {
+                            setPreviewUrl(null);
+                            setFormData(prev => ({ ...prev, imageUrl: '' }));
+                          }}
                         >
                           Remove
                         </Button>
