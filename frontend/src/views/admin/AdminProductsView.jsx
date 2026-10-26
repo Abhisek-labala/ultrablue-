@@ -1,16 +1,16 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { 
-  Package, 
-  Plus, 
-  Search, 
-  Edit3, 
-  Trash2, 
-  Check, 
-  CheckCircle2, 
-  Eye, 
-  EyeOff, 
-  DollarSign, 
-  Truck, 
+import {
+  Package,
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  Check,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  DollarSign,
+  Truck,
   Sparkles,
   ExternalLink,
   Layers,
@@ -52,11 +52,11 @@ const INITIAL_FORM = {
   sortOrder: 1
 };
 
-export const AdminProductsView = ({ 
-  products = [], 
-  onRefresh, 
-  onShowToast, 
-  onNavigateToPricing 
+export const AdminProductsView = ({
+  products = [],
+  onRefresh,
+  onShowToast,
+  onNavigateToPricing
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -173,7 +173,7 @@ export const AdminProductsView = ({
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchCat = selectedCategory === 'ALL' || (p.category || '').toUpperCase() === selectedCategory.toUpperCase();
-      const matchSearch = !searchQuery || 
+      const matchSearch = !searchQuery ||
         (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.capacity && p.capacity.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.bestFor && p.bestFor.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -328,33 +328,13 @@ export const AdminProductsView = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ 
-              backgroundColor: 'rgba(0, 200, 245, 0.12)', 
-              color: 'var(--brand-cyan)', 
-              padding: '4px 12px', 
-              borderRadius: '50px', 
-              fontSize: '11px', 
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase'
-            }}>
-              Storefront Direct Configuration
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-              • Updates appear live on website
-            </span>
-          </div>
           <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'var(--text-heading)', margin: '6px 0 4px 0', letterSpacing: '-0.02em' }}>
             Products & Storefront Packaging
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '750px', margin: 0 }}>
-            Configure and publish the packaging formats and lubricants displayed on the public website, digital catalogue, and customer RFQ forms.
-          </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -402,11 +382,11 @@ export const AdminProductsView = ({
       </div>
 
       {/* Filter and Search Controls */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
         gap: '14px',
         backgroundColor: 'var(--bg-surface)',
         padding: '16px 20px',
@@ -472,10 +452,10 @@ export const AdminProductsView = ({
           </Button>
         </div>
       ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-          gap: '24px' 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px'
         }}>
           {filteredProducts.map(prod => {
             const isLive = prod.isActive !== false;
@@ -571,10 +551,10 @@ export const AdminProductsView = ({
                       Capacity: {prod.capacity || 'Standard'}
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>•</span>
-                    <span style={{ 
-                      fontSize: '11px', 
-                      backgroundColor: 'rgba(255,255,255,0.06)', 
-                      padding: '2px 8px', 
+                    <span style={{
+                      fontSize: '11px',
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      padding: '2px 8px',
                       borderRadius: '4px',
                       color: 'var(--text-muted)'
                     }}>
@@ -602,9 +582,9 @@ export const AdminProductsView = ({
 
                 {/* Pricing & Management Actions */}
                 <div>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '10px 14px',
                     backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -628,19 +608,19 @@ export const AdminProductsView = ({
 
                   {/* Action Buttons */}
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      icon={Edit3} 
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Edit3}
                       onClick={() => handleOpenEdit(prod)}
                       style={{ flex: 1 }}
                     >
                       Edit Product
                     </Button>
-                    <Button 
-                      variant="danger" 
-                      size="sm" 
-                      icon={Trash2} 
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      icon={Trash2}
                       loading={deletingId === prod.id}
                       onClick={() => handleDeleteProduct(prod.id, prod.name)}
                     >
@@ -663,10 +643,10 @@ export const AdminProductsView = ({
           maxWidth="900px"
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px' }}>
-            
+
             {/* Form Column */}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
+
               {/* Product Title */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '6px' }}>
@@ -999,9 +979,9 @@ export const AdminProductsView = ({
               </div>
 
               {/* Visibility Switch */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '12px 16px',
                 backgroundColor: 'rgba(255,255,255,0.03)',
