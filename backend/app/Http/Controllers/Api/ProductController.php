@@ -71,23 +71,34 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:200',
-            'capacity' => 'nullable|string|max:100',
-            'category' => 'nullable|string|max:50',
+            'name' => 'required|string|min:2|max:200',
+            'capacity' => 'required|string|min:1|max:100',
+            'category' => 'required|string|max:50',
             'short_name' => 'nullable|string|max:100',
             'badge' => 'nullable|string|max:100',
             'best_for' => 'nullable|string',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string',
-            'default_qty' => 'nullable|string',
-            'mrp' => 'nullable|numeric',
-            'distributor_price' => 'nullable|numeric',
+            'default_qty' => 'required|string|max:100',
+            'mrp' => 'required|numeric|gt:0',
+            'distributor_price' => 'required|numeric|gt:0|lte:mrp',
             'is_active' => 'nullable|boolean',
             'sort_order' => 'nullable|integer',
             'hsn_code' => 'nullable|string',
             'gst_rate' => 'nullable|numeric',
             'features' => 'nullable',
             'pack_variants' => 'nullable|array'
+        ], [
+            'name.required' => 'Product name is required.',
+            'name.min' => 'Product name must be at least 2 characters.',
+            'capacity.required' => 'Packaging capacity is required (e.g. 20 Litres, 210 Litres).',
+            'category.required' => 'Please select a packaging category.',
+            'default_qty.required' => 'Default quote quantity is required (e.g. 25 Buckets, 1 IBC).',
+            'mrp.required' => 'MRP price is required.',
+            'mrp.gt' => 'MRP price must be greater than ₹0.',
+            'distributor_price.required' => 'B2B wholesale price is required.',
+            'distributor_price.gt' => 'B2B wholesale price must be greater than ₹0.',
+            'distributor_price.lte' => 'B2B wholesale price cannot be greater than MRP.'
         ]);
 
         return DB::transaction(function () use ($request, $validated) {
@@ -316,10 +327,44 @@ class ProductController extends Controller
                 }
             }
 
-            $extension = $file->getClientOriginalExtension() ?: 'png';
-            $filename = 'prod_' . time() . '_' . Str::random(8) . '.' . strtolower($extension);
+            $extension = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $baseName = 'prod_' . time() . '_' . Str::random(8);
+            $filename = $baseName . '.' . $extension;
 
-            $file->move($destinationPath, $filename);
+            // Automatically compress & convert images to WebP format if GD library is available
+            $shouldConvertToWebP = ($extension !== 'svg') && function_exists('imagewebp') && function_exists('imagecreatefromstring');
+
+            if ($shouldConvertToWebP) {
+                try {
+                    $rawContents = file_get_contents($file->getRealPath());
+                    $imageResource = @imagecreatefromstring($rawContents);
+
+                    if ($imageResource !== false) {
+                        imagepalettetotruecolor($imageResource);
+                        imagealphablending($imageResource, true);
+                        imagesavealpha($imageResource, true);
+
+                        $webpFilename = $baseName . '.webp';
+                        $webpFullPath = $destinationPath . DIRECTORY_SEPARATOR . $webpFilename;
+
+                        // Save as compressed WebP with 82% quality
+                        $converted = @imagewebp($imageResource, $webpFullPath, 82);
+                        @imagedestroy($imageResource);
+
+                        if ($converted && file_exists($webpFullPath)) {
+                            $filename = $webpFilename;
+                        } else {
+                            $file->move($destinationPath, $filename);
+                        }
+                    } else {
+                        $file->move($destinationPath, $filename);
+                    }
+                } catch (\Throwable $convEx) {
+                    $file->move($destinationPath, $filename);
+                }
+            } else {
+                $file->move($destinationPath, $filename);
+            }
 
             // Construct relative path and full URL
             $relativePath = '/uploads/products/' . $filename;

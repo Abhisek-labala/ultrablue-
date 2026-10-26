@@ -24,6 +24,7 @@ import { Input, Select } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { KPICard } from '../../components/ui/KPICard';
 import { ProductAPI } from '../../services/api';
+import { compressImageToWebP } from '../../utils/imageCompressor';
 
 const CATEGORY_OPTIONS = [
   { value: 'ALL', label: 'All Packaging' },
@@ -66,11 +67,67 @@ export const AdminProductsView = ({
   const [deletingId, setDeletingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
   const fileInputRef = useRef(null);
 
-  // Direct Image File Upload Handler
+  // Field-level Validator
+  const validateField = (name, value, currentFormData = formData) => {
+    switch (name) {
+      case 'name': {
+        const val = (value || '').trim();
+        if (!val) return 'Product name is required';
+        if (val.length < 2) return 'Product name must be at least 2 characters';
+        return '';
+      }
+      case 'capacity': {
+        const val = (value || '').trim();
+        if (!val) return 'Packaging capacity is required (e.g. 20 Litres, 210 Litres)';
+        return '';
+      }
+      case 'category': {
+        if (!value) return 'Please select a packaging category';
+        return '';
+      }
+      case 'mrp': {
+        const val = String(value || '').trim();
+        if (!val) return 'MRP price is required';
+        const num = parseFloat(val);
+        if (isNaN(num) || num <= 0) return 'MRP must be greater than ₹0';
+        return '';
+      }
+      case 'distributorPrice': {
+        const val = String(value || '').trim();
+        if (!val) return 'B2B wholesale price is required';
+        const num = parseFloat(val);
+        if (isNaN(num) || num <= 0) return 'B2B price must be greater than ₹0';
+        const mrpNum = parseFloat(currentFormData.mrp);
+        if (!isNaN(mrpNum) && num > mrpNum) return 'B2B price cannot exceed MRP';
+        return '';
+      }
+      case 'defaultQty': {
+        const val = (value || '').trim();
+        if (!val) return 'Default quote quantity is required (e.g. 25 Buckets, 1 IBC)';
+        return '';
+      }
+      default:
+        return '';
+    }
+  };
+
+  // Full Form Validator
+  const validateProductForm = (values = formData) => {
+    const fields = ['name', 'capacity', 'category', 'mrp', 'distributorPrice', 'defaultQty'];
+    const errors = {};
+    for (const f of fields) {
+      const err = validateField(f, values[f], values);
+      if (err) errors[f] = err;
+    }
+    return errors;
+  };
+
+  // Direct Image File Upload Handler with Auto-Compression & WebP Conversion
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -83,6 +140,13 @@ export const AdminProductsView = ({
     setIsUploading(true);
     setUploadError(null);
     try {
+      // If image is large (> 300KB), automatically compress to WebP before uploading
+      if (file.type !== 'image/svg+xml' && file.size > 300 * 1024) {
+        const originalSizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        onShowToast && onShowToast(`Compressing ${originalSizeMb}MB image to WebP...`, 'info');
+        file = await compressImageToWebP(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
+      }
+
       // 1. Immediate local preview
       const localPreviewUrl = URL.createObjectURL(file);
       setFormData(prev => ({ ...prev, imageUrl: localPreviewUrl }));
@@ -92,7 +156,7 @@ export const AdminProductsView = ({
       if (res && res.url) {
         setFormData(prev => ({ ...prev, imageUrl: res.url }));
         setUploadError(null);
-        onShowToast && onShowToast('Product image uploaded successfully!', 'success');
+        onShowToast && onShowToast('Image optimized & uploaded as WebP!', 'success');
       }
     } catch (err) {
       console.error('Image upload failed:', err);
@@ -121,6 +185,7 @@ export const AdminProductsView = ({
   const handleOpenCreate = () => {
     setEditingProduct(null);
     setUploadError(null);
+    setFormErrors({});
     setFormData({
       ...INITIAL_FORM,
       sortOrder: (products.length || 0) + 1
@@ -132,6 +197,7 @@ export const AdminProductsView = ({
   const handleOpenEdit = (prod) => {
     setEditingProduct(prod);
     setUploadError(null);
+    setFormErrors({});
     const featuresStr = Array.isArray(prod.features) ? prod.features.join('\n') : (prod.features || '');
     setFormData({
       name: prod.name || '',
@@ -144,7 +210,7 @@ export const AdminProductsView = ({
       imageUrl: prod.imageUrl || '',
       mrp: prod.mrp !== undefined && prod.mrp !== null ? prod.mrp : '',
       distributorPrice: prod.distributorPrice !== undefined && prod.distributorPrice !== null ? prod.distributorPrice : '',
-      defaultQty: prod.defaultQty || '',
+      defaultQty: prod.defaultQty || '1 Unit',
       isActive: prod.isActive !== false,
       sortOrder: prod.sortOrder || 1
     });
@@ -154,26 +220,14 @@ export const AdminProductsView = ({
   // Submit Save or Update
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!formData.name.trim()) {
-      onShowToast && onShowToast('Please provide a product name (min 2 characters)', 'error');
-      return;
-    }
-    if (!formData.capacity.trim()) {
-      onShowToast && onShowToast('Please specify packaging capacity (e.g. 20 Litres)', 'error');
-      return;
-    }
-    const numMrp = parseFloat(formData.mrp);
-    if (isNaN(numMrp) || numMrp <= 0) {
-      onShowToast && onShowToast('Please enter a valid MRP price greater than 0', 'error');
-      return;
-    }
-    const numDist = parseFloat(formData.distributorPrice);
-    if (isNaN(numDist) || numDist <= 0) {
-      onShowToast && onShowToast('Please enter a valid distributor wholesale price greater than 0', 'error');
-      return;
-    }
-    if (numDist > numMrp) {
-      onShowToast && onShowToast('Distributor price cannot be higher than MRP price', 'error');
+    const errors = validateProductForm(formData);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      const firstField = Object.keys(errors)[0];
+      const el = document.getElementById(`prod-input-${firstField}`);
+      if (el) el.focus();
+      onShowToast && onShowToast('Please fix the highlighted form errors', 'error');
       return;
     }
 
@@ -213,6 +267,14 @@ export const AdminProductsView = ({
       onRefresh && onRefresh();
     } catch (err) {
       console.error('Error saving product:', err);
+      if (err.errors && typeof err.errors === 'object') {
+        const mappedErrors = {};
+        for (const [key, msgs] of Object.entries(err.errors)) {
+          const fieldKey = key === 'distributor_price' ? 'distributorPrice' : (key === 'default_qty' ? 'defaultQty' : key);
+          mappedErrors[fieldKey] = Array.isArray(msgs) ? msgs[0] : msgs;
+        }
+        setFormErrors(mappedErrors);
+      }
       onShowToast && onShowToast(err.message || 'Failed to save product.', 'error');
     } finally {
       setIsSubmitting(false);
@@ -611,10 +673,19 @@ export const AdminProductsView = ({
                   Product Name *
                 </label>
                 <Input
+                  id="prod-input-name"
                   required
                   placeholder="e.g. 20L Smart Bucket, 210L Barrel"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors(prev => ({ ...prev, name: undefined }));
+                  }}
+                  onBlur={(e) => {
+                    const err = validateField('name', e.target.value);
+                    if (err) setFormErrors(prev => ({ ...prev, name: err }));
+                  }}
+                  error={formErrors.name}
                 />
               </div>
 
@@ -622,11 +693,15 @@ export const AdminProductsView = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '6px' }}>
-                    Packaging Category
+                    Packaging Category *
                   </label>
                   <Select
+                    id="prod-input-category"
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, category: e.target.value });
+                      if (formErrors.category) setFormErrors(prev => ({ ...prev, category: undefined }));
+                    }}
                     options={[
                       { value: 'BUCKETS', label: 'Buckets (20L)' },
                       { value: 'CANS', label: 'Cans (5L / 10L)' },
@@ -636,15 +711,30 @@ export const AdminProductsView = ({
                       { value: 'OTHER', label: 'Other Packaging' }
                     ]}
                   />
+                  {formErrors.category && (
+                    <span style={{ color: '#EF4444', fontSize: '11px', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>⚠️</span> {formErrors.category}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '6px' }}>
-                    Capacity / Volume
+                    Capacity / Volume *
                   </label>
                   <Input
+                    id="prod-input-capacity"
+                    required
                     placeholder="e.g. 20 Litres, 210 Litres"
                     value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, capacity: e.target.value });
+                      if (formErrors.capacity) setFormErrors(prev => ({ ...prev, capacity: undefined }));
+                    }}
+                    onBlur={(e) => {
+                      const err = validateField('capacity', e.target.value);
+                      if (err) setFormErrors(prev => ({ ...prev, capacity: err }));
+                    }}
+                    error={formErrors.capacity}
                   />
                 </div>
               </div>
@@ -844,32 +934,66 @@ export const AdminProductsView = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '4px' }}>
-                    MRP (₹)
+                    MRP (₹) *
                   </label>
                   <Input
+                    id="prod-input-mrp"
                     type="number"
+                    step="any"
+                    required
+                    placeholder="e.g. 1500"
                     value={formData.mrp}
-                    onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, mrp: e.target.value });
+                      if (formErrors.mrp) setFormErrors(prev => ({ ...prev, mrp: undefined }));
+                    }}
+                    onBlur={(e) => {
+                      const err = validateField('mrp', e.target.value, formData);
+                      if (err) setFormErrors(prev => ({ ...prev, mrp: err }));
+                    }}
+                    error={formErrors.mrp}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '4px' }}>
-                    B2B Price (₹)
+                    B2B Price (₹) *
                   </label>
                   <Input
+                    id="prod-input-distributorPrice"
                     type="number"
+                    step="any"
+                    required
+                    placeholder="e.g. 1100"
                     value={formData.distributorPrice}
-                    onChange={(e) => setFormData({ ...formData, distributorPrice: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, distributorPrice: e.target.value });
+                      if (formErrors.distributorPrice) setFormErrors(prev => ({ ...prev, distributorPrice: undefined }));
+                    }}
+                    onBlur={(e) => {
+                      const err = validateField('distributorPrice', e.target.value, formData);
+                      if (err) setFormErrors(prev => ({ ...prev, distributorPrice: err }));
+                    }}
+                    error={formErrors.distributorPrice}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '4px' }}>
-                    Default Quote Qty
+                    Default Quote Qty *
                   </label>
                   <Input
-                    placeholder="e.g. 25 Buckets"
+                    id="prod-input-defaultQty"
+                    required
+                    placeholder="e.g. 25 Buckets, 1 IBC"
                     value={formData.defaultQty}
-                    onChange={(e) => setFormData({ ...formData, defaultQty: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, defaultQty: e.target.value });
+                      if (formErrors.defaultQty) setFormErrors(prev => ({ ...prev, defaultQty: undefined }));
+                    }}
+                    onBlur={(e) => {
+                      const err = validateField('defaultQty', e.target.value, formData);
+                      if (err) setFormErrors(prev => ({ ...prev, defaultQty: err }));
+                    }}
+                    error={formErrors.defaultQty}
                   />
                 </div>
               </div>

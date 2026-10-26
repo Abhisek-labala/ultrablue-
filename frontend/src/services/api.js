@@ -101,9 +101,11 @@ export const ProductAPI = {
       headers,
       body: JSON.stringify(productData)
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Error creating product.');
+      const err = new Error(json.message || 'Error creating product.');
+      err.errors = json.errors || {};
+      throw err;
     }
     return json;
   },
@@ -114,9 +116,11 @@ export const ProductAPI = {
       headers,
       body: JSON.stringify(productData)
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Error updating product.');
+      const err = new Error(json.message || 'Error updating product.');
+      err.errors = json.errors || {};
+      throw err;
     }
     return json;
   },
