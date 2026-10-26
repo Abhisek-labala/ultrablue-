@@ -150,11 +150,24 @@ export const ProductAPI = {
     formData.append('image', file);
     const res = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      },
       body: formData
     });
-    const json = await res.json();
+    
+    let json;
+    try {
+      json = await res.json();
+    } catch (parseErr) {
+      throw new Error(`Server returned HTTP ${res.status} (${res.statusText || 'Upload Error'}).`);
+    }
+
     if (!res.ok || !json.success) {
-      throw new Error(json.message || 'Image upload failed.');
+      const errMsg = json.message || (json.errors ? Object.values(json.errors).flat().join(' ') : 'Image upload failed on server.');
+      const err = new Error(errMsg);
+      err.errors = json.errors;
+      throw err;
     }
     return json;
   }

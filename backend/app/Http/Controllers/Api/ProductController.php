@@ -261,26 +261,88 @@ class ProductController extends Controller
 
     public function uploadImage(Request $request)
     {
-        $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,webp,svg|max:10240'
-        ]);
+        try {
+            if (!$request->hasFile('image')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No image file was received by the server. If this file is large, please check PHP upload_max_filesize and post_max_size limits.'
+                ], 422);
+            }
 
-        $file = $request->file('image');
-        $filename = 'prod_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
+            $file = $request->file('image');
 
-        $destinationPath = public_path('uploads/products');
-        if (!file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
+            if (!$file->isValid()) {
+                $uploadErrCode = $file->getError();
+                $errMap = [
+                    UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize in php.ini.',
+                    UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE in form.',
+                    UPLOAD_ERR_PARTIAL => 'File was only partially uploaded.',
+                    UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary upload directory on server.',
+                    UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk on server.',
+                    UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.'
+                ];
+                $errMsg = $errMap[$uploadErrCode] ?? 'File upload error code: ' . $uploadErrCode;
+                return response()->json([
+                    'success' => false,
+                    'message' => $errMsg
+                ], 422);
+            }
+
+            $request->validate([
+                'image' => 'required|file|mimes:jpeg,png,jpg,webp,svg,gif,bmp,avif|max:20480'
+            ], [
+                'image.mimes' => 'The file must be an image of type: PNG, JPG, JPEG, WEBP, SVG, GIF, AVIF.',
+                'image.max' => 'The image size cannot exceed 20MB.'
+            ]);
+
+            $destinationPath = public_path('uploads/products');
+            if (!file_exists($destinationPath)) {
+                if (!@mkdir($destinationPath, 0775, true) && !is_dir($destinationPath)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Upload directory could not be created at: {$destinationPath}. Server permission error: please run 'chmod -R 775 " . public_path('uploads') . "' on the server."
+                    ], 500);
+                }
+            }
+
+            if (!is_writable($destinationPath)) {
+                @chmod($destinationPath, 0775);
+                if (!is_writable($destinationPath)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Upload directory is not writable by web server: {$destinationPath}. Please run 'chown -R www-data:www-data " . public_path('uploads') . " && chmod -R 775 " . public_path('uploads') . "' on the server."
+                    ], 500);
+                }
+            }
+
+            $extension = $file->getClientOriginalExtension() ?: 'png';
+            $filename = 'prod_' . time() . '_' . Str::random(8) . '.' . strtolower($extension);
+
+            $file->move($destinationPath, $filename);
+
+            // Construct relative path and full URL
+            $relativePath = '/uploads/products/' . $filename;
+            $url = url('uploads/products/' . $filename);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Image uploaded successfully!',
+                'url' => $url,
+                'path' => $relativePath
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            $messages = $ve->validator->errors()->all();
+            return response()->json([
+                'success' => false,
+                'message' => implode(' ', $messages),
+                'errors' => $ve->validator->errors()
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Server Upload Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        $file->move($destinationPath, $filename);
-        $url = url('uploads/products/' . $filename);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Image uploaded successfully!',
-            'url' => $url,
-            'path' => '/uploads/products/' . $filename
-        ]);
     }
 }

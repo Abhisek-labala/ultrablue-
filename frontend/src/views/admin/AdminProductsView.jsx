@@ -65,6 +65,7 @@ export const AdminProductsView = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
 
   // Direct Image File Upload Handler
@@ -73,11 +74,14 @@ export const AdminProductsView = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      onShowToast && onShowToast('Please select a valid image file (PNG, JPG, WEBP, SVG)', 'error');
+      const err = 'Please select a valid image file (PNG, JPG, JPEG, WEBP, SVG)';
+      setUploadError(err);
+      onShowToast && onShowToast(err, 'error');
       return;
     }
 
     setIsUploading(true);
+    setUploadError(null);
     try {
       // 1. Immediate local preview
       const localPreviewUrl = URL.createObjectURL(file);
@@ -87,17 +91,14 @@ export const AdminProductsView = ({
       const res = await ProductAPI.uploadImage(file);
       if (res && res.url) {
         setFormData(prev => ({ ...prev, imageUrl: res.url }));
+        setUploadError(null);
         onShowToast && onShowToast('Product image uploaded successfully!', 'success');
       }
     } catch (err) {
-      console.warn('Backend upload returned error, using local base64 fallback:', err);
-      // Fallback to Base64 data URL so user can always save product with their image
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData(prev => ({ ...prev, imageUrl: event.target.result }));
-      };
-      reader.readAsDataURL(file);
-      onShowToast && onShowToast('Image loaded and ready to save!', 'info');
+      console.error('Image upload failed:', err);
+      const errorMsg = err.message || 'Image upload failed on server.';
+      setUploadError(errorMsg);
+      onShowToast && onShowToast(errorMsg, 'error');
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
@@ -119,6 +120,7 @@ export const AdminProductsView = ({
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditingProduct(null);
+    setUploadError(null);
     setFormData({
       ...INITIAL_FORM,
       sortOrder: (products.length || 0) + 1
@@ -129,6 +131,7 @@ export const AdminProductsView = ({
   // Open Edit Modal
   const handleOpenEdit = (prod) => {
     setEditingProduct(prod);
+    setUploadError(null);
     const featuresStr = Array.isArray(prod.features) ? prod.features.join('\n') : (prod.features || '');
     setFormData({
       name: prod.name || '',
@@ -811,6 +814,27 @@ export const AdminProductsView = ({
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       Supports PNG, JPG, WEBP, SVG from your computer
+                    </div>
+                  </div>
+                )}
+
+                {uploadError && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#FCA5A5',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    lineHeight: 1.4
+                  }}>
+                    <span style={{ fontSize: '15px' }}>⚠️</span>
+                    <div>
+                      <strong>Server Upload Error:</strong> {uploadError}
                     </div>
                   </div>
                 )}
