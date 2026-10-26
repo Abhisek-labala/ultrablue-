@@ -36,6 +36,7 @@ Route::put('/products/{id}', [ProductController::class, 'update']);
 Route::patch('/products/{id}/toggle-status', [ProductController::class, 'toggleStatus']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 Route::post('/upload', [ProductController::class, 'uploadImage']);
+Route::get('/products/image/{filename}', [ProductController::class, 'serveImage']);
 Route::post('/enquiries', [EnquiryController::class, 'store']);
 Route::post('/distributors/register', [DistributorController::class, 'register']);
 
