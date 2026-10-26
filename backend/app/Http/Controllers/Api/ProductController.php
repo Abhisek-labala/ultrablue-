@@ -366,9 +366,9 @@ class ProductController extends Controller
                 $file->move($destinationPath, $filename);
             }
 
-            // Construct relative path and full URL
-            $relativePath = '/uploads/products/' . $filename;
-            $url = url('uploads/products/' . $filename);
+            // Construct relative path and API URL (routed through /api to avoid SPA HTML fallbacks)
+            $relativePath = '/api/products/image/' . $filename;
+            $url = url('/api/products/image/' . $filename);
 
             return response()->json([
                 'success' => true,
@@ -389,5 +389,35 @@ class ProductController extends Controller
                 'message' => 'Server Upload Error: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function serveImage($filename)
+    {
+        $cleanFilename = basename($filename);
+        $path = public_path('uploads/products/' . $cleanFilename);
+
+        if (!file_exists($path)) {
+            $path = storage_path('app/public/products/' . $cleanFilename);
+        }
+
+        if (!file_exists($path)) {
+            return response()->json(['message' => 'Image not found'], 404);
+        }
+
+        $extension = strtolower(pathinfo($cleanFilename, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'webp' => 'image/webp',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'svg' => 'image/svg+xml',
+            'gif' => 'image/gif'
+        ];
+        $contentType = $mimeTypes[$extension] ?? (mime_content_type($path) ?: 'image/webp');
+
+        return response()->file($path, [
+            'Content-Type' => $contentType,
+            'Cache-Control' => 'public, max-age=31536000'
+        ]);
     }
 }
