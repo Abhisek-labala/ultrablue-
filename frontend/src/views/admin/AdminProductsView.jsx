@@ -67,6 +67,7 @@ export const AdminProductsView = ({
   const [deletingId, setDeletingId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const fileInputRef = useRef(null);
 
@@ -149,12 +150,13 @@ export const AdminProductsView = ({
 
       // 1. Immediate local preview
       const localPreviewUrl = URL.createObjectURL(file);
+      setPreviewUrl(localPreviewUrl);
       setFormData(prev => ({ ...prev, imageUrl: localPreviewUrl }));
 
       // 2. Upload to server
       const res = await ProductAPI.uploadImage(file);
-      if (res && res.url) {
-        setFormData(prev => ({ ...prev, imageUrl: res.url }));
+      if (res && (res.url || res.path)) {
+        setFormData(prev => ({ ...prev, imageUrl: res.url || res.path }));
         setUploadError(null);
         onShowToast && onShowToast('Image optimized & uploaded as WebP!', 'success');
       }
@@ -185,6 +187,7 @@ export const AdminProductsView = ({
   const handleOpenCreate = () => {
     setEditingProduct(null);
     setUploadError(null);
+    setPreviewUrl(null);
     setFormErrors({});
     setFormData({
       ...INITIAL_FORM,
@@ -197,6 +200,7 @@ export const AdminProductsView = ({
   const handleOpenEdit = (prod) => {
     setEditingProduct(prod);
     setUploadError(null);
+    setPreviewUrl(null);
     setFormErrors({});
     const featuresStr = Array.isArray(prod.features) ? prod.features.join('\n') : (prod.features || '');
     setFormData({
@@ -1085,14 +1089,19 @@ export const AdminProductsView = ({
                     border: '1px solid rgba(255,255,255,0.08)',
                     padding: '12px'
                   }}>
-                    {formData.imageUrl ? (
+                    {(previewUrl || formData.imageUrl) ? (
                       <img
-                        src={formData.imageUrl}
+                        src={previewUrl || formData.imageUrl}
                         alt={formData.name || 'Product'}
                         style={{
                           width: '100%',
                           height: '100%',
                           objectFit: 'contain'
+                        }}
+                        onError={(e) => {
+                          if (previewUrl && e.target.src !== previewUrl) {
+                            e.target.src = previewUrl;
+                          }
                         }}
                       />
                     ) : (

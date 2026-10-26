@@ -34,6 +34,12 @@ class ProductController extends Controller
             } else {
                 $prod->features = [];
             }
+
+            // Normalize old /uploads/products/ paths to /api/products/image/
+            if (!empty($prod->image_url) && strpos($prod->image_url, '/uploads/products/') !== false) {
+                $filename = basename(parse_url($prod->image_url, PHP_URL_PATH));
+                $prod->image_url = '/api/products/image/' . $filename;
+            }
         }
 
         return response()->json(['success' => true, 'data' => $products]);
@@ -52,6 +58,13 @@ class ProductController extends Controller
 
         $product->pack_variants = DB::table('product_pack_variants')->where('product_id', $id)->get();
         $product->features = !empty($product->features_json) ? (json_decode($product->features_json, true) ?: []) : [];
+
+        // Normalize old /uploads/products/ paths to /api/products/image/
+        if (!empty($product->image_url) && strpos($product->image_url, '/uploads/products/') !== false) {
+            $filename = basename(parse_url($product->image_url, PHP_URL_PATH));
+            $product->image_url = '/api/products/image/' . $filename;
+        }
+
         return response()->json(['success' => true, 'data' => $product]);
     }
 
