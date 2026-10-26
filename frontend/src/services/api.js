@@ -769,29 +769,28 @@ export const InquiryAPI = {
     const res = await fetch(`${API_BASE_URL}/enquiries`, { headers });
     const json = await res.json();
     return (json.data || []).map(q => {
-      const code = q.inquiry_code || (q.id ? `INQ-${String(q.id).slice(0, 6)}` : 'INQ-NEW');
+      const code = q.inquiry_code || (q.id ? `INQ-${String(q.id).slice(0, 6)}` : '');
       const dateStr = q.created_at
         ? new Date(q.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-        : 'Recent';
+        : '';
       return {
         id: q.id,
         rawId: q.id,
         inquiryCode: code,
         inquiryNumber: code,
-        customerName: q.name,
-        name: q.name,
-        companyName: q.company_name,
-        company: q.company_name,
-        phone: q.phone,
-        email: q.email || 'N/A',
-        city: q.location,
-        location: q.location,
-        state: 'Odisha',
-        productInterest: q.product_requested,
-        packagingNeeded: q.product_requested,
-        estimatedVolume: q.estimated_quantity,
-        estimatedQuantity: q.estimated_quantity,
-        message: q.message,
+        customerName: q.name || '',
+        name: q.name || '',
+        companyName: q.company_name || '',
+        company: q.company_name || '',
+        phone: q.phone || '',
+        email: q.email || '',
+        city: q.location || '',
+        location: q.location || '',
+        productInterest: q.product_requested || '',
+        packagingNeeded: q.product_requested || '',
+        estimatedVolume: q.estimated_quantity || '',
+        estimatedQuantity: q.estimated_quantity || '',
+        message: q.message || '',
         status: q.status || 'NEW_INQUIRY',
         createdAt: dateStr,
         date: dateStr

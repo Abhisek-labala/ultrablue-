@@ -74,17 +74,22 @@ class EnquiryController extends Controller
             'status' => 'required|string'
         ]);
 
-        DB::table('enquiries')
-            ->where('id', $id)
-            ->orWhere('inquiry_code', $id)
-            ->update([
-                'status' => $validated['status'],
-                'updated_at' => now()
-            ]);
+        $query = DB::table('enquiries');
+        if (Str::isUuid($id)) {
+            $query->where('id', $id);
+        } else {
+            $query->where('inquiry_code', $id);
+        }
+
+        $affected = $query->update([
+            'status' => $validated['status'],
+            'updated_at' => now()
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Inquiry status updated to {$validated['status']}."
+            'message' => "Inquiry status updated to {$validated['status']}.",
+            'affected' => $affected
         ]);
     }
 }

@@ -95,11 +95,11 @@ export const AdminCustomerEnquiriesView = ({
             header: 'Enquiry Code',
             accessor: 'inquiryNumber',
             render: (val, row) => {
-              const codeDisplay = val || row.inquiryCode || (row.id ? `INQ-${String(row.id).slice(0, 6)}` : 'INQ-NEW');
+              const codeDisplay = val || row.inquiryCode || row.id || '';
               return (
                 <div>
                   <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{codeDisplay}</strong>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{row.createdAt || row.date || 'Recent'}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{row.createdAt || row.date || ''}</div>
                 </div>
               );
             }
@@ -109,10 +109,10 @@ export const AdminCustomerEnquiriesView = ({
             accessor: 'customerName',
             render: (val, row) => (
               <div>
-                <strong style={{ fontSize: 'var(--font-size-md)' }}>{val || row.name || 'Anonymous Customer'}</strong>
-                <div style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 600 }}>{row.companyName || row.company || 'Enterprise Fleet'}</div>
+                <strong style={{ fontSize: 'var(--font-size-md)' }}>{val || row.name || '-'}</strong>
+                <div style={{ fontSize: '11px', color: 'var(--brand-cyan)', fontWeight: 600 }}>{row.companyName || row.company || '-'}</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {row.phone}{row.email && row.email !== 'N/A' ? ` • ${row.email}` : ''}
+                  {row.phone}{row.email ? ` • ${row.email}` : ''}
                 </div>
               </div>
             )
@@ -122,8 +122,7 @@ export const AdminCustomerEnquiriesView = ({
             accessor: 'city',
             render: (val, row) => (
               <div>
-                <strong>{val || row.location || 'Direct Dispatch'}</strong>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Odisha Corridor</div>
+                <strong>{val || row.location || '-'}</strong>
               </div>
             )
           },
@@ -132,7 +131,7 @@ export const AdminCustomerEnquiriesView = ({
             accessor: 'productInterest',
             render: (val, row) => (
               <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                {val || row.packagingNeeded || 'UltraBlue+ DEF'}
+                {val || row.packagingNeeded || '-'}
               </span>
             )
           },
@@ -141,8 +140,7 @@ export const AdminCustomerEnquiriesView = ({
             accessor: 'estimatedVolume',
             render: (val, row) => (
               <div>
-                <strong style={{ color: 'var(--brand-gold)' }}>{val || row.estimatedQuantity || 'On Request'}</strong>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Fleet Requirement</div>
+                <strong style={{ color: 'var(--brand-gold)' }}>{val || row.estimatedQuantity || '-'}</strong>
               </div>
             )
           },
@@ -184,19 +182,19 @@ export const AdminCustomerEnquiriesView = ({
       <Modal
         isOpen={isInquiryModalOpen}
         onClose={() => setIsInquiryModalOpen(false)}
-        title={`Commercial Lead: ${selectedInquiry?.companyName || selectedInquiry?.company || selectedInquiry?.customerName || selectedInquiry?.name || 'Inquiry Details'}`}
+        title={`Commercial Lead: ${selectedInquiry?.companyName || selectedInquiry?.company || selectedInquiry?.customerName || selectedInquiry?.name || selectedInquiry?.inquiryCode || 'Inquiry Details'}`}
       >
         {selectedInquiry && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--border-medium)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
-                <div><span style={{ color: 'var(--text-muted)' }}>Contact Person:</span> <strong>{selectedInquiry.customerName || selectedInquiry.name || 'N/A'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Fleet / Enterprise:</span> <strong>{selectedInquiry.companyName || selectedInquiry.company || 'N/A'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Mobile Number:</span> <strong style={{ color: 'var(--brand-cyan)' }}>{selectedInquiry.phone || 'N/A'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Email Address:</span> <strong>{selectedInquiry.email && selectedInquiry.email !== 'N/A' ? selectedInquiry.email : 'Not Provided'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Destination / City:</span> <strong>{selectedInquiry.city || selectedInquiry.location || 'N/A'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Product Requested:</span> <strong style={{ color: 'var(--text-primary)' }}>{selectedInquiry.productInterest || selectedInquiry.packagingNeeded || 'UltraBlue+ DEF'}</strong></div>
-                <div><span style={{ color: 'var(--text-muted)' }}>Estimated Volume:</span> <strong style={{ color: 'var(--brand-gold)' }}>{selectedInquiry.estimatedVolume || selectedInquiry.estimatedQuantity || 'N/A'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Contact Person:</span> <strong>{selectedInquiry.customerName || selectedInquiry.name || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Fleet / Enterprise:</span> <strong>{selectedInquiry.companyName || selectedInquiry.company || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Mobile Number:</span> <strong style={{ color: 'var(--brand-cyan)' }}>{selectedInquiry.phone || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Email Address:</span> <strong>{selectedInquiry.email || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Destination / City:</span> <strong>{selectedInquiry.city || selectedInquiry.location || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Product Requested:</span> <strong style={{ color: 'var(--text-primary)' }}>{selectedInquiry.productInterest || selectedInquiry.packagingNeeded || '-'}</strong></div>
+                <div><span style={{ color: 'var(--text-muted)' }}>Estimated Volume:</span> <strong style={{ color: 'var(--brand-gold)' }}>{selectedInquiry.estimatedVolume || selectedInquiry.estimatedQuantity || '-'}</strong></div>
                 <div><span style={{ color: 'var(--text-muted)' }}>Enquiry Code:</span> <code style={{ color: 'var(--brand-blue)' }}>{selectedInquiry.inquiryCode || selectedInquiry.inquiryNumber || selectedInquiry.id}</code></div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Lead Status:</span> <StatusBadge status={selectedInquiry.status} />
@@ -209,7 +207,7 @@ export const AdminCustomerEnquiriesView = ({
                 Customer Requirements & Message:
               </label>
               <div style={{ backgroundColor: 'var(--bg-card)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-medium)', fontSize: '13px', lineHeight: 1.6, color: 'var(--text-primary)' }}>
-                {selectedInquiry.message || 'No additional message provided. Customer requested factory wholesale price schedule.'}
+                {selectedInquiry.message || 'No additional notes provided.'}
               </div>
             </div>
 

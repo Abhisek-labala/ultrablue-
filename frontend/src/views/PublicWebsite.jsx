@@ -89,8 +89,8 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     phone: '',
     email: '',
     location: '',
-    packVariant: '20L Smart Bucket',
-    quantity: '25 Buckets',
+    packVariant: '',
+    quantity: '',
     message: ''
   });
   const [formErrors, setFormErrors] = useState({});
@@ -271,9 +271,9 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
   const handleSelectPackageForQuote = (pack) => {
     setFormData(prev => ({
       ...prev,
-      packVariant: pack.shortName,
-      quantity: pack.defaultQty,
-      message: `Quotation requested for ${pack.name} (${pack.capacity}).`
+      packVariant: pack.name || pack.shortName || '',
+      quantity: pack.defaultQty || '1',
+      message: `Quotation requested for ${pack.name}${pack.capacity ? ` (${pack.capacity})` : ''}.`
     }));
     setQuoteHighlighted(true);
     setTimeout(() => setQuoteHighlighted(false), 2000);
@@ -365,7 +365,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
         phone: formData.phone.trim(),
         email: formData.email ? formData.email.trim() : null,
         location: formData.location.trim(),
-        packagingNeeded: `UltraBlue+ DEF - ${formData.packVariant}`,
+        packagingNeeded: formData.packVariant.trim(),
         quantity: formData.quantity.trim(),
         message: formData.message ? formData.message.trim() : null
       });
@@ -1850,14 +1850,17 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                         Required Packaging Variant *
                       </label>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '9px' }}>
-                        {[
-                          '5L / 10L Cans',
-                          '20L Bucket',
-                          '210L Barrel',
-                          '1000L IBC Tank',
-                          'Bulk Tanker'
-                        ].map(variant => {
-                          const isSelected = formData.packVariant.includes(variant);
+                        {(packagingOptions && packagingOptions.length > 0
+                          ? packagingOptions.map(p => p.shortName || p.name)
+                          : [
+                            '5L / 10L Cans',
+                            '20L Bucket',
+                            '210L Barrel',
+                            '1000L IBC Tank',
+                            'Bulk Tanker'
+                          ]
+                        ).map(variant => {
+                          const isSelected = formData.packVariant === variant || (Boolean(variant) && Boolean(formData.packVariant) && formData.packVariant.includes(variant));
                           return (
                             <button
                               key={variant}
