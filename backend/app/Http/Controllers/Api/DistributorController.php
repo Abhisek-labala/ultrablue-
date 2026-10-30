@@ -53,6 +53,18 @@ class DistributorController extends Controller
         $creditLimit = (float) $validated['credit_limit'];
         $password = !empty($validated['password']) ? $validated['password'] : 'distributor123';
         $state = $validated['territory_state'];
+        $cleanGstin = strtoupper(trim($validated['gstin']));
+
+        // Retrieve verified GST details from database cache if available
+        $gstRec = DB::table('gst_records')->where('gstin', $cleanGstin)->first();
+        $rawGstData = !empty($gstRec?->raw_data) ? json_decode($gstRec->raw_data, true) : [];
+
+        $address = $request->input('address', $gstRec?->address ?? null);
+        $businessType = $request->input('business_type', $rawGstData['constitution'] ?? ($gstRec?->taxpayer_type ?? null));
+        $regDate = $request->input('registration_date', $gstRec?->registration_date ?? null);
+        $panNo = $request->input('pan_no', $gstRec?->pan ?? substr($cleanGstin, 2, 10));
+        $pincode = $request->input('pincode', $gstRec?->pincode ?? null);
+        $gstStatus = $request->input('gst_status', $gstRec?->status ?? 'Active');
 
         // 1. Insert Distributor Profile
         DB::table('distributor_profiles')->insert([
@@ -61,9 +73,15 @@ class DistributorController extends Controller
             'contact_person' => trim($validated['contact_person']),
             'phone' => trim($validated['phone']),
             'email' => strtolower(trim($validated['email'])),
-            'gstin' => strtoupper(trim($validated['gstin'])),
+            'gstin' => $cleanGstin,
             'territory_city' => trim($validated['territory_city']),
             'territory_state' => trim($state),
+            'address' => $address,
+            'business_type' => $businessType,
+            'registration_date' => $regDate,
+            'pan_no' => $panNo,
+            'pincode' => $pincode,
+            'gst_status' => $gstStatus,
             'discount_tier' => 'Authorized Partner',
             'credit_limit' => $creditLimit,
             'account_status' => 'APPROVED',
@@ -105,6 +123,14 @@ class DistributorController extends Controller
 
     public function register(Request $request)
     {
+        $gstinInput = strtoupper(trim($request->input('gstin', '')));
+        $territoryState = $request->input('territory_state', $request->input('state', ''));
+        if (empty($territoryState) && !empty($gstinInput)) {
+            $gstRec = DB::table('gst_records')->where('gstin', $gstinInput)->first();
+            $territoryState = $gstRec?->state ?: 'Odisha';
+        }
+        $request->merge(['territory_state' => $territoryState ?: 'Odisha']);
+
         $validated = $request->validate([
             'company_name' => 'required|string|min:2|max:200',
             'contact_person' => 'required|string|min:2|max:150',
@@ -115,10 +141,23 @@ class DistributorController extends Controller
             'territory_state' => 'required|string|max:100'
         ], [
             'phone.regex' => 'Please enter a valid 10-digit mobile number.',
-            'gstin.regex' => 'Please enter a valid 15-character GSTIN (e.g. 21AABCU9603R1ZM).'
+            'gstin.regex' => 'Please enter a valid 15-character GSTIN (e.g. 21AABCU9603R1ZM).',
+            'gstin.unique' => 'A distributor with this GSTIN is already registered in the database.'
         ]);
 
         $distId = (string) Str::uuid();
+        $cleanGstin = strtoupper(trim($validated['gstin']));
+
+        // Retrieve verified GST details from database cache if available
+        $gstRec = DB::table('gst_records')->where('gstin', $cleanGstin)->first();
+        $rawGstData = !empty($gstRec?->raw_data) ? json_decode($gstRec->raw_data, true) : [];
+
+        $address = $request->input('address', $gstRec?->address ?? null);
+        $businessType = $request->input('business_type', $rawGstData['constitution'] ?? ($gstRec?->taxpayer_type ?? null));
+        $regDate = $request->input('registration_date', $gstRec?->registration_date ?? null);
+        $panNo = $request->input('pan_no', $gstRec?->pan ?? substr($cleanGstin, 2, 10));
+        $pincode = $request->input('pincode', $gstRec?->pincode ?? null);
+        $gstStatus = $request->input('gst_status', $gstRec?->status ?? 'Active');
 
         DB::table('distributor_profiles')->insert([
             'id' => $distId,
@@ -126,9 +165,15 @@ class DistributorController extends Controller
             'contact_person' => $validated['contact_person'],
             'phone' => $validated['phone'],
             'email' => strtolower(trim($validated['email'])),
-            'gstin' => strtoupper(trim($validated['gstin'])),
+            'gstin' => $cleanGstin,
             'territory_city' => $validated['territory_city'],
             'territory_state' => $validated['territory_state'],
+            'address' => $address,
+            'business_type' => $businessType,
+            'registration_date' => $regDate,
+            'pan_no' => $panNo,
+            'pincode' => $pincode,
+            'gst_status' => $gstStatus,
             'discount_tier' => 'Pending Verification',
             'credit_limit' => 0.00,
             'account_status' => 'PENDING_REVIEW',
@@ -153,6 +198,12 @@ class DistributorController extends Controller
             'gstin' => ['nullable', 'string', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i'],
             'territory_city' => 'nullable|string|max:100',
             'territory_state' => 'nullable|string|max:100',
+            'address' => 'nullable|string|max:500',
+            'business_type' => 'nullable|string|max:100',
+            'registration_date' => 'nullable|string|max:50',
+            'pan_no' => 'nullable|string|max:20',
+            'pincode' => 'nullable|string|max:20',
+            'gst_status' => 'nullable|string|max:50',
             'account_status' => 'nullable|in:APPROVED,REJECTED,SUSPENDED,PENDING_REVIEW',
             'credit_limit' => 'nullable|numeric|min:0'
         ], [
@@ -169,6 +220,12 @@ class DistributorController extends Controller
         if (isset($validated['gstin'])) $updateData['gstin'] = strtoupper(trim($validated['gstin']));
         if (isset($validated['territory_city'])) $updateData['territory_city'] = trim($validated['territory_city']);
         if (isset($validated['territory_state'])) $updateData['territory_state'] = trim($validated['territory_state']);
+        if (array_key_exists('address', $validated)) $updateData['address'] = $validated['address'];
+        if (array_key_exists('business_type', $validated)) $updateData['business_type'] = $validated['business_type'];
+        if (array_key_exists('registration_date', $validated)) $updateData['registration_date'] = $validated['registration_date'];
+        if (array_key_exists('pan_no', $validated)) $updateData['pan_no'] = $validated['pan_no'];
+        if (array_key_exists('pincode', $validated)) $updateData['pincode'] = $validated['pincode'];
+        if (array_key_exists('gst_status', $validated)) $updateData['gst_status'] = $validated['gst_status'];
         if (isset($validated['account_status'])) $updateData['account_status'] = $validated['account_status'];
         if (isset($validated['credit_limit'])) $updateData['credit_limit'] = (float) $validated['credit_limit'];
 

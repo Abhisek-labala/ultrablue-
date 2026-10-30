@@ -13,14 +13,17 @@ import {
   Clock,
   RefreshCw,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Search,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { DataTable } from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { DistributorAPI, TerritoryAPI, DistributorOrderAPI } from '../../services/api';
+import { DistributorAPI, TerritoryAPI, DistributorOrderAPI, GstAPI } from '../../services/api';
 
 // Validation helper utilities
 const validateEmail = (email) => {
@@ -206,6 +209,12 @@ export const AdminDistributorsView = ({
     state: '',
     customState: '',
     customCity: '',
+    address: '',
+    businessType: '',
+    registrationDate: '',
+    panNo: '',
+    pincode: '',
+    gstStatus: 'Active',
     creditLimit: '',
     accountStatus: 'APPROVED'
   });
@@ -220,9 +229,123 @@ export const AdminDistributorsView = ({
     state: '',
     customState: '',
     customCity: '',
+    address: '',
+    businessType: '',
+    registrationDate: '',
+    panNo: '',
+    pincode: '',
+    gstStatus: 'Active',
     creditLimit: '',
     password: ''
   });
+
+  // GST Real-Time Search & Verification State
+  const [isGstSearching, setIsGstSearching] = useState(false);
+  const [gstSearchResult, setGstSearchResult] = useState(null);
+  const [gstSearchError, setGstSearchError] = useState('');
+
+  const handleGstLookup = async (gstinToQuery) => {
+    const rawGstin = String(gstinToQuery || newDistForm.gstin || '').trim().toUpperCase();
+    const gstinError = validateGSTIN(rawGstin);
+    if (gstinError) {
+      setGstSearchError(gstinError);
+      setGstSearchResult(null);
+      return;
+    }
+    setGstSearchError('');
+    setIsGstSearching(true);
+    try {
+      const res = await GstAPI.verify(rawGstin);
+      if (res && res.success) {
+        setGstSearchResult(res);
+        setGstSearchError('');
+
+        // Extract verified details
+        const autoCompanyName = res.data?.trade_name || res.data?.legal_name || res.data?.company_name || '';
+        const rawState = res.data?.state || '';
+        const rawCity = res.data?.district || res.data?.city || '';
+
+        // Match state with databaseTerritories
+        let matchedState = '';
+        let customState = '';
+        let matchedCity = '';
+        let customCity = '';
+
+        if (rawState) {
+          const availableStates = Object.keys(databaseTerritories);
+          const foundState = availableStates.find(s => s.toLowerCase() === rawState.toLowerCase());
+          if (foundState) {
+            matchedState = foundState;
+          } else {
+            matchedState = 'Other';
+            customState = rawState;
+          }
+        }
+
+        // Match city with databaseTerritories
+        if (matchedState && matchedState !== 'Other') {
+          const stateCities = (databaseTerritories[matchedState] || []).map(item => (typeof item === 'string' ? item : item.city));
+          const foundCity = stateCities.find(c => c.toLowerCase() === rawCity.toLowerCase());
+          if (foundCity) {
+            matchedCity = foundCity;
+          } else if (rawCity) {
+            matchedCity = 'Other';
+            customCity = rawCity;
+          }
+        } else if (matchedState === 'Other') {
+          matchedCity = 'Other';
+          customCity = rawCity;
+        }
+
+        setNewDistForm(prev => {
+          const updated = {
+            ...prev,
+            gstin: rawGstin,
+            companyName: autoCompanyName || prev.companyName,
+            state: matchedState || prev.state,
+            city: matchedCity || prev.city,
+            customState: customState || prev.customState,
+            customCity: customCity || prev.customCity,
+            address: res.data?.address || prev.address || '',
+            businessType: res.data?.business_type || res.data?.constitution || res.data?.taxpayer_type || prev.businessType || '',
+            registrationDate: res.data?.registration_date || prev.registrationDate || '',
+            panNo: res.data?.pan || prev.panNo || '',
+            pincode: res.data?.pincode || prev.pincode || '',
+            gstStatus: res.data?.status || prev.gstStatus || 'Active'
+          };
+          if (res.is_registered_distributor && res.distributor) {
+            if (res.distributor.contact_person) updated.contactPerson = res.distributor.contact_person;
+            if (res.distributor.phone) updated.phone = res.distributor.phone;
+            if (res.distributor.email) updated.email = res.distributor.email;
+            if (res.distributor.credit_limit) updated.creditLimit = res.distributor.credit_limit;
+          }
+          return updated;
+        });
+
+        setNewDistErrors(prev => ({
+          ...prev,
+          gstin: null,
+          companyName: null,
+          state: null,
+          city: null
+        }));
+
+        if (onShowToast) {
+          if (res.source === 'database') {
+            onShowToast(`Found in UltraBlue+ database: ${autoCompanyName}`);
+          } else {
+            onShowToast(`Verified via GSTIN.cloud: ${autoCompanyName}`);
+          }
+        }
+      }
+    } catch (err) {
+      setGstSearchResult(null);
+      setGstSearchError(err.message || 'GSTIN verification failed.');
+      if (onShowToast) onShowToast(err.message || 'GSTIN verification failed.');
+    } finally {
+      setIsGstSearching(false);
+    }
+  };
 
   const loadTerritories = async () => {
     try {
@@ -296,6 +419,12 @@ export const AdminDistributorsView = ({
       city: distCity,
       customState: '',
       customCity: '',
+      address: dist.address || '',
+      businessType: dist.businessType || '',
+      registrationDate: dist.registrationDate || '',
+      panNo: dist.panNo || '',
+      pincode: dist.pincode || '',
+      gstStatus: dist.gstStatus || 'Active',
       creditLimit: existingLimit,
       accountStatus: dist.accountStatus || dist.status || 'APPROVED'
     });
@@ -357,6 +486,12 @@ export const AdminDistributorsView = ({
         gstin: editForm.gstin.trim().toUpperCase(),
         city: finalCity,
         state: finalState,
+        address: editForm.address?.trim() || '',
+        businessType: editForm.businessType?.trim() || '',
+        registrationDate: editForm.registrationDate?.trim() || '',
+        panNo: editForm.panNo?.trim() || '',
+        pincode: editForm.pincode?.trim() || '',
+        gstStatus: editForm.gstStatus || 'Active',
         creditLimit: parseFloat(editForm.creditLimit) || 0,
         accountStatus: editForm.accountStatus
       });
@@ -438,6 +573,18 @@ export const AdminDistributorsView = ({
         gstin: newDistForm.gstin.trim().toUpperCase(),
         city: finalCity,
         state: finalState,
+        address: newDistForm.address?.trim() || gstSearchResult?.data?.address || '',
+        businessType: newDistForm.businessType?.trim() || gstSearchResult?.data?.business_type || gstSearchResult?.data?.constitution || gstSearchResult?.data?.taxpayer_type || '',
+        registrationDate: newDistForm.registrationDate?.trim() || gstSearchResult?.data?.registration_date || '',
+        panNo: newDistForm.panNo?.trim() || gstSearchResult?.data?.pan || '',
+        pincode: newDistForm.pincode?.trim() || gstSearchResult?.data?.pincode || '',
+        gstStatus: newDistForm.gstStatus || gstSearchResult?.data?.status || 'Active',
+        address: gstSearchResult?.data?.address || '',
+        businessType: gstSearchResult?.data?.business_type || gstSearchResult?.data?.constitution || gstSearchResult?.data?.taxpayer_type || '',
+        registrationDate: gstSearchResult?.data?.registration_date || '',
+        panNo: gstSearchResult?.data?.pan || '',
+        pincode: gstSearchResult?.data?.pincode || '',
+        gstStatus: gstSearchResult?.data?.status || 'Active',
         creditLimit: parseFloat(newDistForm.creditLimit),
         password: newDistForm.password
       });
@@ -454,10 +601,19 @@ export const AdminDistributorsView = ({
         state: '',
         customState: '',
         customCity: '',
+        address: '',
+        businessType: '',
+        registrationDate: '',
+        panNo: '',
+        pincode: '',
+        gstStatus: 'Active',
         creditLimit: '',
         password: ''
       });
       setNewDistErrors({});
+      setGstSearchResult(null);
+      setGstSearchError('');
+      setIsGstSearching(false);
       if (onRefresh) onRefresh();
     } catch (err) {
       if (onShowToast) onShowToast(err.message || 'Error creating distributor account.');
@@ -684,7 +840,12 @@ export const AdminDistributorsView = ({
               <Button size="sm" variant="secondary" icon={Download} onClick={() => exportToCSV('UltraBlue_Distributors', distributors)}>
                 Export Partners CSV
               </Button>
-              <Button size="sm" variant="gold" icon={Plus} onClick={() => setIsCreateDistributorModalOpen(true)}>
+              <Button size="sm" variant="gold" icon={Plus} onClick={() => {
+                setGstSearchResult(null);
+                setGstSearchError('');
+                setIsGstSearching(false);
+                setIsCreateDistributorModalOpen(true);
+              }}>
                 Create Distributor
               </Button>
             </div>
@@ -1041,6 +1202,54 @@ export const AdminDistributorsView = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>PAN Number</label>
+              <Input
+                value={editForm.panNo}
+                maxLength={10}
+                onChange={e => setEditForm({ ...editForm, panNo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) })}
+                placeholder="e.g. BJAPS2406L"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>Business Type / Constitution</label>
+              <Input
+                value={editForm.businessType}
+                onChange={e => setEditForm({ ...editForm, businessType: e.target.value })}
+                placeholder="e.g. Proprietorship / Pvt Ltd"
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>GST Registration Date</label>
+              <Input
+                value={editForm.registrationDate}
+                onChange={e => setEditForm({ ...editForm, registrationDate: e.target.value })}
+                placeholder="e.g. 01/07/2017"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>GST Status</label>
+              <Input
+                value={editForm.gstStatus}
+                onChange={e => setEditForm({ ...editForm, gstStatus: e.target.value })}
+                placeholder="e.g. Active"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>Registered Business Address</label>
+            <Input
+              value={editForm.address}
+              onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+              placeholder="e.g. Plot No. 12, Main Road, Industrial Estate"
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>State *</label>
               <Select
                 value={editForm.state}
@@ -1200,12 +1409,85 @@ export const AdminDistributorsView = ({
         onClose={() => {
           setIsCreateDistributorModalOpen(false);
           setNewDistErrors({});
+          setGstSearchResult(null);
+          setGstSearchError('');
+          setIsGstSearching(false);
         }}
         title="Directly Create & Onboard Distributor Account"
       >
         <form noValidate onSubmit={handleCreateDistributorSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          
+          {/* 1. GSTIN INPUT (FIRST FIELD - SIMPLIFIED) */}
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>Enterprise Name *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>GSTIN Number *</label>
+              {isGstSearching && (
+                <span style={{ fontSize: '11px', color: 'var(--brand-blue)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Loader2 size={12} className="animate-spin" /> Fetching GST...
+                </span>
+              )}
+              {!isGstSearching && gstSearchResult && (
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={13} /> Verified
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ flex: 1 }}>
+                <Input 
+                  value={newDistForm.gstin} 
+                  maxLength={15}
+                  onChange={e => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                    setNewDistForm(prev => ({ ...prev, gstin: val }));
+                    if (newDistErrors.gstin) setNewDistErrors(prev => ({ ...prev, gstin: null }));
+                    setGstSearchError('');
+                    if (val.length === 15 && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(val)) {
+                      handleGstLookup(val);
+                    } else if (val.length < 15) {
+                      setGstSearchResult(null);
+                    }
+                  }} 
+                  onBlur={() => {
+                    const err = validateGSTIN(newDistForm.gstin);
+                    setNewDistErrors(prev => ({ ...prev, gstin: err }));
+                    if (!err && newDistForm.gstin.length === 15 && !gstSearchResult && !isGstSearching) {
+                      handleGstLookup(newDistForm.gstin);
+                    }
+                  }}
+                  placeholder="15-character GSTIN (e.g. 21BJAPS2406L1ZG)" 
+                  error={newDistErrors.gstin || gstSearchError}
+                />
+              </div>
+              <Button 
+                type="button" 
+                variant="secondary" 
+                size="md"
+                disabled={isGstSearching || !newDistForm.gstin || newDistForm.gstin.length < 5}
+                onClick={() => handleGstLookup(newDistForm.gstin)}
+                icon={isGstSearching ? Loader2 : Search}
+                style={{ minWidth: '95px' }}
+              >
+                {isGstSearching ? '...' : 'Verify'}
+              </Button>
+            </div>
+
+            {gstSearchResult?.is_registered_distributor && (
+              <div style={{ marginTop: '4px', fontSize: '11px', color: '#eab308' }}>
+                ⚠️ Note: This GSTIN is already registered to "{gstSearchResult.distributor?.company_name}".
+              </div>
+            )}
+          </div>
+
+          {/* 2. ENTERPRISE NAME (AUTO-POPULATED) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Enterprise Name *</label>
+              {gstSearchResult && (
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+              )}
+            </div>
             <Input 
               value={newDistForm.companyName} 
               onChange={e => {
@@ -1218,6 +1500,7 @@ export const AdminDistributorsView = ({
             />
           </div>
 
+          {/* 3. CONTACT PERSON & MOBILE NUMBER */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>Contact Person *</label>
@@ -1249,6 +1532,7 @@ export const AdminDistributorsView = ({
             </div>
           </div>
 
+          {/* 4. EMAIL ADDRESS & PAN NUMBER */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>Email Address (Login ID) *</label>
@@ -1265,20 +1549,64 @@ export const AdminDistributorsView = ({
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>GSTIN Number *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>PAN Number</label>
+                {newDistForm.panNo && (
+                  <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+                )}
+              </div>
               <Input 
-                value={newDistForm.gstin} 
-                maxLength={15}
-                onChange={e => {
-                  const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
-                  setNewDistForm({ ...newDistForm, gstin: val });
-                  if (newDistErrors.gstin) setNewDistErrors(prev => ({ ...prev, gstin: null }));
-                }} 
-                onBlur={() => setNewDistErrors(prev => ({ ...prev, gstin: validateGSTIN(newDistForm.gstin) }))}
-                placeholder="15-character GSTIN (e.g. 21AABCU9603R1ZM)" 
-                error={newDistErrors.gstin}
+                value={newDistForm.panNo} 
+                maxLength={10}
+                onChange={e => setNewDistForm({ ...newDistForm, panNo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) })}
+                placeholder="e.g. BJAPS2406L" 
               />
             </div>
+          </div>
+
+          {/* 5. BUSINESS TYPE & REGISTRATION DATE */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>Business Type / Constitution</label>
+                {newDistForm.businessType && (
+                  <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+                )}
+              </div>
+              <Input 
+                value={newDistForm.businessType} 
+                onChange={e => setNewDistForm({ ...newDistForm, businessType: e.target.value })}
+                placeholder="e.g. Proprietorship / Pvt Ltd" 
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>GST Registration Date</label>
+                {newDistForm.registrationDate && (
+                  <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+                )}
+              </div>
+              <Input 
+                value={newDistForm.registrationDate} 
+                onChange={e => setNewDistForm({ ...newDistForm, registrationDate: e.target.value })}
+                placeholder="e.g. 01/07/2017" 
+              />
+            </div>
+          </div>
+
+          {/* 6. REGISTERED BUSINESS ADDRESS */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Principal Place of Business / Registered Address</label>
+              {newDistForm.address && (
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+              )}
+            </div>
+            <Input 
+              value={newDistForm.address} 
+              onChange={e => setNewDistForm({ ...newDistForm, address: e.target.value })}
+              placeholder="e.g. Plot No. 12, Main Road, Industrial Estate" 
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

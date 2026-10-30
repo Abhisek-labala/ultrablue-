@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\TerritoryController;
 use App\Http\Controllers\Api\DistributorOrderController;
+use App\Http\Controllers\Api\GstController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,6 +40,10 @@ Route::post('/upload', [ProductController::class, 'uploadImage']);
 Route::get('/products/image/{filename}', [ProductController::class, 'serveImage']);
 Route::post('/enquiries', [EnquiryController::class, 'store']);
 Route::post('/distributors/register', [DistributorController::class, 'register']);
+
+// GSTIN Instant Verification (Database First, then gstin.cloud API fallback with auto-cache)
+Route::get('/gst/verify/{gstin?}', [GstController::class, 'verify']);
+Route::post('/gst/verify', [GstController::class, 'verify']);
 
 // Dynamic Promotions & Push Notifications
 Route::get('/promotions', [PromotionController::class, 'index']);

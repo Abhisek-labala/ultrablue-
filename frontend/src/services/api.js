@@ -589,6 +589,12 @@ export const DistributorAPI = {
         gstin: d.gstin,
         city: d.territory_city || '',
         state: d.territory_state || '',
+        address: d.address || '',
+        businessType: d.business_type || '',
+        registrationDate: d.registration_date || '',
+        panNo: d.pan_no || '',
+        pincode: d.pincode || '',
+        gstStatus: d.gst_status || 'Active',
         tier: d.discount_tier || '',
         creditLimit: `₹ ${rawLimit.toLocaleString('en-IN')}`,
         rawCreditLimit: rawLimit,
@@ -1109,3 +1115,24 @@ export const TerritoryAPI = {
 };
 
 
+
+// ----------------------------------------------------
+// GSTIN REAL-TIME VERIFICATION API (DB-First + External API Fallback)
+// ----------------------------------------------------
+export const GstAPI = {
+  verify: async (gstin) => {
+    const clean = String(gstin || '').trim().toUpperCase();
+    if (!clean) {
+      throw new Error('Please enter a GSTIN number.');
+    }
+    const res = await fetch(`${API_BASE_URL}/gst/verify/${encodeURIComponent(clean)}`, {
+      method: 'GET',
+      headers
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Failed to verify GSTIN.');
+    }
+    return json;
+  }
+};

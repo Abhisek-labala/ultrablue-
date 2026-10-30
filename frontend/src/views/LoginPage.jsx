@@ -19,9 +19,11 @@ import {
   Briefcase,
   FileCheck,
   MapPin,
-  LogIn
+  LogIn,
+  Search,
+  Loader2
 } from 'lucide-react';
-import { AuthAPI } from '../services/api';
+import { AuthAPI, GstAPI } from '../services/api';
 import { ROLES, ROLE_LABELS } from '../config/roles';
 
 // JWT Helper utility to generate, decode and verify tokens
@@ -119,6 +121,49 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+
+  // GST Real-Time Search State for Distributor Registration
+  const [isGstSearching, setIsGstSearching] = useState(false);
+  const [gstSearchResult, setGstSearchResult] = useState(null);
+  const [gstSearchError, setGstSearchError] = useState('');
+
+  const handleGstLookup = async (gstinToQuery) => {
+    const rawGstin = String(gstinToQuery || regForm.gstin || '').trim().toUpperCase();
+    if (!rawGstin || rawGstin.length !== 15) {
+      setGstSearchError('GSTIN must be 15 characters (e.g. 21AABCU9603R1ZM).');
+      return;
+    }
+    setGstSearchError('');
+    setIsGstSearching(true);
+    try {
+      const res = await GstAPI.verify(rawGstin);
+      if (res && res.success) {
+        setGstSearchResult(res);
+        setGstSearchError('');
+        const autoCompanyName = res.data?.trade_name || res.data?.legal_name || res.data?.company_name || '';
+        const rawCity = res.data?.district || res.data?.city || '';
+        const rawState = res.data?.state || '';
+
+        setRegForm(prev => ({
+          ...prev,
+          gstin: rawGstin,
+          companyName: autoCompanyName || prev.companyName,
+          location: rawCity ? `${rawCity}, ${rawState}` : (rawState || prev.location),
+          address: res.data?.address || '',
+          businessType: res.data?.business_type || res.data?.constitution || '',
+          registrationDate: res.data?.registration_date || '',
+          panNo: res.data?.pan || '',
+          pincode: res.data?.pincode || '',
+          gstStatus: res.data?.status || 'Active'
+        }));
+      }
+    } catch (err) {
+      setGstSearchResult(null);
+      setGstSearchError(err.message || 'GST verification failed.');
+    } finally {
+      setIsGstSearching(false);
+    }
+  };
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -223,7 +268,13 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
         companyName: regForm.companyName.trim(),
         phone: regForm.phone.trim(),
         gstin: regForm.gstin ? regForm.gstin.trim() : null,
-        location: regForm.location ? regForm.location.trim() : null
+        location: regForm.location ? regForm.location.trim() : null,
+        address: regForm.address || null,
+        business_type: regForm.businessType || null,
+        registration_date: regForm.registrationDate || null,
+        pan_no: regForm.panNo || null,
+        pincode: regForm.pincode || null,
+        gst_status: regForm.gstStatus || 'Active'
       });
 
       if (!response || !response.token || !response.user) {
@@ -686,6 +737,93 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
           /* MODE 2: REGISTRATION FORM */
           <form onSubmit={handleRegisterSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              
+              {/* DISTRIBUTOR GSTIN INPUT (FIRST FIELD - SIMPLIFIED) */}
+              {selectedRole === 'distributor' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: textHeading }}>
+                      GSTIN Number *
+                    </label>
+                    {isGstSearching && (
+                      <span style={{ fontSize: '10px', color: 'var(--brand-blue)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Loader2 size={11} className="animate-spin" /> Verifying GST...
+                      </span>
+                    )}
+                    {!isGstSearching && gstSearchResult && (
+                      <span style={{ fontSize: '10px', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <CheckCircle2 size={12} /> Verified
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <input
+                        type="text"
+                        maxLength={15}
+                        value={regForm.gstin}
+                        onChange={e => {
+                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                          setRegForm({ ...regForm, gstin: val });
+                          setGstSearchError('');
+                          if (val.length === 15 && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(val)) {
+                            handleGstLookup(val);
+                          } else if (val.length < 15) {
+                            setGstSearchResult(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (regForm.gstin && regForm.gstin.length === 15 && !gstSearchResult && !isGstSearching) {
+                            handleGstLookup(regForm.gstin);
+                          }
+                        }}
+                        placeholder="15-character GSTIN (e.g. 21BJAPS2406L1ZG)"
+                        style={{
+                          width: '100%',
+                          padding: '9px 10px 9px 30px',
+                          borderRadius: '8px',
+                          border: `1px solid ${borderColor}`,
+                          backgroundColor: isDark ? 'rgba(2, 7, 18, 0.6)' : '#FFFFFF',
+                          color: textHeading,
+                          fontSize: '12px',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <FileCheck size={13} color={textMuted} style={{ position: 'absolute', left: '9px', top: '10px' }} />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isGstSearching || !regForm.gstin || regForm.gstin.length < 5}
+                      onClick={() => handleGstLookup(regForm.gstin)}
+                      style={{
+                        padding: '0 12px',
+                        backgroundColor: '#008FE0',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      {isGstSearching ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                      <span>{isGstSearching ? '...' : 'Verify'}</span>
+                    </button>
+                  </div>
+
+                  {gstSearchError && (
+                    <div style={{ marginTop: '4px', fontSize: '10px', color: '#ef4444' }}>
+                      {gstSearchError}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: textHeading, marginBottom: '4px' }}>
@@ -715,9 +853,14 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: textHeading, marginBottom: '4px' }}>
-                    {selectedRole === 'distributor' ? 'Company Name *' : 'Assigned Depot *'}
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: textHeading }}>
+                      {selectedRole === 'distributor' ? 'Company Name *' : 'Assigned Depot *'}
+                    </label>
+                    {selectedRole === 'distributor' && gstSearchResult && (
+                      <span style={{ fontSize: '9px', color: '#16a34a', fontWeight: 600 }}>✓ From GST</span>
+                    )}
+                  </div>
                   <div style={{ position: 'relative' }}>
                     <input
                       type="text"
@@ -798,61 +941,33 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
                 </div>
               </div>
 
-              {selectedRole === 'distributor' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: textHeading, marginBottom: '4px' }}>
-                      GSTIN (Optional)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        value={regForm.gstin}
-                        onChange={e => setRegForm({ ...regForm, gstin: e.target.value.toUpperCase() })}
-                        placeholder="21AAAAA0000A1Z5"
-                        style={{
-                          width: '100%',
-                          padding: '9px 10px 9px 30px',
-                          borderRadius: '8px',
-                          border: `1px solid ${borderColor}`,
-                          backgroundColor: isDark ? 'rgba(2, 7, 18, 0.6)' : '#FFFFFF',
-                          color: textHeading,
-                          fontSize: '12px',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                      />
-                      <FileCheck size={13} color={textMuted} style={{ position: 'absolute', left: '9px', top: '10px' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: textHeading, marginBottom: '4px' }}>
-                      Operating City *
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        value={regForm.location}
-                        onChange={e => setRegForm({ ...regForm, location: e.target.value })}
-                        placeholder="e.g. Cuttack, Odisha"
-                        style={{
-                          width: '100%',
-                          padding: '9px 10px 9px 30px',
-                          borderRadius: '8px',
-                          border: `1px solid ${borderColor}`,
-                          backgroundColor: isDark ? 'rgba(2, 7, 18, 0.6)' : '#FFFFFF',
-                          color: textHeading,
-                          fontSize: '12px',
-                          outline: 'none',
-                          boxSizing: 'border-box'
-                        }}
-                      />
-                      <MapPin size={13} color={textMuted} style={{ position: 'absolute', left: '9px', top: '10px' }} />
-                    </div>
-                  </div>
+              {/* Operating City / Station */}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: textHeading, marginBottom: '4px' }}>
+                  {selectedRole === 'distributor' ? 'Operating City / Territory *' : 'Operating Station Territory *'}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    required
+                    value={regForm.location}
+                    onChange={e => setRegForm({ ...regForm, location: e.target.value })}
+                    placeholder={selectedRole === 'distributor' ? 'e.g. Cuttack, Odisha' : 'e.g. Bhadrak Station #01'}
+                    style={{
+                      width: '100%',
+                      padding: '9px 10px 9px 30px',
+                      borderRadius: '8px',
+                      border: `1px solid ${borderColor}`,
+                      backgroundColor: isDark ? 'rgba(2, 7, 18, 0.6)' : '#FFFFFF',
+                      color: textHeading,
+                      fontSize: '12px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <MapPin size={13} color={textMuted} style={{ position: 'absolute', left: '9px', top: '10px' }} />
                 </div>
-              )}
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                 <div>

@@ -165,6 +165,19 @@ class AuthController extends Controller
 
         // 2. If Distributor, also insert into `distributor_profiles`
         if ($role === 'distributor') {
+            $territoryState = 'Odisha';
+            $territoryCity = $location ?: 'Bhadrak';
+            $gstRec = null;
+            $rawGstData = [];
+            if (!empty($gstin)) {
+                $gstRec = DB::table('gst_records')->where('gstin', $gstin)->first();
+                if ($gstRec) {
+                    if ($gstRec->state) $territoryState = $gstRec->state;
+                    if ($gstRec->district) $territoryCity = $gstRec->district;
+                    if (!empty($gstRec->raw_data)) $rawGstData = json_decode($gstRec->raw_data, true);
+                }
+            }
+
             DB::table('distributor_profiles')->insertOrIgnore([
                 'id' => (string) Str::uuid(),
                 'company_name' => $companyName,
@@ -172,8 +185,14 @@ class AuthController extends Controller
                 'phone' => $phone,
                 'email' => $email,
                 'gstin' => $gstin ?: '21AAAAA' . rand(1000, 9999) . 'A1Z5',
-                'territory_city' => $location,
-                'territory_state' => 'Odisha',
+                'territory_city' => $territoryCity,
+                'territory_state' => $territoryState,
+                'address' => $request->input('address', $gstRec?->address ?? null),
+                'business_type' => $request->input('business_type', $rawGstData['constitution'] ?? ($gstRec?->taxpayer_type ?? null)),
+                'registration_date' => $request->input('registration_date', $gstRec?->registration_date ?? null),
+                'pan_no' => $request->input('pan_no', $gstRec?->pan ?? (!empty($gstin) ? substr($gstin, 2, 10) : null)),
+                'pincode' => $request->input('pincode', $gstRec?->pincode ?? null),
+                'gst_status' => $request->input('gst_status', $gstRec?->status ?? 'Active'),
                 'discount_tier' => 'Authorized Partner',
                 'credit_limit' => 500000.00,
                 'account_status' => 'APPROVED',

@@ -20,7 +20,10 @@ import {
   Mail,
   MapPin,
   RefreshCw,
-  CreditCard
+  CreditCard,
+  Search,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { KPICard } from '../components/ui/KPICard';
@@ -36,6 +39,7 @@ import {
   SalesAPI, 
   InventoryAPI, 
   ProductAPI,
+  GstAPI,
   exportToCSV,
   API_BASE_URL
 } from '../services/api';
@@ -66,8 +70,51 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
     phone: '',
     email: '',
     city: '',
+    state: '',
     gstin: ''
   });
+  const [isGstSearching, setIsGstSearching] = useState(false);
+  const [gstSearchResult, setGstSearchResult] = useState(null);
+  const [gstSearchError, setGstSearchError] = useState('');
+
+  const handleGstLookup = async (gstinToQuery) => {
+    const rawGstin = String(gstinToQuery || signupForm.gstin || '').trim().toUpperCase();
+    if (!rawGstin || rawGstin.length !== 15) {
+      setGstSearchError('GSTIN must be 15 characters (e.g. 21AABCU9603R1ZM).');
+      return;
+    }
+    setGstSearchError('');
+    setIsGstSearching(true);
+    try {
+      const res = await GstAPI.verify(rawGstin);
+      if (res && res.success) {
+        setGstSearchResult(res);
+        setGstSearchError('');
+        const autoCompanyName = res.data?.trade_name || res.data?.legal_name || res.data?.company_name || '';
+        const rawCity = res.data?.district || res.data?.city || '';
+        const rawState = res.data?.state || '';
+
+        setSignupForm(prev => ({
+          ...prev,
+          gstin: rawGstin,
+          companyName: autoCompanyName || prev.companyName,
+          city: rawCity ? `${rawCity}, ${rawState}` : (rawState || prev.city),
+          state: rawState || prev.state,
+          address: res.data?.address || '',
+          businessType: res.data?.business_type || res.data?.constitution || '',
+          registrationDate: res.data?.registration_date || '',
+          panNo: res.data?.pan || '',
+          pincode: res.data?.pincode || '',
+          gstStatus: res.data?.status || 'Active'
+        }));
+      }
+    } catch (err) {
+      setGstSearchResult(null);
+      setGstSearchError(err.message || 'GST verification failed.');
+    } finally {
+      setIsGstSearching(false);
+    }
+  };
 
   const [distributorOrders, setDistributorOrders] = useState([]);
 
@@ -326,7 +373,10 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       const res = await DistributorAPI.register(signupForm);
       setIsSignupModalOpen(false);
       setOrderSuccessMsg(`KYC submitted for ${signupForm.companyName}! Saved to Laravel database for review.`);
-      setSignupForm({ companyName: '', contactPerson: '', phone: '', email: '', city: '', gstin: '' });
+      setSignupForm({ companyName: '', contactPerson: '', phone: '', email: '', city: '', state: '', gstin: '' });
+      setGstSearchResult(null);
+      setGstSearchError('');
+      setIsGstSearching(false);
       loadData();
       setTimeout(() => setOrderSuccessMsg(''), 6000);
     } catch (err) {
@@ -378,7 +428,12 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           <Button variant="primary" icon={Download} onClick={handleDownloadPriceList}>
             Download B2B Price List
           </Button>
-          <Button variant="secondary" icon={UserPlus} onClick={() => setIsSignupModalOpen(true)}>
+          <Button variant="secondary" icon={UserPlus} onClick={() => {
+            setGstSearchResult(null);
+            setGstSearchError('');
+            setIsGstSearching(false);
+            setIsSignupModalOpen(true);
+          }}>
             New Distributor Sign-up
           </Button>
         </div>
@@ -877,19 +932,89 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       {/* New Distributor Sign-up Modal */}
       <Modal
         isOpen={isSignupModalOpen}
-        onClose={() => setIsSignupModalOpen(false)}
+        onClose={() => {
+          setIsSignupModalOpen(false);
+          setGstSearchResult(null);
+          setGstSearchError('');
+          setIsGstSearching(false);
+        }}
         title="Distributor Application & Onboarding"
         subtitle="Apply for UltraBlue+ Authorized Dealership"
         icon={UserPlus}
       >
         <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <Input
-            label="Enterprise / Firm Name *"
-            placeholder="e.g. Kalinga Auto Spares LLP"
-            value={signupForm.companyName}
-            onChange={(e) => setSignupForm({ ...signupForm, companyName: e.target.value })}
-            required
-          />
+          {/* 1. GSTIN INPUT (FIRST FIELD - SIMPLIFIED) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>GSTIN Number *</label>
+              {isGstSearching && (
+                <span style={{ fontSize: '11px', color: 'var(--brand-blue)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Loader2 size={12} className="animate-spin" /> Fetching GST...
+                </span>
+              )}
+              {!isGstSearching && gstSearchResult && (
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={13} /> Verified
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  placeholder="15-character GSTIN (e.g. 21BJAPS2406L1ZG)"
+                  value={signupForm.gstin}
+                  maxLength={15}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                    setSignupForm(prev => ({ ...prev, gstin: val }));
+                    setGstSearchError('');
+                    if (val.length === 15 && /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(val)) {
+                      handleGstLookup(val);
+                    } else if (val.length < 15) {
+                      setGstSearchResult(null);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (signupForm.gstin && signupForm.gstin.length === 15 && !gstSearchResult && !isGstSearching) {
+                      handleGstLookup(signupForm.gstin);
+                    }
+                  }}
+                  error={gstSearchError}
+                  required
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled={isGstSearching || !signupForm.gstin || signupForm.gstin.length < 5}
+                onClick={() => handleGstLookup(signupForm.gstin)}
+                icon={isGstSearching ? Loader2 : Search}
+                style={{ minWidth: '95px' }}
+              >
+                {isGstSearching ? '...' : 'Verify'}
+              </Button>
+            </div>
+          </div>
+
+          {/* 2. ENTERPRISE / FIRM NAME (AUTO-POPULATED) */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>Enterprise / Firm Name *</label>
+              {gstSearchResult && (
+                <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: 500 }}>✓ Auto-filled</span>
+              )}
+            </div>
+            <Input
+              placeholder="e.g. Kalinga Auto Spares LLP"
+              value={signupForm.companyName}
+              onChange={(e) => setSignupForm({ ...signupForm, companyName: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* 3. CONTACT PERSON & PHONE NUMBER */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <Input
               label="Contact Person Name *"
@@ -906,6 +1031,8 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
               required
             />
           </div>
+
+          {/* 4. EMAIL & TERRITORY / CITY */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <Input
               label="Email Address *"
@@ -923,13 +1050,6 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
               required
             />
           </div>
-          <Input
-            label="GSTIN Number *"
-            placeholder="21AAAAA0000A1Z5"
-            value={signupForm.gstin}
-            onChange={(e) => setSignupForm({ ...signupForm, gstin: e.target.value })}
-            required
-          />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
             <Button type="button" variant="secondary" onClick={() => setIsSignupModalOpen(false)}>
               Cancel
