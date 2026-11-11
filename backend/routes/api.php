@@ -95,6 +95,8 @@ Route::post('/operators/{id}/reset-pin', [OperatorController::class, 'resetPin']
 // Enquiries Management
 Route::get('/enquiries', [EnquiryController::class, 'index']);
 Route::patch('/enquiries/{id}/status', [EnquiryController::class, 'updateStatus']);
+Route::post('/enquiries/{id}/quote', [EnquiryController::class, 'submitQuote']);
+Route::post('/enquiries/{id}/reject', [EnquiryController::class, 'reject']);
 
 // Aggregated Analytics & Reports
 Route::get('/reports/summary', [ReportController::class, 'summary']);

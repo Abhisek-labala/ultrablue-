@@ -28,4 +28,12 @@ return [
         'base_url' => env('GSTIN_API_BASE_URL', 'https://gstin.cloud/api/v1'),
     ],
 
+    'sms' => [
+        'webhook_url' => env('SMS_WEBHOOK_URL'),
+    ],
+
+    'whatsapp' => [
+        'webhook_url' => env('WHATSAPP_WEBHOOK_URL'),
+    ],
+
 ];

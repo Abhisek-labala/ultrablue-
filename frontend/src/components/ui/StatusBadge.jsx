@@ -21,18 +21,32 @@ export const StatusBadge = ({ status, label, showIcon = true, className = '' }) 
     case 'ACTIVE':
     case 'PAID':
     case 'COMPLETED':
+    case 'QUOTED':
+    case 'RESOLVED':
       badgeType = 'success';
       IconComponent = CheckCircle2;
-      displayLabel = label || (status === 'HEALTHY' ? 'In Stock (Healthy)' : status === 'PAID' ? 'Paid' : 'Approved');
+      displayLabel = label || (
+        status === 'HEALTHY' ? 'In Stock (Healthy)'
+          : status === 'PAID' ? 'Paid'
+          : status === 'QUOTED' ? 'Quoted'
+          : status === 'RESOLVED' ? 'Quote Sent'
+          : 'Approved'
+      );
       break;
 
     case 'LOW_STOCK':
     case 'PENDING_REVIEW':
     case 'PENDING':
     case 'IN_PROGRESS':
+    case 'IN_REVIEW':
       badgeType = 'warning';
       IconComponent = AlertTriangle;
-      displayLabel = label || (status === 'LOW_STOCK' ? 'Low Stock Alert' : status === 'PENDING_REVIEW' ? 'Pending KYC' : 'Pending');
+      displayLabel = label || (
+        status === 'LOW_STOCK' ? 'Low Stock Alert'
+          : status === 'PENDING_REVIEW' ? 'Pending KYC'
+          : status === 'IN_REVIEW' ? 'Under Review'
+          : 'Pending'
+      );
       break;
 
     case 'OUT_OF_STOCK':

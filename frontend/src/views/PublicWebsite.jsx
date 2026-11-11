@@ -41,9 +41,17 @@ import { ProductCard } from '../components/ui/ProductCard';
 import { Input } from '../components/ui/Input';
 import { ProductDetailModal } from '../components/ui/ProductDetailModal';
 import { CertificationModal } from '../components/ui/CertificationModal';
+import { CertificationBadgePair } from '../components/ui/CertificationLogos';
 import { OfferNotificationCenter } from '../components/ui/OfferNotificationCenter';
 import { InquiryAPI, ProductAPI, PromotionAPI, ComplianceAPI } from '../services/api';
 import { COMPANY_INFO } from '../config/companyInfo';
+
+const NAV_ITEMS = [
+  { id: 'home', label: 'Home' },
+  { id: 'products', label: 'Products' },
+  { id: 'quotes', label: 'Quotes' },
+  { id: 'about', label: 'About Us' }
+];
 
 export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperatorLoginClick, onAdminLoginClick }) => {
   // Theme Switcher State (Dark / Light Mode)
@@ -208,10 +216,10 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     fetchDynamicData();
   }, []);
 
-  // Scroll spy to update active navigation item between home, about, products, quotes
+  // Scroll spy to update active navigation item between home, products, quotes, about
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['quotes', 'products', 'about', 'home'];
+      const sections = ['about', 'quotes', 'products', 'home'];
       const scrollPos = window.scrollY + 160;
 
       for (const secId of sections) {
@@ -576,14 +584,9 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
             <Logo size="small" variant={isDark ? "dark" : "light"} />
           </a>
 
-          {/* Desktop Navigation Links: HOME | ABOUT US | PRODUCTS | QUOTES */}
+          {/* Desktop Navigation Links: HOME | PRODUCTS | QUOTES | ABOUT US */}
           <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-            {[
-              { id: 'home', label: 'Home' },
-              { id: 'about', label: 'About Us' },
-              { id: 'products', label: 'Products' },
-              { id: 'quotes', label: 'Quotes' }
-            ].map(item => {
+            {NAV_ITEMS.map(item => {
               const isActive = activeNav === item.id;
               return (
                 <a
@@ -792,14 +795,9 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
             </button>
           </div>
 
-          {/* Simple Navigation Links: Home, About Us, Products, Quotes */}
+          {/* Simple Navigation Links: Home, Products, Quotes, About Us */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '26px', padding: '24px 8px' }}>
-            {[
-              { id: 'home', label: 'Home' },
-              { id: 'about', label: 'About Us' },
-              { id: 'products', label: 'Products' },
-              { id: 'quotes', label: 'Quotes' }
-            ].map(item => (
+            {NAV_ITEMS.map(item => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
@@ -903,7 +901,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
             <div>
 
               {/* Official Brand Logo Showcase */}
-              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                 <img
                   src="/images/ultrablue_brand_logo.png"
                   alt="UltraBlue+ Diesel Exhaust Fluid"
@@ -915,6 +913,22 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                     filter: 'drop-shadow(0 4px 20px rgba(0, 200, 245, 0.45))'
                   }}
                 />
+                <div
+                  onClick={() => setIsCertModalOpen(true)}
+                  title="Click to view BIS & ISI Mark Certificate"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '6px 10px',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <CertificationBadgePair height={34} gap="8px" />
+                </div>
               </div>
 
               {/* Bold Futuristic Headline */}
@@ -1061,189 +1075,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
         </section>
 
         {/* ======================================================================= */}
-        {/* SECTION 2: ABOUT US (MODERN BENTO GRID & CORPORATE NARRATIVE)            */}
+        {/* SECTION 2: PRODUCTS & SERVICES                                          */}
         {/* ======================================================================= */}
-        <section
-          id="about"
-          className="content-section"
-          style={{
-            width: '100%',
-            backgroundColor: themeStyles.bgSectionAlt,
-            padding: '80px 36px',
-            borderBottom: `1px solid ${themeStyles.borderColor}`,
-            transition: 'background-color 0.25s ease'
-          }}
-        >
-          <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
-
-            {/* Section Header */}
-            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-              <span style={{ color: 'var(--brand-blue)', fontWeight: 900, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-block', padding: '4px 12px', borderRadius: '50px', backgroundColor: isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)', marginBottom: '10px' }}>
-                ABOUT AYUSH GREEN ENERGY
-              </span>
-              <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: themeStyles.textHeading, fontWeight: 900, letterSpacing: '-0.025em', marginBottom: '16px' }}>
-                Pioneering Genuine DEF & Clean Fleet Mobility
-              </h2>
-              <div style={{ width: '70px', height: '4px', background: 'linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-cyan) 100%)', margin: '0 auto 22px auto', borderRadius: '2px' }} />
-              <p style={{ color: themeStyles.textBody, fontSize: '16px', lineHeight: 1.75, maxWidth: '900px', margin: '0 auto' }}>
-                UltraBlue+ is an integral initiative of <strong>Ayush Green Energy</strong>, one of Eastern India's frontline manufacturers committed to powering heavy commercial transport, safeguarding BS-VI diesel engine components, and fostering environmental preservation across India's highways.
-              </p>
-            </div>
-
-            {/* 4 Core Bento Grid Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '26px', marginBottom: '52px' }}>
-
-              {/* Bento Card 1 */}
-              <div
-                className="modern-card-hover"
-                style={{
-                  backgroundColor: themeStyles.bgCard,
-                  padding: '32px 26px',
-                  borderRadius: '20px',
-                  border: `1px solid ${themeStyles.borderColor}`,
-                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(0, 143, 224, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
-                  <Droplets size={24} color="var(--brand-blue)" />
-                </div>
-                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
-                  32.5% Automotive Grade Purity
-                </h3>
-                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
-                  Formulated with double-pass reverse osmosis EDI demineralized water and virgin technical urea. Guarantees precise stoichiometric reaction without ammonia slip.
-                </p>
-                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--brand-cyan)', fontWeight: 800 }}>
-                  <CheckCircle size={14} />
-                  <span>AUS 32 / ISO 22241-1</span>
-                </div>
-              </div>
-
-              {/* Bento Card 2 */}
-              <div
-                className="modern-card-hover"
-                style={{
-                  backgroundColor: themeStyles.bgCard,
-                  padding: '32px 26px',
-                  borderRadius: '20px',
-                  border: `1px solid ${themeStyles.borderColor}`,
-                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
-                  <ShieldCheck size={24} color="#10B981" />
-                </div>
-                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
-                  SCR Engine Protection
-                </h3>
-                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
-                  Heavy metals &lt;0.05 ppm prevents scaling, injector clogging, and catalyst poisoning. Protects exhaust systems costing ₹1.5L - ₹3.5L per vehicle.
-                </p>
-                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 800 }}>
-                  <CheckCircle size={14} />
-                  <span>Zero Crystallization</span>
-                </div>
-              </div>
-
-              {/* Bento Card 3 */}
-              <div
-                className="modern-card-hover"
-                style={{
-                  backgroundColor: themeStyles.bgCard,
-                  padding: '32px 26px',
-                  borderRadius: '20px',
-                  border: `1px solid ${themeStyles.borderColor}`,
-                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
-                  <Award size={24} color="#F59E0B" />
-                </div>
-                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
-                  BIS & ISO 22241 Certified
-                </h3>
-                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
-                  Certified under IS 17042:2018 with serialized batch barcodes. Every shipment is accompanied by a laboratory Certificate of Analysis (CoA).
-                </p>
-                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#F59E0B', fontWeight: 800 }}>
-                  <CheckCircle size={14} />
-                  <span>Licensed Bhadrak Plant</span>
-                </div>
-              </div>
-
-              {/* Bento Card 4 */}
-              <div
-                className="modern-card-hover"
-                style={{
-                  backgroundColor: themeStyles.bgCard,
-                  padding: '32px 26px',
-                  borderRadius: '20px',
-                  border: `1px solid ${themeStyles.borderColor}`,
-                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(0, 200, 245, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
-                  <Truck size={24} color="var(--brand-cyan)" />
-                </div>
-                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
-                  Depot-to-Door Logistics
-                </h3>
-                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
-                  Direct plant dispatch from Bhadrak across Odisha, West Bengal, Jharkhand, and Bihar with 24-hour delivery commitments for bulk fleets and retail dealers.
-                </p>
-                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--brand-cyan)', fontWeight: 800 }}>
-                  <CheckCircle size={14} />
-                  <span>24-Hour Dispatch Network</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Plant Stats & Credentials Strip */}
-            <div
-              style={{
-                backgroundColor: themeStyles.bgCard,
-                borderRadius: '20px',
-                border: `1px solid ${themeStyles.borderColor}`,
-                padding: '32px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '28px',
-                alignItems: 'center',
-                boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.3)' : '0 6px 20px rgba(0,0,0,0.04)'
-              }}
-            >
-              <div>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Manufacturing Plant</span>
-                <strong style={{ fontSize: '19px', color: themeStyles.textHeading, display: 'block', marginTop: '4px', fontWeight: 900 }}>Bhadrak, Odisha</strong>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>At- Charampa, Dist- Bhadrak (756101)</span>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Total Fleet Supply</span>
-                <strong style={{ fontSize: '20px', color: 'var(--brand-blue)', display: 'block', marginTop: '4px', fontWeight: 900 }}>50M+ Litres</strong>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>Powering 500+ commercial fleets</span>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Quality Standard</span>
-                <strong style={{ fontSize: '19px', color: '#10B981', display: 'block', marginTop: '4px', fontWeight: 900 }}>ISO 22241 / IS 17042</strong>
-                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>BIS Licensed Manufacturing</span>
-              </div>
-            </div>
-
-          </div>
-        </section>
         <section
           id="products"
           className="content-section"
           style={{
             width: '100%',
-            backgroundColor: themeStyles.bgApp,
+            backgroundColor: themeStyles.bgSectionAlt,
             padding: '80px 36px',
             borderBottom: `1px solid ${themeStyles.borderColor}`,
             transition: 'background-color 0.25s ease'
@@ -1667,14 +1506,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
         </section>
 
         {/* ======================================================================= */}
-        {/* SECTION 4: QUOTES (NEXT-GEN GLASSMORPHIC RFQ FORM & DIRECT CONTACT)     */}
+        {/* SECTION 3: QUOTES (NEXT-GEN GLASSMORPHIC RFQ FORM & DIRECT CONTACT)     */}
         {/* ======================================================================= */}
         <section
           id="quotes"
           className="content-section"
           style={{
             width: '100%',
-            backgroundColor: themeStyles.bgSectionAlt,
+            backgroundColor: themeStyles.bgApp,
             padding: '80px 36px',
             borderBottom: `1px solid ${themeStyles.borderColor}`,
             transition: 'background-color 0.25s ease'
@@ -2079,6 +1918,194 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
           </div>
         </section>
 
+        {/* ======================================================================= */}
+        {/* SECTION 4: ABOUT US (MODERN BENTO GRID & CORPORATE NARRATIVE)            */}
+        {/* ======================================================================= */}
+        <section
+          id="about"
+          className="content-section"
+          style={{
+            width: '100%',
+            backgroundColor: themeStyles.bgSectionAlt,
+            padding: '80px 36px',
+            borderBottom: `1px solid ${themeStyles.borderColor}`,
+            transition: 'background-color 0.25s ease'
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
+
+            {/* Section Header */}
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <span style={{ color: 'var(--brand-blue)', fontWeight: 900, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-block', padding: '4px 12px', borderRadius: '50px', backgroundColor: isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)', marginBottom: '10px' }}>
+                ABOUT AYUSH GREEN ENERGY
+              </span>
+              <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: themeStyles.textHeading, fontWeight: 900, letterSpacing: '-0.025em', marginBottom: '16px' }}>
+                Pioneering Genuine DEF & Clean Fleet Mobility
+              </h2>
+              <div style={{ width: '70px', height: '4px', background: 'linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-cyan) 100%)', margin: '0 auto 22px auto', borderRadius: '2px' }} />
+              <p style={{ color: themeStyles.textBody, fontSize: '16px', lineHeight: 1.75, maxWidth: '900px', margin: '0 auto' }}>
+                UltraBlue+ is an integral initiative of <strong>Ayush Green Energy</strong>, one of Eastern India's frontline manufacturers committed to powering heavy commercial transport, safeguarding BS-VI diesel engine components, and fostering environmental preservation across India's highways.
+              </p>
+            </div>
+
+            {/* 4 Core Bento Grid Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '26px', marginBottom: '52px' }}>
+
+              {/* Bento Card 1 */}
+              <div
+                className="modern-card-hover"
+                style={{
+                  backgroundColor: themeStyles.bgCard,
+                  padding: '32px 26px',
+                  borderRadius: '20px',
+                  border: `1px solid ${themeStyles.borderColor}`,
+                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(0, 143, 224, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
+                  <Droplets size={24} color="var(--brand-blue)" />
+                </div>
+                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
+                  32.5% Automotive Grade Purity
+                </h3>
+                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
+                  Formulated with double-pass reverse osmosis EDI demineralized water and virgin technical urea. Guarantees precise stoichiometric reaction without ammonia slip.
+                </p>
+                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--brand-cyan)', fontWeight: 800 }}>
+                  <CheckCircle size={14} />
+                  <span>AUS 32 / ISO 22241-1</span>
+                </div>
+              </div>
+
+              {/* Bento Card 2 */}
+              <div
+                className="modern-card-hover"
+                style={{
+                  backgroundColor: themeStyles.bgCard,
+                  padding: '32px 26px',
+                  borderRadius: '20px',
+                  border: `1px solid ${themeStyles.borderColor}`,
+                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
+                  <ShieldCheck size={24} color="#10B981" />
+                </div>
+                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
+                  SCR Engine Protection
+                </h3>
+                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
+                  Heavy metals &lt;0.05 ppm prevents scaling, injector clogging, and catalyst poisoning. Protects exhaust systems costing ₹1.5L - ₹3.5L per vehicle.
+                </p>
+                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#10B981', fontWeight: 800 }}>
+                  <CheckCircle size={14} />
+                  <span>Zero Crystallization</span>
+                </div>
+              </div>
+
+              {/* Bento Card 3 */}
+              <div
+                className="modern-card-hover"
+                style={{
+                  backgroundColor: themeStyles.bgCard,
+                  padding: '32px 26px',
+                  borderRadius: '20px',
+                  border: `1px solid ${themeStyles.borderColor}`,
+                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(245, 158, 11, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Award size={24} color="#F59E0B" />
+                  </div>
+                  <div
+                    onClick={() => setIsCertModalOpen(true)}
+                    title="Click to view BIS & ISI Mark Certificate"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <CertificationBadgePair height={34} gap="6px" />
+                  </div>
+                </div>
+                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
+                  BIS & ISO 22241 Certified
+                </h3>
+                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
+                  Certified under IS 17042:2018 with serialized batch barcodes. Every shipment is accompanied by a laboratory Certificate of Analysis (CoA).
+                </p>
+                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#F59E0B', fontWeight: 800 }}>
+                  <CheckCircle size={14} />
+                  <span>Licensed Bhadrak Plant</span>
+                </div>
+              </div>
+
+              {/* Bento Card 4 */}
+              <div
+                className="modern-card-hover"
+                style={{
+                  backgroundColor: themeStyles.bgCard,
+                  padding: '32px 26px',
+                  borderRadius: '20px',
+                  border: `1px solid ${themeStyles.borderColor}`,
+                  boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 8px 24px rgba(0,0,0,0.04)',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'rgba(0, 200, 245, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
+                  <Truck size={24} color="var(--brand-cyan)" />
+                </div>
+                <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
+                  Depot-to-Door Logistics
+                </h3>
+                <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
+                  Direct plant dispatch from Bhadrak across Odisha, West Bengal, Jharkhand, and Bihar with 24-hour delivery commitments for bulk fleets and retail dealers.
+                </p>
+                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--brand-cyan)', fontWeight: 800 }}>
+                  <CheckCircle size={14} />
+                  <span>24-Hour Dispatch Network</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Plant Stats & Credentials Strip */}
+            <div
+              style={{
+                backgroundColor: themeStyles.bgCard,
+                borderRadius: '20px',
+                border: `1px solid ${themeStyles.borderColor}`,
+                padding: '32px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '28px',
+                alignItems: 'center',
+                boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.3)' : '0 6px 20px rgba(0,0,0,0.04)'
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Manufacturing Plant</span>
+                <strong style={{ fontSize: '19px', color: themeStyles.textHeading, display: 'block', marginTop: '4px', fontWeight: 900 }}>Bhadrak, Odisha</strong>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>At- Charampa, Dist- Bhadrak (756101)</span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Total Fleet Supply</span>
+                <strong style={{ fontSize: '20px', color: 'var(--brand-blue)', display: 'block', marginTop: '4px', fontWeight: 900 }}>50M+ Litres</strong>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>Powering 500+ commercial fleets</span>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted, textTransform: 'uppercase', fontWeight: 800 }}>Quality Standard</span>
+                <strong style={{ fontSize: '19px', color: '#10B981', display: 'block', marginTop: '4px', fontWeight: 900 }}>ISO 22241 / IS 17042</strong>
+                <span style={{ fontSize: '12px', color: themeStyles.textMuted }}>BIS Licensed Manufacturing</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
       </main>
 
       {/* ======================================================================= */}
@@ -2117,13 +2144,6 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                 Home
               </a>
               <a
-                href="#about"
-                onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
-                style={{ color: '#94A3B8', textDecoration: 'none' }}
-              >
-                About Us
-              </a>
-              <a
                 href="#products"
                 onClick={(e) => { e.preventDefault(); scrollToSection('products'); }}
                 style={{ color: '#94A3B8', textDecoration: 'none' }}
@@ -2136,6 +2156,13 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                 style={{ color: '#94A3B8', textDecoration: 'none' }}
               >
                 Quotes / RFQ
+              </a>
+              <a
+                href="#about"
+                onClick={(e) => { e.preventDefault(); scrollToSection('about'); }}
+                style={{ color: '#94A3B8', textDecoration: 'none' }}
+              >
+                About Us
               </a>
               <a
                 href="/login"

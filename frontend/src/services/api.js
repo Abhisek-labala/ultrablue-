@@ -815,6 +815,14 @@ export const InquiryAPI = {
         estimatedQuantity: q.estimated_quantity || '',
         message: q.message || '',
         status: q.status || 'NEW_INQUIRY',
+        quotedPrice: q.quoted_price !== undefined && q.quoted_price !== null ? parseFloat(q.quoted_price) : null,
+        quotedProduct: q.quoted_product || '',
+        validUntil: q.valid_until || '',
+        quoteChannels: q.quote_channels || '',
+        quoteRecipient: q.quote_recipient || '',
+        rejectionReason: q.rejection_reason || '',
+        reviewedBy: q.reviewed_by || '',
+        reviewedAt: q.reviewed_at || '',
         createdAt: dateStr,
         date: dateStr
       };
@@ -830,6 +838,32 @@ export const InquiryAPI = {
     const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) {
       throw new Error(json.message || 'Error updating enquiry status.');
+    }
+    return json;
+  },
+
+  submitQuote: async (id, quoteData) => {
+    const res = await fetch(`${API_BASE_URL}/enquiries/${id}/quote`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(quoteData)
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error submitting inquiry quotation.');
+    }
+    return json;
+  },
+
+  reject: async (id, rejectData = {}) => {
+    const res = await fetch(`${API_BASE_URL}/enquiries/${id}/reject`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(rejectData)
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Error rejecting enquiry.');
     }
     return json;
   },

@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  X, 
-  ShieldCheck, 
-  Award, 
-  CheckCircle2, 
-  Download, 
-  FileCheck, 
+import {
+  X,
+  ShieldCheck,
+  Award,
+  CheckCircle2,
+  Download,
+  FileCheck,
   ExternalLink,
   QrCode,
   Building,
@@ -18,7 +18,7 @@ export const CertificationModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       style={{
         position: 'fixed',
         top: 0,
@@ -37,7 +37,7 @@ export const CertificationModal = ({ isOpen, onClose }) => {
       }}
       onClick={onClose}
     >
-      <div 
+      <div
         className="ub-card"
         style={{
           width: '100%',
@@ -56,7 +56,7 @@ export const CertificationModal = ({ isOpen, onClose }) => {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div 
+        <div
           style={{
             background: 'linear-gradient(135deg, #06142F 0%, #0B2559 60%, #00C8F5 100%)',
             color: '#FFFFFF',
@@ -101,12 +101,12 @@ export const CertificationModal = ({ isOpen, onClose }) => {
 
         {/* Modal Body */}
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* Certificate Cards Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            
+
             {/* BIS / ISI Card */}
-            <div 
+            <div
               style={{
                 backgroundColor: 'var(--bg-app)',
                 borderRadius: '14px',
@@ -153,7 +153,7 @@ export const CertificationModal = ({ isOpen, onClose }) => {
             </div>
 
             {/* ISO 22241-1 Card */}
-            <div 
+            <div
               style={{
                 backgroundColor: 'var(--bg-app)',
                 borderRadius: '14px',
@@ -201,43 +201,10 @@ export const CertificationModal = ({ isOpen, onClose }) => {
 
           </div>
 
-          {/* Plant QA Laboratory Details */}
-          <div 
-            style={{
-              backgroundColor: 'var(--bg-app)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              border: '1px solid var(--border-medium)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}
-          >
-            <div>
-              <strong style={{ fontSize: '13px', color: 'var(--text-primary)', display: 'block' }}>
-                Bhadrak Plant In-House Quality Testing Laboratory
-              </strong>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Equipped with Digital Refractometers, Density Meters, and ICP-OES Spectrometers for 100% batch release testing.
-              </span>
-            </div>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Download}
-              onClick={() => alert("Certified Master Quality Audit Dossier downloaded.")}
-            >
-              Download Audit Certificate PDF
-            </Button>
-          </div>
-
         </div>
 
         {/* Footer */}
-        <div 
+        <div
           style={{
             backgroundColor: 'var(--bg-app)',
             padding: '14px 24px',

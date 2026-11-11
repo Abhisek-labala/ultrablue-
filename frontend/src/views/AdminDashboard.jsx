@@ -118,8 +118,12 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
   const fetchInquiries = async () => {
     setLoading(true);
     try {
-      const inqs = await InquiryAPI.getAll().catch(e => { console.warn('Inquiries fetch error:', e); return []; });
+      const [inqs, prods] = await Promise.all([
+        InquiryAPI.getAll().catch(e => { console.warn('Inquiries fetch error:', e); return []; }),
+        ProductAPI.getAll().catch(e => { console.warn('Products fetch error:', e); return []; })
+      ]);
       setInquiries(Array.isArray(inqs) ? inqs : []);
+      setProducts(Array.isArray(prods) ? prods : []);
     } finally {
       setLoading(false);
     }
@@ -365,6 +369,9 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
         return (
           <AdminCustomerEnquiriesView
             inquiries={inquiries}
+            products={products}
+            authUser={authUser}
+            COMPANY_INFO={COMPANY_INFO}
             onRefresh={fetchInquiries}
             onShowToast={showToast}
             exportToCSV={exportToCSV}
