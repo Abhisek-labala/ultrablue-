@@ -42,6 +42,7 @@ import { Input } from '../components/ui/Input';
 import { ProductDetailModal } from '../components/ui/ProductDetailModal';
 import { CertificationModal } from '../components/ui/CertificationModal';
 import { CertificationBadgePair } from '../components/ui/CertificationLogos';
+import { HeroCarouselSection } from '../components/ui/HeroCarouselSection';
 import { OfferNotificationCenter } from '../components/ui/OfferNotificationCenter';
 import { InquiryAPI, ProductAPI, PromotionAPI, ComplianceAPI } from '../services/api';
 import { COMPANY_INFO } from '../config/companyInfo';
@@ -873,206 +874,15 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
       <main style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* ======================================================================= */}
-        {/* SECTION 1: HOME (MODERN ANIMATED HERO BANNER)                           */}
-        {/* State-of-the-art modern visual with branded fleet & dispensing network */}
+        {/* SECTION 1: HOME (CINEMA VIDEO-GENERATED HERO CAROUSEL)                  */}
+        {/* Interactive split-stage carousel built from UltraBlue+ brand film scenes */}
         {/* ======================================================================= */}
-        <section
-          id="home"
-          className="hero-section"
-          style={{
-            width: '100%',
-            background: isDark
-              ? 'linear-gradient(135deg, rgba(2, 8, 23, 0.94) 0%, rgba(6, 20, 47, 0.88) 50%, rgba(10, 39, 90, 0.82) 100%), url("/images/hero_def_fleet.jpg") center/cover no-repeat'
-              : 'linear-gradient(135deg, rgba(6, 20, 47, 0.88) 0%, rgba(10, 43, 94, 0.82) 50%, rgba(0, 143, 224, 0.75) 100%), url("/images/hero_def_fleet.jpg") center/cover no-repeat',
-            color: '#FFFFFF',
-            padding: hasAnnouncement ? '150px 36px 76px 36px' : '120px 36px 76px 36px',
-            position: 'relative',
-            overflow: 'hidden',
-            borderBottom: isDark ? '1px solid rgba(0, 200, 245, 0.25)' : 'none'
-          }}
-        >
-          {/* Subtle Dynamic Ambient Lighting Spheres */}
-          <div style={{ position: 'absolute', top: '-140px', right: '-100px', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,200,245,0.22) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none', animation: 'floatSlow 8s ease-in-out infinite' }} />
-          <div style={{ position: 'absolute', bottom: '-160px', left: '-100px', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,143,224,0.2) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }} />
-
-          <div style={{ width: '100%', maxWidth: '1360px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '52px', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-
-            {/* Left Hero Content */}
-            <div>
-
-              {/* Official Brand Logo Showcase */}
-              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                <img
-                  src="/images/ultrablue_brand_logo.png"
-                  alt="UltraBlue+ Diesel Exhaust Fluid"
-                  style={{
-                    height: 'clamp(44px, 5.5vw, 68px)',
-                    width: 'auto',
-                    maxWidth: '100%',
-                    objectFit: 'contain',
-                    filter: 'drop-shadow(0 4px 20px rgba(0, 200, 245, 0.45))'
-                  }}
-                />
-                <div
-                  onClick={() => setIsCertModalOpen(true)}
-                  title="Click to view BIS & ISI Mark Certificate"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '6px 10px',
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.18)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <CertificationBadgePair height={58} gap="8px" />
-                </div>
-              </div>
-
-              {/* Bold Futuristic Headline */}
-              <h1
-                style={{
-                  fontSize: 'clamp(32px, 4.4vw, 54px)',
-                  lineHeight: 1.15,
-                  fontWeight: 900,
-                  color: '#FFFFFF',
-                  marginBottom: '16px',
-                  fontFamily: 'var(--font-family-heading)',
-                  letterSpacing: '-0.025em'
-                }}
-              >
-                A Complete Refueling Ecosystem for Genuine DEF
-              </h1>
-
-              {/* Refueling Ecosystem Subtitle with Cyan Glow */}
-              <div
-                style={{
-                  fontSize: 'clamp(16px, 1.8vw, 20px)',
-                  color: 'var(--brand-cyan)',
-                  fontWeight: 700,
-                  marginBottom: '18px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase'
-                }}
-              >
-                IS 17042 (PART 1): 2020 • ISO 22241 Certified • BS-VI Fleet Grade
-              </div>
-
-              {/* High-Impact Description */}
-              <p style={{ fontSize: '15px', color: '#E2E8F0', marginBottom: '36px', lineHeight: 1.7, maxWidth: '650px' }}>
-                Manufactured by <strong>Ayush Green Energy</strong> with 32.5% ultra-pure AUS 32 aqueous urea and multi-stage de-ionized water. UltraBlue+ guarantees <strong>&lt;0.05 ppm trace metals</strong> to safeguard SCR catalysts, eliminate injector crystallization, and maximize fleet fuel economy.
-              </p>
-
-              {/* Call to Action Buttons */}
-              <div className="hero-cta-group" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '40px' }}>
-                <button
-                  onClick={() => scrollToSection('quotes')}
-                  className="glow-btn-primary"
-                  style={{
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '50px',
-                    padding: '15px 32px',
-                    fontSize: '15px',
-                    fontWeight: 900,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    boxShadow: '0 8px 28px rgba(0, 143, 224, 0.5)'
-                  }}
-                >
-                  <Send size={17} />
-                  <span>Request Instant Quote</span>
-                </button>
-
-                <button
-                  onClick={() => scrollToSection('products')}
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.35)',
-                    color: '#FFFFFF',
-                    borderRadius: '50px',
-                    padding: '15px 26px',
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Package size={17} />
-                  <span>View Products & Packs</span>
-                </button>
-
-                <a
-                  href="tel:+919853675971"
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: '1px solid var(--brand-cyan)',
-                    color: 'var(--brand-cyan)',
-                    borderRadius: '50px',
-                    padding: '15px 24px',
-                    fontSize: '15px',
-                    fontWeight: 800,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <PhoneCall size={17} />
-                  <span>Call Dispatch</span>
-                </a>
-              </div>
-
-              {/* Trust Metric Glass Badges */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                  gap: '14px',
-                  paddingTop: '26px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.15)'
-                }}
-              >
-                <div
-                  onClick={() => setIsCertModalOpen(true)}
-                  style={{ background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)', cursor: 'pointer', transition: 'all 0.2s ease' }}
-                  title="Click to view BIS & ISI Mark Certificate"
-                >
-                  <div style={{ color: 'var(--brand-cyan)', fontSize: '19px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span>IS 17042</span>
-                    <ShieldCheck size={17} />
-                  </div>
-                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>CM/L-5200161078 • BIS Licensed</div>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)' }}>
-                  <div style={{ color: '#34D399', fontSize: '19px', fontWeight: 900 }}>&lt; 0.05 ppm</div>
-                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>Zero Crystallization</div>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)' }}>
-                  <div style={{ color: 'var(--brand-gold)', fontSize: '19px', fontWeight: 900 }}>32.5%</div>
-                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>Automotive AUS 32</div>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)' }}>
-                  <div style={{ color: '#FFFFFF', fontSize: '19px', fontWeight: 900 }}>24-Hour</div>
-                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>Fleet Delivery</div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </section>
+        <HeroCarouselSection
+          isDark={isDark}
+          hasAnnouncement={hasAnnouncement}
+          onOpenCertModal={() => setIsCertModalOpen(true)}
+          onScrollToSection={scrollToSection}
+        />
 
         {/* ======================================================================= */}
         {/* SECTION 2: PRODUCTS & SERVICES                                          */}
