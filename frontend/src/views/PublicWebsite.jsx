@@ -927,7 +927,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                     cursor: 'pointer'
                   }}
                 >
-                  <CertificationBadgePair height={34} gap="8px" />
+                  <CertificationBadgePair height={58} gap="8px" />
                 </div>
               </div>
 
@@ -957,7 +957,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                   textTransform: 'uppercase'
                 }}
               >
-                IS 17042:2018 • ISO 22241 Certified • BS-VI Fleet Grade
+                IS 17042 (PART 1): 2020 • ISO 22241 Certified • BS-VI Fleet Grade
               </div>
 
               {/* High-Impact Description */}
@@ -1051,7 +1051,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                     <span>IS 17042</span>
                     <ShieldCheck size={17} />
                   </div>
-                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>ISI Mark / BIS Licensed</div>
+                  <div style={{ color: '#CBD5E1', fontSize: '11px', fontWeight: 600, marginTop: '3px' }}>CM/L-5200161078 • BIS Licensed</div>
                 </div>
 
                 <div style={{ background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.14)' }}>
@@ -2026,14 +2026,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                     title="Click to view BIS & ISI Mark Certificate"
                     style={{ cursor: 'pointer' }}
                   >
-                    <CertificationBadgePair height={34} gap="6px" />
+                    <CertificationBadgePair height={54} gap="8px" />
                   </div>
                 </div>
                 <h3 style={{ fontSize: '19px', fontWeight: 900, color: themeStyles.textHeading, marginBottom: '10px' }}>
                   BIS & ISO 22241 Certified
                 </h3>
                 <p style={{ fontSize: '14px', color: themeStyles.textMuted, lineHeight: 1.65 }}>
-                  Certified under IS 17042:2018 with serialized batch barcodes. Every shipment is accompanied by a laboratory Certificate of Analysis (CoA).
+                  Certified under IS 17042 (PART 1): 2020 (CM/L-5200161078) with serialized batch barcodes. Every shipment is accompanied by a laboratory Certificate of Analysis (CoA).
                 </p>
                 <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#F59E0B', fontWeight: 800 }}>
                   <CheckCircle size={14} />

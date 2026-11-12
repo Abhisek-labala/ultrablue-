@@ -15,9 +15,11 @@ export const COMPANY_INFO = {
   portalUrl: "https://ultrablueplus.com",
   gstin: "21AABCU9603R1ZM",
   cin: "U23209OR2026PTC048912",
+  isStandard: "IS 17042 (PART 1): 2020",
+  bisLicense: "CM/L-5200161078",
   certifications: [
     { title: "ISO 22241-1", desc: "Automotive Grade AUS 32 Purity Standard" },
-    { title: "BIS / ISI Licensed", desc: "Bureau of Indian Standards Certified" },
+    { title: "BIS / ISI Licensed", desc: "IS 17042 (PART 1): 2020 • CM/L-5200161078" },
     { title: "BS-VI & Euro-VI", desc: "Complete SCR Emission Compliance" },
     { title: "100% Batch Tested", desc: "COA (Certificate of Analysis) per Batch" }
   ],

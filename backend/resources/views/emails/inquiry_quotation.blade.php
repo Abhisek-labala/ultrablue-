@@ -60,7 +60,7 @@
 
           <tr>
             <td style="background-color:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">
-              IS 17042:2018 &bull; ISO 22241-1 &bull; BIS Licensed Manufacturing
+              IS 17042 (PART 1): 2020 &bull; CM/L-5200161078 &bull; ISO 22241-1 &bull; BIS Licensed Manufacturing
             </td>
           </tr>
         </table>

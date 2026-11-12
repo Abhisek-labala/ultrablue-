@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from './Button';
 import { COMPANY_INFO } from '../../config/companyInfo';
+import { IsiMarkLogo, BisMarkLogo } from './CertificationLogos';
 
 export const CertificationModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -128,11 +129,16 @@ export const CertificationModal = ({ isOpen, onClose }) => {
                   </span>
                 </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                  <IsiMarkLogo height={88} />
+                  <BisMarkLogo height={88} />
+                </div>
+
                 <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                  BIS License: IS 17042:2018 / IS 10522
+                  BIS License: {COMPANY_INFO.isStandard || 'IS 17042 (PART 1): 2020'} / IS 10522
                 </h4>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 10px 0' }}>
-                  Licensed by the <strong>Bureau of Indian Standards</strong> for Automotive Grade Aqueous Urea Solution (DEF) under License No: <code>CM/L-84001923</code>.
+                  Licensed by the <strong>Bureau of Indian Standards</strong> for Automotive Grade Aqueous Urea Solution (DEF) under License No: <code>{COMPANY_INFO.bisLicense || 'CM/L-5200161078'}</code>.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -147,53 +153,6 @@ export const CertificationModal = ({ isOpen, onClose }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Check size={14} color="#10B981" />
                     <span>Heavy metals &lt; 0.05 ppm (100% BS-VI SCR safe)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ISO 22241-1 Card */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-app)',
-                borderRadius: '14px',
-                padding: '20px',
-                border: '1px solid var(--border-medium)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-gold)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    International Specification
-                  </span>
-                  <span style={{ backgroundColor: 'rgba(0, 200, 245, 0.15)', color: 'var(--brand-cyan)', border: '1px solid var(--brand-cyan)', padding: '2px 8px', borderRadius: '50px', fontSize: '11px', fontWeight: 700 }}>
-                    Global Benchmark
-                  </span>
-                </div>
-
-                <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
-                  ISO 22241-1 / Euro-VI Purity Standard
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 10px 0' }}>
-                  Complies strictly with International Organization for Standardization specification for NOx reduction agent AUS 32.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Check size={14} color="var(--brand-cyan)" />
-                    <span>Precise 32.5% ± 0.3% urea concentration ratio</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Check size={14} color="var(--brand-cyan)" />
-                    <span>Triple 0.5µ micro-cartridge filtration</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Check size={14} color="var(--brand-cyan)" />
-                    <span>Zero calcium, magnesium, and biuret contamination</span>
                   </div>
                 </div>
               </div>
