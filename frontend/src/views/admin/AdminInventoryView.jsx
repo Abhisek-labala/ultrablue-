@@ -6,7 +6,10 @@ import {
   CheckCircle2,
   AlertTriangle,
   MapPin,
-  Layers
+  Layers,
+  Building2,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
@@ -37,6 +40,72 @@ export const AdminInventoryView = ({
   });
   const [refillErrors, setRefillErrors] = useState({});
   const [selectedLocationFilter, setSelectedLocationFilter] = useState('ALL');
+
+  // Hub / Depot Management State
+  const [isManageHubsOpen, setIsManageHubsOpen] = useState(false);
+  const [hubForm, setHubForm] = useState({
+    name: '',
+    city: '',
+    state: 'Odisha',
+    type: 'depot',
+    address: '',
+    pincode: '',
+    phone: ''
+  });
+  const [isSubmittingHub, setIsSubmittingHub] = useState(false);
+  const [hubError, setHubError] = useState('');
+  const [deletingHubId, setDeletingHubId] = useState(null);
+
+  const handleCreateHub = async (e) => {
+    e.preventDefault();
+    if (!hubForm.name.trim()) {
+      setHubError('Hub / Depot Name is required.');
+      return;
+    }
+    setHubError('');
+    setIsSubmittingHub(true);
+    try {
+      await InventoryAPI.createLocation({
+        name: hubForm.name.trim(),
+        city: hubForm.city.trim() || 'Hub',
+        state: hubForm.state.trim() || 'Odisha',
+        type: hubForm.type || 'depot',
+        address: hubForm.address.trim() || `${hubForm.name.trim()}, ${hubForm.city.trim() || 'Odisha'}`,
+        pincode: hubForm.pincode.trim() || '756100',
+        phone: hubForm.phone.trim() || '9853675971'
+      });
+      onShowToast && onShowToast(`Hub "${hubForm.name}" registered successfully in database!`, 'success');
+      setHubForm({
+        name: '',
+        city: '',
+        state: 'Odisha',
+        type: 'depot',
+        address: '',
+        pincode: '',
+        phone: ''
+      });
+      onRefresh && onRefresh();
+    } catch (err) {
+      setHubError(err.message || 'Failed to create hub location');
+      onShowToast && onShowToast(err.message || 'Failed to create hub', 'error');
+    } finally {
+      setIsSubmittingHub(false);
+    }
+  };
+
+  const handleDeleteHub = async (hubId, hubName) => {
+    if (!window.confirm(`Are you sure you want to delete hub "${hubName}" from the database?`)) return;
+    setDeletingHubId(hubId);
+    try {
+      await InventoryAPI.deleteLocation(hubId);
+      onShowToast && onShowToast(`Hub "${hubName}" removed from database.`, 'success');
+      onRefresh && onRefresh();
+    } catch (err) {
+      onShowToast && onShowToast(err.message || 'Failed to delete hub', 'error');
+    } finally {
+      setDeletingHubId(null);
+    }
+  };
 
   // Load database products dynamically if not passed from parent
   useEffect(() => {
@@ -192,7 +261,15 @@ export const AdminInventoryView = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={Building2}
+            onClick={() => setIsManageHubsOpen(true)}
+          >
+            Manage Hubs ({locations.length})
+          </Button>
           <Button size="sm" variant="secondary" icon={Download} onClick={() => exportToCSV('UltraBlue_Inventory_Stock', inventory)}>
             Export Stock CSV
           </Button>
@@ -319,18 +396,44 @@ export const AdminInventoryView = ({
       >
         <form noValidate onSubmit={handleRefillSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
-              Depot / Hub Location *
-            </label>
-            <Select
-              value={refillLocation || (locations[0]?.id || '')}
-              onChange={e => {
-                setRefillLocation(e.target.value);
-                if (refillErrors.location) setRefillErrors(prev => ({ ...prev, location: null }));
-              }}
-              options={locations.map(loc => ({ label: `${loc.name} (${loc.city || 'Hub'})`, value: loc.id }))}
-              error={refillErrors.location}
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600 }}>
+                Depot / Hub Location *
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRefillModalOpen(false);
+                  setIsManageHubsOpen(true);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--brand-cyan)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                + Add / Manage Hubs
+              </button>
+            </div>
+            {locations.length === 0 ? (
+              <div style={{ padding: '10px 12px', backgroundColor: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', color: '#EAB308', fontSize: '12px' }}>
+                No hubs configured in database yet. Click <strong>+ Add / Manage Hubs</strong> above to register your first hub.
+              </div>
+            ) : (
+              <Select
+                value={refillLocation || (locations[0]?.id || '')}
+                onChange={e => {
+                  setRefillLocation(e.target.value);
+                  if (refillErrors.location) setRefillErrors(prev => ({ ...prev, location: null }));
+                }}
+                options={locations.map(loc => ({ label: `${loc.name} (${loc.city || 'Hub'})`, value: loc.id }))}
+                error={refillErrors.location}
+              />
+            )}
           </div>
 
           <div>
@@ -434,6 +537,158 @@ export const AdminInventoryView = ({
             </Button>
           </div>
         </form>
+      </Modal>
+      {/* MANAGE HUBS & DEPOT LOCATIONS MODAL */}
+      <Modal
+        isOpen={isManageHubsOpen}
+        onClose={() => {
+          setIsManageHubsOpen(false);
+          setHubError('');
+        }}
+        title="Manage Dispensing Hubs & Depots"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* New Hub Form */}
+          <form noValidate onSubmit={handleCreateHub} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: '10px', border: '1px solid var(--border-medium)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Plus size={16} color="var(--brand-cyan)" />
+              <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Register New Hub / Depot in Database</strong>
+            </div>
+
+            {hubError && (
+              <div style={{ padding: '8px 12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--status-danger)', borderRadius: '6px', color: 'var(--status-danger)', fontSize: '12px' }}>
+                {hubError}
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>
+                Hub / Depot Name * (e.g. Bhadrak Mother Plant, Cuttack Hub)
+              </label>
+              <Input
+                placeholder="e.g. Bhadrak Central Depot & Factory Plant"
+                value={hubForm.name}
+                onChange={e => setHubForm({ ...hubForm, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>City / District</label>
+                <Input
+                  placeholder="e.g. Bhadrak"
+                  value={hubForm.city}
+                  onChange={e => setHubForm({ ...hubForm, city: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>State</label>
+                <Input
+                  placeholder="e.g. Odisha"
+                  value={hubForm.state}
+                  onChange={e => setHubForm({ ...hubForm, state: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>Hub Type</label>
+                <Select
+                  value={hubForm.type}
+                  onChange={e => setHubForm({ ...hubForm, type: e.target.value })}
+                  options={[
+                    { value: 'depot', label: 'Regional Depot' },
+                    { value: 'plant', label: 'Manufacturing Plant' },
+                    { value: 'station', label: 'Dispenser Station' },
+                    { value: 'hub', label: 'Fleet Hub' }
+                  ]}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>Contact Phone</label>
+                <Input
+                  placeholder="e.g. 9853675971"
+                  value={hubForm.phone}
+                  onChange={e => setHubForm({ ...hubForm, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, marginBottom: '4px' }}>Address & Location Corridor</label>
+              <Input
+                placeholder="e.g. Plot 42, Bhadrak Industrial Estate, Charampa"
+                value={hubForm.address}
+                onChange={e => setHubForm({ ...hubForm, address: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <Button type="submit" variant="primary" size="sm" icon={Plus} loading={isSubmittingHub}>
+                Add Hub to Database
+              </Button>
+            </div>
+          </form>
+
+          {/* Existing Hubs List */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+                Registered Hubs in Database ({locations.length})
+              </strong>
+            </div>
+
+            {locations.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', border: '1px dashed var(--border-medium)', borderRadius: '8px' }}>
+                No hubs registered in database yet. Fill out the form above to register your first hub.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                {locations.map(loc => (
+                  <div
+                    key={loc.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      backgroundColor: 'var(--bg-app)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>
+                        {loc.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {loc.code ? <span style={{ fontFamily: 'monospace', marginRight: '6px' }}>[{loc.code}]</span> : null}
+                        {loc.city ? `${loc.city}, ` : ''}{loc.state || 'Odisha'} • Type: {loc.location_type || 'depot'}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      icon={Trash2}
+                      loading={deletingHubId === loc.id}
+                      onClick={() => handleDeleteHub(loc.id, loc.name)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={() => setIsManageHubsOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
