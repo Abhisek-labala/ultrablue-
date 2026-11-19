@@ -32,9 +32,131 @@ const numberToWords = (num) => {
   return str ? str.trim() + ' Rupees Only' : 'Zero Rupees Only';
 };
 
+// Official WhatsApp SVG icon component
+export const WhatsAppIcon = ({ size = 16, color = 'currentColor', ...props }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill={color}
+    style={{ flexShrink: 0 }}
+    {...props}
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.888 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.456 5.711 1.457h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
+
+// Helper to normalize phone numbers for WhatsApp wa.me links
+export const normalizePhoneForWhatsApp = (rawPhone) => {
+  if (!rawPhone) return '';
+  const digits = String(rawPhone).replace(/\D/g, '');
+  if (digits.length === 10) {
+    return '91' + digits;
+  }
+  if (digits.length === 11 && digits.startsWith('0')) {
+    return '91' + digits.slice(1);
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return digits;
+  }
+  return digits;
+};
+
+// Helper to generate formatted WhatsApp invoice message
+export const generateWhatsAppInvoiceMessage = ({
+  invoice,
+  companyData,
+  invNo,
+  subtotal,
+  discount,
+  taxable,
+  cgst,
+  sgst,
+  grandTotal,
+  dateDisplay,
+  depotDisplay,
+  operatorDisplay,
+  vehicleDisplay,
+  paymentDisplay,
+  customerNameDisplay,
+  customerPhoneDisplay
+}) => {
+  const items = invoice?.items || [];
+  let itemsFormatted = '';
+
+  if (Array.isArray(items) && items.length > 0) {
+    itemsFormatted = items
+      .map((item, idx) => {
+        const name = item.name || item.product_name || invoice.productName || 'UltraBlue+ DEF';
+        const qty = item.qty || item.quantity || 1;
+        const unitPrice = parseFloat(item.unitPrice || item.unit_price || 0);
+        const amount = parseFloat(item.amount ?? item.total ?? item.line_total ?? (unitPrice * qty));
+        const skuInfo = item.sku ? ` (${item.sku})` : '';
+        return `${idx + 1}. *${name}*${skuInfo}\n   Qty: ${qty}  |  Rate: ₹${unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Total: ₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      })
+      .join('\n');
+  } else if (invoice?.productName) {
+    itemsFormatted = `1. *${invoice.productName}*\n   Total: ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } else {
+    itemsFormatted = `1. *UltraBlue+ Diesel Exhaust Fluid*\n   Total: ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  const lines = [
+    `🧾 *GST TAX INVOICE & DISPENSING SLIP*`,
+    `*${companyData?.brand || 'ULTRABLUE+'}* — ${companyData?.name || 'AYUSH GREEN ENERGY'}`,
+    `GSTIN: ${companyData?.gstin || ''}`,
+    `Plant: ${companyData?.plantAddress || ''}`,
+    `----------------------------------------`,
+    `*Invoice No:* #${invNo}`,
+    `*Date & Time:* ${dateDisplay || new Date().toLocaleString('en-IN')}`,
+    `*Customer Name:* ${customerNameDisplay || 'Valued Customer'}`
+  ];
+
+  if (customerPhoneDisplay) {
+    lines.push(`*Mobile / Phone:* ${customerPhoneDisplay}`);
+  }
+  if (vehicleDisplay) {
+    lines.push(`*Vehicle Reg No:* ${vehicleDisplay}`);
+  }
+  if (depotDisplay) {
+    lines.push(`*Depot / Hub:* ${depotDisplay}`);
+  }
+  if (operatorDisplay) {
+    lines.push(`*POS Terminal:* ${operatorDisplay}`);
+  }
+  if (paymentDisplay) {
+    const status = invoice.paymentStatus || invoice.payment_status || 'PAID';
+    lines.push(`*Payment Mode:* ${paymentDisplay} (${status})`);
+  }
+
+  lines.push(`----------------------------------------`);
+  lines.push(`*DESCRIPTION OF GOODS / PACKAGING:*`);
+  lines.push(itemsFormatted);
+  lines.push(`----------------------------------------`);
+  lines.push(`*BILLING & TAX BREAKDOWN:*`);
+  lines.push(`• Gross Subtotal: ₹${subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  if (discount > 0) {
+    lines.push(`• Counter Discount: -₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  }
+  lines.push(`• Total Taxable Value: ₹${taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  lines.push(`• Central GST (CGST @ 9%): ₹${cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  lines.push(`• State GST (SGST @ 9%): ₹${sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  lines.push(`*👉 GRAND TOTAL (INR): ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*`);
+  lines.push(`----------------------------------------`);
+  lines.push(`✅ *ISO 22241 & IS 17042 Certified Genuine DEF*`);
+  lines.push(`Statutory: Computer-generated invoice verified by ${companyData?.name || 'Ayush Green Energy'} billing engine.`);
+  if (companyData?.phone) {
+    lines.push(`📞 Customer Support Helpline: ${companyData.phone}`);
+  }
+
+  return lines.join('\n');
+};
+
 export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
   const invoicePrintRef = useRef(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
+  const [whatsAppNotice, setWhatsAppNotice] = useState('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const companyData = {
@@ -50,11 +172,13 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
   // Generate dynamic scannable QR code whenever invoice changes
   useEffect(() => {
     if (invoice) {
-      const invNo = invoice.invoiceNumber || invoice.id || '';
-      const grandTotal = (parseFloat(invoice.grandTotal) || 0).toFixed(2);
-      const date = invoice.createdAt || invoice.date || '';
+      const invNo = invoice.invoiceNumber || invoice.invoice_number || invoice.id || '';
+      const grandTotal = (parseFloat(invoice.grandTotal || invoice.grand_total) || 0).toFixed(2);
+      const date = invoice.createdAt || invoice.created_at || invoice.date || '';
+      const cust = invoice.customerName || invoice.customer_name || '';
+      const veh = invoice.vehicleNumber || invoice.vehicle_number || invoice.vehicleNo || '';
 
-      const payload = `ULTRABLUE+ GST TAX INVOICE\nInvoice: ${invNo}\nDate: ${date}\nSeller: ${companyData.name}\nGSTIN: ${companyData.gstin}\nCustomer: ${invoice.customerName || ''}\nVehicle: ${invoice.vehicleNumber || invoice.vehicleNo || ''}\nTotal: INR ${grandTotal}\nStatus: VERIFIED & PAID`;
+      const payload = `ULTRABLUE+ GST TAX INVOICE\nInvoice: ${invNo}\nDate: ${date}\nSeller: ${companyData.name}\nGSTIN: ${companyData.gstin}\nCustomer: ${cust}\nVehicle: ${veh}\nTotal: INR ${grandTotal}\nStatus: VERIFIED & PAID`;
 
       QRCode.toDataURL(payload, {
         width: 140,
@@ -71,18 +195,77 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
 
   if (!invoice) return null;
 
-  const invNo = invoice.invoiceNumber || invoice.id || '';
+  const invNo = invoice.invoiceNumber || invoice.invoice_number || invoice.id || '';
   const subtotal = parseFloat(invoice.subtotal || 0);
   const discount = parseFloat(invoice.discount || invoice.discount_amount || 0);
   const taxable = parseFloat(invoice.taxable || invoice.taxable_amount || (subtotal - discount));
   const cgst = parseFloat(invoice.cgst || invoice.cgst_amount || 0);
   const sgst = parseFloat(invoice.sgst || invoice.sgst_amount || 0);
   const grandTotal = parseFloat(invoice.grandTotal || invoice.grand_total || (taxable + cgst + sgst));
-  const dateDisplay = invoice.createdAt || invoice.date || '';
-  const depotDisplay = invoice.depotName || invoice.location || '';
-  const operatorDisplay = invoice.operatorName || '';
-  const vehicleDisplay = invoice.vehicleNumber || invoice.vehicleNo || '';
+  const dateDisplay = invoice.createdAt || invoice.created_at || invoice.date || '';
+  const depotDisplay = invoice.depotName || invoice.location_name || invoice.location || '';
+  const operatorDisplay = invoice.operatorName || invoice.operator_name || '';
+  const vehicleDisplay = invoice.vehicleNumber || invoice.vehicle_number || invoice.vehicleNo || '';
   const paymentDisplay = invoice.paymentMethod || invoice.payment_method || '';
+  const customerNameDisplay = invoice.customerName || invoice.customer_name || 'Valued Customer';
+  const customerPhoneDisplay = invoice.customerPhone || invoice.customer_phone || invoice.phone || invoice.mobile || '';
+
+  // Share complete formatted invoice summary to customer via WhatsApp
+  const handleShareWhatsApp = () => {
+    setIsSharingWhatsApp(true);
+
+    const messageText = generateWhatsAppInvoiceMessage({
+      invoice,
+      companyData,
+      invNo,
+      subtotal,
+      discount,
+      taxable,
+      cgst,
+      sgst,
+      grandTotal,
+      dateDisplay,
+      depotDisplay,
+      operatorDisplay,
+      vehicleDisplay,
+      paymentDisplay,
+      customerNameDisplay,
+      customerPhoneDisplay
+    });
+
+    // Copy formatted invoice text to clipboard for quick paste or backup
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(messageText).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+
+    let targetPhone = normalizePhoneForWhatsApp(customerPhoneDisplay);
+
+    if (!targetPhone || targetPhone.length < 10) {
+      const prompted = window.prompt(
+        'Customer mobile number is missing from this invoice.\nEnter 10-digit WhatsApp number (or leave blank to select chat directly in WhatsApp):',
+        ''
+      );
+      if (prompted !== null) {
+        targetPhone = normalizePhoneForWhatsApp(prompted);
+      }
+    }
+
+    const whatsappUrl = targetPhone && targetPhone.length >= 10
+      ? `https://wa.me/${targetPhone}?text=${encodeURIComponent(messageText)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}`;
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+    setWhatsAppNotice('WhatsApp opened & invoice data copied to clipboard!');
+    setTimeout(() => {
+      setIsSharingWhatsApp(false);
+      setWhatsAppNotice('');
+    }, 4000);
+  };
 
   // High-Resolution Direct PDF Download (Pixel-Perfect A4 Desktop Layout matching Print Preview)
   const handleDownloadPdf = async () => {
@@ -274,11 +457,27 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
       icon={FileText}
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: whatsAppNotice ? '#16A34A' : 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
             <CheckCircle2 size={16} />
-            Invoice Generated successfully
+            {whatsAppNotice || (invoice?.is_sms_sent || invoice?.smsSent ? 'Stock successfully decremented & SMS dispatched' : 'Stock successfully decremented & verified')}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={WhatsAppIcon}
+              onClick={handleShareWhatsApp}
+              style={{
+                backgroundColor: '#25D366',
+                borderColor: '#25D366',
+                color: '#FFFFFF',
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(37, 211, 102, 0.28)'
+              }}
+              title={customerPhoneDisplay ? `Share invoice via WhatsApp to ${customerPhoneDisplay}` : 'Share invoice via WhatsApp'}
+            >
+              {isSharingWhatsApp ? 'Opening WhatsApp...' : 'Share on WhatsApp'}
+            </Button>
             <Button variant="secondary" size="sm" icon={Printer} onClick={handlePrint}>
               Print Invoice
             </Button>
@@ -398,7 +597,7 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
                 <tbody>
                   <tr>
                     <td style={{ color: '#64748B', padding: '2px 0', width: '110px' }}>Customer Name:</td>
-                    <td><strong style={{ color: '#0F172A' }}>{invoice.customerName || ''}</strong></td>
+                    <td><strong style={{ color: '#0F172A' }}>{customerNameDisplay}</strong></td>
                   </tr>
                   {vehicleDisplay && (
                     <tr>
@@ -406,10 +605,10 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
                       <td><strong style={{ color: '#0056D2', fontFamily: 'monospace', fontSize: '12px' }}>{vehicleDisplay}</strong></td>
                     </tr>
                   )}
-                  {invoice.customerPhone && (
+                  {customerPhoneDisplay && (
                     <tr>
                       <td style={{ color: '#64748B', padding: '2px 0' }}>Mobile / Phone:</td>
-                      <td><strong>{invoice.customerPhone}</strong></td>
+                      <td><strong>{customerPhoneDisplay}</strong></td>
                     </tr>
                   )}
                   {paymentDisplay && (

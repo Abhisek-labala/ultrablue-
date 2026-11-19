@@ -32,7 +32,7 @@ import { Input, Select } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { DataTable } from '../components/ui/DataTable';
 import { KPICard } from '../components/ui/KPICard';
-import { InvoiceModal } from '../components/ui/InvoiceModal';
+import { InvoiceModal, WhatsAppIcon } from '../components/ui/InvoiceModal';
 import { Modal } from '../components/ui/Modal';
 import {
   InventoryAPI,
@@ -1691,6 +1691,16 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
             {
               header: 'Actions', accessor: 'id', render: (_, row) => (
                 <div style={{ display: 'flex', gap: '6px' }}>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={WhatsAppIcon}
+                    onClick={() => setActiveInvoiceForModal(row)}
+                    style={{ backgroundColor: '#25D366', borderColor: '#25D366', color: '#FFFFFF' }}
+                    title="View & Share via WhatsApp"
+                  >
+                    WhatsApp
+                  </Button>
                   <Button size="sm" variant="secondary" icon={Printer} onClick={() => setActiveInvoiceForModal(row)}>
                     Print
                   </Button>

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
-import { InvoiceModal } from '../../components/ui/InvoiceModal';
+import { InvoiceModal, WhatsAppIcon } from '../../components/ui/InvoiceModal';
 
 export const AdminSalesInvoicesView = ({
   invoices = [],
@@ -133,6 +133,16 @@ export const AdminSalesInvoicesView = ({
             align: 'center',
             render: (_, row) => (
               <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                <Button
+                  size="xs"
+                  variant="primary"
+                  icon={WhatsAppIcon}
+                  onClick={() => handleOpenReceipt(row)}
+                  style={{ backgroundColor: '#25D366', borderColor: '#25D366', color: '#FFFFFF' }}
+                  title="Share invoice on WhatsApp"
+                >
+                  WhatsApp
+                </Button>
                 <Button
                   size="xs"
                   variant="secondary"
