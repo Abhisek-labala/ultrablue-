@@ -408,7 +408,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       <div 
         className="ub-card"
         style={{
-          background: 'linear-gradient(135deg, var(--brand-navy-primary) 0%, var(--brand-navy-surface) 100%)',
+          background: 'linear-gradient(135deg, #040E22 0%, #0A2246 100%)',
           color: '#FFFFFF',
           padding: 'var(--space-5)',
           display: 'flex',
@@ -416,21 +416,26 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 'var(--space-4)',
-          borderLeft: '4px solid var(--brand-blue)'
+          border: '1px solid rgba(0, 200, 245, 0.25)',
+          borderLeft: '4px solid var(--brand-blue)',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)'
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--brand-blue)', color: '#FFFFFF', padding: '2px 8px', borderRadius: 'var(--radius-pill)', textTransform: 'uppercase' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--brand-blue)', color: '#FFFFFF', padding: '3px 10px', borderRadius: 'var(--radius-pill)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Authorized Distributor
             </span>
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--brand-cyan)' }}>GSTIN: {currentDistributor.gstin}</span>
+            <span style={{ fontSize: '12px', color: '#00C8F5', fontWeight: 700 }}>
+              GSTIN: {currentDistributor.gstin || '21AABCU9603R1ZM'}
+            </span>
           </div>
-          <h2 style={{ fontSize: 'clamp(18px, 4vw, 24px)', color: '#FFFFFF', margin: 0, fontFamily: 'var(--font-family-heading)' }}>
+          <h2 style={{ fontSize: 'clamp(20px, 4vw, 26px)', color: '#FFFFFF', margin: 0, fontWeight: 800, fontFamily: 'var(--font-family-heading)', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
             {currentDistributor.name}
           </h2>
-          <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-on-dark-secondary)', marginTop: '4px', lineHeight: 1.4 }}>
-            Authorised Distribution Zone: <strong>{currentDistributor.city}, {currentDistributor.state}</strong> • Contact: {currentDistributor.contactPerson} ({currentDistributor.phone})
+          <p style={{ fontSize: '13px', color: '#CBD5E1', marginTop: '6px', marginBottom: 0, lineHeight: 1.5 }}>
+            Authorised Distribution Zone: <strong style={{ color: '#FFFFFF' }}>{currentDistributor.city ? `${currentDistributor.city}, ${currentDistributor.state}` : (currentDistributor.state || 'Odisha Region')}</strong> • Contact: <strong style={{ color: '#FFFFFF' }}>{currentDistributor.contactPerson || 'Authorized Officer'}</strong> {currentDistributor.phone ? `(${currentDistributor.phone})` : ''}
           </p>
         </div>
 
