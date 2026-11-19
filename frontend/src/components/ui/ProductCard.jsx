@@ -233,8 +233,10 @@ export const ProductCard = ({
           </div>
         </div>
 
-        {/* Pack Size Selector (Only if multiple packs exist) */}
-        {packOptions.length > 1 && (
+        {/* Pack Size Selector (Only if multiple genuinely distinct pack sizes exist) */}
+        {packOptions.length > 1 && 
+         new Set(packOptions.map(p => (p.size || '').trim().toLowerCase())).size > 1 && 
+         !packOptions.every(p => (p.size || '').trim().toLowerCase() === (product.name || '').trim().toLowerCase()) && (
           <div style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>

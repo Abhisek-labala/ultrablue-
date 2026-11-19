@@ -41,7 +41,7 @@ export const ProductAPI = {
         features: Array.isArray(p.features) ? p.features : (p.features_json ? JSON.parse(p.features_json) : []),
         packOptions: (p.pack_variants && p.pack_variants.length > 0) ? p.pack_variants.map(v => ({
           sku: v.sku,
-          size: v.pack_size,
+          size: (!v.pack_size || v.pack_size.trim().toLowerCase() === (p.name || '').trim().toLowerCase()) ? (p.capacity || (v.volume_in_litres ? (v.volume_in_litres + 'L') : 'Standard Pack')) : v.pack_size,
           mrp: parseFloat(v.standard_mrp),
           distributorPrice: parseFloat(v.distributor_base_price),
           gstRate: parseFloat(p.gst_rate) || 18,
