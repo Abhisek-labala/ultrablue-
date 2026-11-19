@@ -410,9 +410,6 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
           <h2 style={{ fontSize: '20px', fontWeight: 800, color: textHeading, margin: '0 0 4px 0', fontFamily: 'var(--font-family-heading)' }}>
             {authMode === 'login' ? 'Portal Login' : 'Registration'}
           </h2>
-          <p style={{ fontSize: '11px', color: textMuted, margin: 0 }}>
-            Ayush Green Energy • ISO 22241-1 Industrial Suite
-          </p>
         </div>
 
         {/* Login / Register Mode Switcher Pill */}
@@ -743,7 +740,7 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
           /* MODE 2: REGISTRATION FORM */
           <form onSubmit={handleRegisterSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              
+
               {/* DISTRIBUTOR GSTIN INPUT (FIRST FIELD - SIMPLIFIED) */}
               {selectedRole === 'distributor' && (
                 <div>
@@ -1096,15 +1093,10 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
             gap: '5px'
           }}
         >
-          <ShieldCheck size={13} color="var(--brand-cyan)" />
-          <span>256-Bit SSL Encrypted • JWT Token Signed Session</span>
         </div>
       </div>
 
       {/* Footer Info */}
-      <div style={{ textAlign: 'center', fontSize: '11px', color: textMuted, marginTop: '12px' }}>
-        <span>Ayush Green Energy • Bhadrak Industrial Plant, Odisha</span>
-      </div>
 
       {/* Responsive Styles */}
       <style>{`

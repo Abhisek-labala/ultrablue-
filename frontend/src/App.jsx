@@ -16,23 +16,23 @@ import './styles/base.css';
 export const ROUTES = [
   // Admin Routes
   // Admin Routes - Product Master & Catalogue Sub-Routes
-  { path: '/admin', role: 'admin', tab: 'admin_dashboard', exact: true, title: 'Master Plant & Operations Dashboard', crumbs: ['UltraBlue+', 'Ayush Green Energy', 'Admin Command Center'] },
-  { path: '/admin/dashboard', role: 'admin', tab: 'admin_dashboard', title: 'Master Plant & Operations Dashboard', crumbs: ['UltraBlue+', 'Admin', 'Executive Dashboard'] },
-  { path: '/admin/products', role: 'admin', tab: 'admin_products_master', aliases: ['/admin/products/master', '/admin/catalogue', '/admin/catalog', '/admin/master-data'], title: 'Master Data Configuration & Catalogue Matrix', crumbs: ['UltraBlue+', 'Master Data Config', 'Product Master'] },
-  { path: '/admin/products/categories', role: 'admin', tab: 'admin_products_categories', aliases: ['/admin/categories'], title: 'Product Categories & Industry Classifications', crumbs: ['UltraBlue+', 'Master Data Config', 'Product Categories'] },
-  { path: '/admin/products/packsizes', role: 'admin', tab: 'admin_products_packsizes', aliases: ['/admin/packsizes', '/admin/pack-sizes'], title: 'Master Pack Sizes & Packaging Variants', crumbs: ['UltraBlue+', 'Master Data Config', 'Pack Sizes & Variants'] },
-  { path: '/admin/products/compliance', role: 'admin', tab: 'admin_products_compliance', aliases: ['/admin/compliance', '/admin/standards'], title: 'ISO 22241 & BIS Quality Compliance', crumbs: ['UltraBlue+', 'Master Data Config', 'ISO / BIS Compliance'] },
-  { path: '/admin/products/territories', role: 'admin', tab: 'admin_products_territories', aliases: ['/admin/territories', '/admin/regions'], title: 'Master States & Regional Territories (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'States & Territories'] },
-  { path: '/admin/products/depots', role: 'admin', tab: 'admin_products_depots', aliases: ['/admin/depots-config', '/admin/stations'], title: 'Master Dispensing Depots & Hub Stations (DB)', crumbs: ['UltraBlue+', 'Master Data Config', 'Depots & Stations'] },
-  { path: '/admin/pricing', role: 'admin', tab: 'admin_prices', aliases: ['/admin/prices', '/admin/pricing-engine'], title: 'Pricing Engine & Wholesale Matrix', crumbs: ['UltraBlue+', 'Admin', 'Pricing Engine'] },
-  { path: '/admin/offers', role: 'admin', tab: 'admin_offers', aliases: ['/admin/promotions', '/admin/deals'], title: 'Offers, Promotions & Broadcast Deals', crumbs: ['UltraBlue+', 'Admin', 'Offers & Promotions'] },
-  { path: '/admin/distributors', role: 'admin', tab: 'admin_distributors', aliases: ['/admin/partners', '/admin/b2b'], title: 'Authorized B2B Distributor Accounts & KYC', crumbs: ['UltraBlue+', 'Admin', 'Distributor Accounts'] },
-  { path: '/admin/operators', role: 'admin', tab: 'admin_operators', aliases: ['/admin/staff', '/admin/users'], title: 'Plant & Depot Sales Operator Terminals', crumbs: ['UltraBlue+', 'Admin', 'Sales Operators'] },
-  { path: '/admin/inventory', role: 'admin', tab: 'admin_inventory', aliases: ['/admin/stock', '/admin/depots'], title: 'Multi-Hub Depot Inventory & Batch Allocations', crumbs: ['UltraBlue+', 'Admin', 'Inventory & Refills'] },
-  { path: '/admin/sales', role: 'admin', tab: 'admin_sales', aliases: ['/admin/invoices', '/admin/billing', '/admin/pos-invoices'], title: 'Direct Sales & POS Invoices Register', crumbs: ['UltraBlue+', 'Admin', 'Sales & POS Invoices'] },
-  { path: '/admin/enquiries', role: 'admin', tab: 'admin_inquiries', aliases: ['/admin/inquiries', '/admin/leads'], title: 'Commercial Customer Enquiries & Bulk Leads', crumbs: ['UltraBlue+', 'Admin', 'Customer Enquiries'] },
-  { path: '/admin/reports', role: 'admin', tab: 'admin_reports', aliases: ['/admin/analytics', '/admin/stats'], title: 'Reports, Analytics & Financial Intelligence', crumbs: ['UltraBlue+', 'Admin', 'Reports & Analytics'] },
-  { path: '/admin/settings', role: 'admin', tab: 'admin_settings', aliases: ['/admin/config', '/admin/platform-settings'], title: 'Ayush Green Energy Enterprise Settings', crumbs: ['UltraBlue+', 'Admin', 'Platform Settings'] },
+  { path: '/admin', role: 'admin', tab: 'admin_dashboard', exact: true, title: 'Master Plant & Operations Dashboard', crumbs: [] },
+  { path: '/admin/dashboard', role: 'admin', tab: 'admin_dashboard', title: 'Master Plant & Operations Dashboard', crumbs: [] },
+  { path: '/admin/products', role: 'admin', tab: 'admin_products_master', aliases: ['/admin/products/master', '/admin/catalogue', '/admin/catalog', '/admin/master-data'], title: 'Master Data Configuration & Catalogue Matrix', crumbs: [] },
+  { path: '/admin/products/categories', role: 'admin', tab: 'admin_products_categories', aliases: ['/admin/categories'], title: 'Product Categories & Industry Classifications', crumbs: [] },
+  { path: '/admin/products/packsizes', role: 'admin', tab: 'admin_products_packsizes', aliases: ['/admin/packsizes', '/admin/pack-sizes'], title: 'Master Pack Sizes & Packaging Variants', crumbs: [] },
+  { path: '/admin/products/compliance', role: 'admin', tab: 'admin_products_compliance', aliases: ['/admin/compliance', '/admin/standards'], title: 'ISO 22241 & BIS Quality Compliance', crumbs: [] },
+  { path: '/admin/products/territories', role: 'admin', tab: 'admin_products_territories', aliases: ['/admin/territories', '/admin/regions'], title: 'Master States & Regional Territories (DB)', crumbs: [] },
+  { path: '/admin/products/depots', role: 'admin', tab: 'admin_products_depots', aliases: ['/admin/depots-config', '/admin/stations'], title: 'Master Dispensing Depots & Hub Stations (DB)', crumbs: [] },
+  { path: '/admin/pricing', role: 'admin', tab: 'admin_prices', aliases: ['/admin/prices', '/admin/pricing-engine'], title: 'Pricing Engine & Wholesale Matrix', crumbs: [] },
+  { path: '/admin/offers', role: 'admin', tab: 'admin_offers', aliases: ['/admin/promotions', '/admin/deals'], title: 'Offers, Promotions & Broadcast Deals', crumbs: [] },
+  { path: '/admin/distributors', role: 'admin', tab: 'admin_distributors', aliases: ['/admin/partners', '/admin/b2b'], title: 'Authorized B2B Distributor Accounts & KYC', crumbs: [] },
+  { path: '/admin/operators', role: 'admin', tab: 'admin_operators', aliases: ['/admin/staff', '/admin/users'], title: 'Plant & Depot Sales Operator Terminals', crumbs: [] },
+  { path: '/admin/inventory', role: 'admin', tab: 'admin_inventory', aliases: ['/admin/stock', '/admin/depots'], title: 'Multi-Hub Depot Inventory & Batch Allocations', crumbs: [] },
+  { path: '/admin/sales', role: 'admin', tab: 'admin_sales', aliases: ['/admin/invoices', '/admin/billing', '/admin/pos-invoices'], title: 'Direct Sales & POS Invoices Register', crumbs: [] },
+  { path: '/admin/enquiries', role: 'admin', tab: 'admin_inquiries', aliases: ['/admin/inquiries', '/admin/leads'], title: 'Commercial Customer Enquiries & Bulk Leads', crumbs: [] },
+  { path: '/admin/reports', role: 'admin', tab: 'admin_reports', aliases: ['/admin/analytics', '/admin/stats'], title: 'Reports, Analytics & Financial Intelligence', crumbs: [] },
+  { path: '/admin/settings', role: 'admin', tab: 'admin_settings', aliases: ['/admin/config', '/admin/platform-settings'], title: 'Ayush Green Energy Enterprise Settings', crumbs: [] },
 
   // Distributor Routes
   { path: '/distributor', role: 'distributor', tab: 'dist_dashboard', exact: true, title: 'B2B Distributor Operations Portal', crumbs: [] },
@@ -44,24 +44,24 @@ export const ROUTES = [
   { path: '/distributor/ledger', role: 'distributor', tab: 'dist_ledger', aliases: ['/distributor/statement', '/distributor/credit'], title: 'Credit Ledger & Statement', crumbs: [] },
 
   // Sales Operator / POS Routes
-  { path: '/operator', role: 'operator', tab: 'pos_billing', exact: true, title: 'Sales Operator Direct Billing Terminal', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Fast POS Billing'] },
-  { path: '/operator/pos', role: 'operator', tab: 'pos_billing', aliases: ['/pos', '/operator/billing'], title: 'Sales Operator Direct Billing Terminal', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Fast POS Billing'] },
-  { path: '/operator/stock', role: 'operator', tab: 'stock_check', aliases: ['/operator/inventory'], title: 'Live Depot Stock Verification', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Live Stock Check'] },
-  { path: '/operator/sales', role: 'operator', tab: 'sales_history', aliases: ['/operator/invoices', '/operator/history'], title: 'POS Invoices & Dispensing Records', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Invoice Records'] },
-  { path: '/operator/shift', role: 'operator', tab: 'shift_summary', aliases: ['/operator/summary'], title: 'Shift Summary & Cash Collection', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Shift Summary'] },
+  { path: '/operator', role: 'operator', tab: 'pos_billing', exact: true, title: 'Sales Operator Direct Billing Terminal', crumbs: [] },
+  { path: '/operator/pos', role: 'operator', tab: 'pos_billing', aliases: ['/pos', '/operator/billing'], title: 'Sales Operator Direct Billing Terminal', crumbs: [] },
+  { path: '/operator/stock', role: 'operator', tab: 'stock_check', aliases: ['/operator/inventory'], title: 'Live Depot Stock Verification', crumbs: [] },
+  { path: '/operator/sales', role: 'operator', tab: 'sales_history', aliases: ['/operator/invoices', '/operator/history'], title: 'POS Invoices & Dispensing Records', crumbs: [] },
+  { path: '/operator/shift', role: 'operator', tab: 'shift_summary', aliases: ['/operator/summary'], title: 'Shift Summary & Cash Collection', crumbs: [] },
 
   // Design System Routes
-  { path: '/design-system', role: 'design_system', tab: 'ds_preview', exact: true, title: 'UltraBlue+ Master Design System & Token Architecture', crumbs: ['UltraBlue+', 'Design System & Tokens', 'Master Preview'] },
-  { path: '/design-system/preview', role: 'design_system', tab: 'ds_preview', aliases: ['/tokens'], title: 'Master Design System & Section 45 Preview', crumbs: ['UltraBlue+', 'Design System', 'Preview'] },
-  { path: '/design-system/colors', role: 'design_system', tab: 'ds_colors', title: 'Color Tokens & 60/30/10 Ratio Architecture', crumbs: ['UltraBlue+', 'Design System', 'Color Tokens'] },
-  { path: '/design-system/components', role: 'design_system', tab: 'ds_components', title: 'Standardized Component Primitives & UI Atoms', crumbs: ['UltraBlue+', 'Design System', 'Component Primitives'] },
-  { path: '/design-system/feedback', role: 'design_system', tab: 'ds_feedback', title: 'Feedback, Skeleton & Error State Guidelines', crumbs: ['UltraBlue+', 'Design System', 'Feedback States'] },
+  { path: '/design-system', role: 'design_system', tab: 'ds_preview', exact: true, title: 'UltraBlue+ Master Design System & Token Architecture', crumbs: [] },
+  { path: '/design-system/preview', role: 'design_system', tab: 'ds_preview', aliases: ['/tokens'], title: 'Master Design System & Section 45 Preview', crumbs: [] },
+  { path: '/design-system/colors', role: 'design_system', tab: 'ds_colors', title: 'Color Tokens & 60/30/10 Ratio Architecture', crumbs: [] },
+  { path: '/design-system/components', role: 'design_system', tab: 'ds_components', title: 'Standardized Component Primitives & UI Atoms', crumbs: [] },
+  { path: '/design-system/feedback', role: 'design_system', tab: 'ds_feedback', title: 'Feedback, Skeleton & Error State Guidelines', crumbs: [] },
 
   // Login
-  { path: '/login', role: 'login', tab: 'login', aliases: ['/signin', '/register', '/auth'], title: 'Enterprise Security Portal Login', crumbs: ['UltraBlue+', 'Enterprise Security', 'JWT Login'] },
+  { path: '/login', role: 'login', tab: 'login', aliases: ['/signin', '/register', '/auth'], title: 'Enterprise Security Portal Login', crumbs: [] },
 
   // Public Website
-  { path: '/', role: 'public', tab: 'public_home', aliases: ['/home', '/index.html'], title: 'UltraBlue+ Genuine DEF & Industrial Lubricants', crumbs: ['UltraBlue+', 'Ayush Green Energy', 'Public Portal'] }
+  { path: '/', role: 'public', tab: 'public_home', aliases: ['/home', '/index.html'], title: 'UltraBlue+ Genuine DEF & Industrial Lubricants', crumbs: [] }
 ];
 
 export const matchRoute = (pathname) => {
@@ -151,7 +151,7 @@ export function App() {
     if (isProtectedRoute(rawRoute) && !user) {
       try {
         sessionStorage.setItem('ub_redirect_after_login', window.location.pathname);
-      } catch (e) {}
+      } catch (e) { }
       window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
       return matchRoute('/login');
     }
@@ -191,7 +191,7 @@ export function App() {
           return targetRoute.role;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return ROLES.DISTRIBUTOR;
   };
 
@@ -241,7 +241,7 @@ export function App() {
         if (!user) {
           try {
             sessionStorage.setItem('ub_redirect_after_login', window.location.pathname);
-          } catch (e) {}
+          } catch (e) { }
           window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
           setCurrentRole('login');
           setActiveTab('login');
@@ -280,7 +280,7 @@ export function App() {
       if (!user) {
         try {
           sessionStorage.setItem('ub_redirect_after_login', route.path);
-        } catch (e) {}
+        } catch (e) { }
         window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
         setCurrentRole('login');
         setActiveTab('login');
@@ -330,7 +330,7 @@ export function App() {
           targetRoute = candidate;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     if (targetRoute) {
       setActiveTab(targetRoute.tab);
@@ -347,7 +347,7 @@ export function App() {
     setAuthUser(null);
     try {
       sessionStorage.removeItem('ub_redirect_after_login');
-    } catch (e) {}
+    } catch (e) { }
     window.history.pushState({ role: 'public', tab: 'public_home' }, '', '/');
     setCurrentRole('public');
     setActiveTab('public_home');
@@ -380,15 +380,15 @@ export function App() {
         <PublicWebsite
           onLoginClick={() => handleRoleChange('login')}
           onDistributorLoginClick={() => {
-            try { sessionStorage.setItem('ub_redirect_after_login', '/distributor/dashboard'); } catch (e) {}
+            try { sessionStorage.setItem('ub_redirect_after_login', '/distributor/dashboard'); } catch (e) { }
             handleRoleChange('login');
           }}
           onOperatorLoginClick={() => {
-            try { sessionStorage.setItem('ub_redirect_after_login', '/operator/pos'); } catch (e) {}
+            try { sessionStorage.setItem('ub_redirect_after_login', '/operator/pos'); } catch (e) { }
             handleRoleChange('login');
           }}
           onAdminLoginClick={() => {
-            try { sessionStorage.setItem('ub_redirect_after_login', '/admin/dashboard'); } catch (e) {}
+            try { sessionStorage.setItem('ub_redirect_after_login', '/admin/dashboard'); } catch (e) { }
             handleRoleChange('login');
           }}
         />
