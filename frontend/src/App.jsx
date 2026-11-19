@@ -35,12 +35,13 @@ export const ROUTES = [
   { path: '/admin/settings', role: 'admin', tab: 'admin_settings', aliases: ['/admin/config', '/admin/platform-settings'], title: 'Ayush Green Energy Enterprise Settings', crumbs: ['UltraBlue+', 'Admin', 'Platform Settings'] },
 
   // Distributor Routes
-  { path: '/distributor', role: 'distributor', tab: 'dist_dashboard', exact: true, title: 'B2B Distributor Operations Portal', crumbs: ['UltraBlue+', 'B2B Distributor Portal', 'Dashboard'] },
-  { path: '/distributor/dashboard', role: 'distributor', tab: 'dist_dashboard', title: 'B2B Distributor Operations Portal', crumbs: ['UltraBlue+', 'Distributor Portal', 'B2B Dashboard'] },
-  { path: '/distributor/catalog', role: 'distributor', tab: 'dist_catalog', aliases: ['/distributor/catalogue', '/distributor/products'], title: 'Distributor Wholesale Price Catalogue', crumbs: ['UltraBlue+', 'Distributor Portal', 'Price Catalogue'] },
-  { path: '/distributor/pricelist', role: 'distributor', tab: 'dist_pricelist', aliases: ['/distributor/prices'], title: 'Download Official GST Price List', crumbs: ['UltraBlue+', 'Distributor Portal', 'Price List Download'] },
-  { path: '/distributor/orders', role: 'distributor', tab: 'dist_orders', aliases: ['/distributor/history', '/distributor/inquiries'], title: 'Order Placement & Purchase History', crumbs: ['UltraBlue+', 'Distributor Portal', 'Order & Enquiry History'] },
-  { path: '/distributor/kyc', role: 'distributor', tab: 'dist_kyc', aliases: ['/distributor/profile'], title: 'Distributor Profile & KYC Compliance', crumbs: ['UltraBlue+', 'Distributor Portal', 'Profile & KYC'] },
+  { path: '/distributor', role: 'distributor', tab: 'dist_dashboard', exact: true, title: 'B2B Distributor Operations Portal', crumbs: [] },
+  { path: '/distributor/dashboard', role: 'distributor', tab: 'dist_dashboard', title: 'B2B Distributor Operations Portal', crumbs: [] },
+  { path: '/distributor/catalog', role: 'distributor', tab: 'dist_catalog', aliases: ['/distributor/catalogue', '/distributor/products'], title: 'Products', crumbs: [] },
+  { path: '/distributor/pricelist', role: 'distributor', tab: 'dist_pricelist', aliases: ['/distributor/prices'], title: 'Download Official GST Price List', crumbs: [] },
+  { path: '/distributor/orders', role: 'distributor', tab: 'dist_orders', aliases: ['/distributor/history', '/distributor/inquiries'], title: 'Order Placement & Purchase History', crumbs: [] },
+  { path: '/distributor/kyc', role: 'distributor', tab: 'dist_kyc', aliases: ['/distributor/profile'], title: 'Distributor Profile & KYC Compliance', crumbs: [] },
+  { path: '/distributor/ledger', role: 'distributor', tab: 'dist_ledger', aliases: ['/distributor/statement', '/distributor/credit'], title: 'Credit Ledger & Statement', crumbs: [] },
 
   // Sales Operator / POS Routes
   { path: '/operator', role: 'operator', tab: 'pos_billing', exact: true, title: 'Sales Operator Direct Billing Terminal', crumbs: ['UltraBlue+', 'Sales Operator POS', 'Fast POS Billing'] },
@@ -185,7 +186,7 @@ export function App() {
   const handleRoleChange = (newRole, updateUrl = true) => {
     let defaultTab = 'public_home';
     if (newRole === ROLES.ADMIN) defaultTab = 'admin_dashboard';
-    else if (newRole === ROLES.DISTRIBUTOR) defaultTab = 'dist_catalog';
+    else if (newRole === ROLES.DISTRIBUTOR) defaultTab = 'dist_dashboard';
     else if (newRole === ROLES.OPERATOR) defaultTab = 'pos_billing';
     else if (newRole === 'design_system') defaultTab = 'ds_preview';
     else if (newRole === 'login') defaultTab = 'login';

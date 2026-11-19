@@ -23,7 +23,8 @@ import {
   CreditCard,
   Search,
   AlertCircle,
-  Loader2
+  Loader2,
+  LayoutDashboard
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { KPICard } from '../components/ui/KPICard';
@@ -51,8 +52,10 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
     if (externalTab === 'dist_orders') return 'orders';
     if (externalTab === 'dist_pricelist') return 'pricelist';
     if (externalTab === 'dist_kyc') return 'kyc';
+    if (externalTab === 'dist_ledger') return 'ledger';
+    if (externalTab === 'dist_catalog') return 'catalog';
     if (externalTab === 'dist_dashboard') return 'dashboard';
-    return 'catalog';
+    return 'dashboard';
   });
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -301,6 +304,10 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       if (externalTab === 'dist_orders') setCurrentTab('orders');
       else if (externalTab === 'dist_pricelist') setCurrentTab('pricelist');
       else if (externalTab === 'dist_kyc') setCurrentTab('kyc');
+      else if (externalTab === 'dist_ledger') {
+        setCurrentTab('ledger');
+        loadCreditLedger();
+      }
       else if (externalTab === 'dist_dashboard') setCurrentTab('dashboard');
       else setCurrentTab('catalog');
     }
@@ -312,6 +319,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       if (tabId === 'orders') onTabChange('dist_orders');
       else if (tabId === 'pricelist') onTabChange('dist_pricelist');
       else if (tabId === 'kyc') onTabChange('dist_kyc');
+      else if (tabId === 'ledger') onTabChange('dist_ledger');
       else if (tabId === 'dashboard') onTabChange('dist_dashboard');
       else onTabChange('dist_catalog');
     }
@@ -327,6 +335,8 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       } else if (currentTab === 'kyc') {
         const distData = await DistributorAPI.getAll().catch(() => []);
         setDistributors(distData || []);
+      } else if (currentTab === 'ledger') {
+        await loadCreditLedger();
       } else {
         // dashboard
         const [distData, prods] = await Promise.all([
@@ -428,14 +438,6 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           <Button variant="primary" icon={Download} onClick={handleDownloadPriceList}>
             Download B2B Price List
           </Button>
-          <Button variant="secondary" icon={UserPlus} onClick={() => {
-            setGstSearchResult(null);
-            setGstSearchError('');
-            setIsGstSearching(false);
-            setIsSignupModalOpen(true);
-          }}>
-            New Distributor Sign-up
-          </Button>
         </div>
       </div>
 
@@ -446,45 +448,23 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         </div>
       )}
 
-      {/* KPI Overview */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
-        <KPICard
-          title="Wholesale Pricing"
-          value="B2B Base Rates"
-          subtext="Applied automatically at checkout"
-          icon={Sparkles}
-        />
-        <KPICard
-          title="Orders & Requisitions"
-          value={`${distributorOrders.length} Records`}
-          subtext="Lifetime B2B purchases"
-          icon={ShoppingCart}
-        />
-        <KPICard
-          title="Available Credit Limit"
-          value={currentDistributor.availableCredit}
-          subtext={`Credit Limit: ${currentDistributor.creditLimit}`}
-          icon={Building}
-          iconColor="var(--brand-cyan)"
-        />
-        <KPICard
-          title="Outstanding Credit Debt"
-          value={currentDistributor.outstandingCredit}
-          subtext="30-Day Revolving Terms"
-          icon={CreditCard}
-          iconColor={currentDistributor.rawOutstandingCredit > 0 ? "var(--status-danger)" : "var(--status-success)"}
-        />
-      </div>
-
       {/* Navigation Sub-tabs */}
       <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-medium)', paddingBottom: '8px', flexWrap: 'wrap' }}>
         <Button
           size="sm"
+          variant={currentTab === 'dashboard' ? 'primary' : 'secondary'}
+          icon={LayoutDashboard}
+          onClick={() => handleTabSwitch('dashboard')}
+        >
+          B2B Dashboard
+        </Button>
+        <Button
+          size="sm"
           variant={currentTab === 'catalog' ? 'primary' : 'secondary'}
-          icon={Layers}
+          icon={Package}
           onClick={() => handleTabSwitch('catalog')}
         >
-          Wholesale Product Catalogue
+          Products
         </Button>
         <Button
           size="sm"
@@ -524,7 +504,192 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       </div>
 
       {/* ========================================================================= */}
-      {/* Tab 1: Wholesale Product Catalogue */}
+      {/* Tab 0: B2B Dashboard (KPI Overview & Quick Actions - Exclusive to Dashboard) */}
+      {/* ========================================================================= */}
+      {currentTab === 'dashboard' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          {/* KPI Overview */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)' }}>
+            <KPICard
+              title="Wholesale Pricing"
+              value="B2B Base Rates"
+              subtext="Applied automatically at checkout"
+              icon={Sparkles}
+            />
+            <KPICard
+              title="Orders & Requisitions"
+              value={`${distributorOrders.length} Records`}
+              subtext="Lifetime B2B purchases"
+              icon={ShoppingCart}
+            />
+            <KPICard
+              title="Available Credit Limit"
+              value={currentDistributor.availableCredit}
+              subtext={`Credit Limit: ${currentDistributor.creditLimit}`}
+              icon={Building}
+              iconColor="var(--brand-cyan)"
+            />
+            <KPICard
+              title="Outstanding Credit Debt"
+              value={currentDistributor.outstandingCredit}
+              subtext="30-Day Revolving Terms"
+              icon={CreditCard}
+              iconColor={currentDistributor.rawOutstandingCredit > 0 ? "var(--status-danger)" : "var(--status-success)"}
+            />
+          </div>
+
+          {/* Quick Info & Quick Actions Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'var(--space-5)' }}>
+            {/* Account & Credit Status Card */}
+            <div className="ub-card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
+                  Credit & Territory Status
+                </h3>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brand-cyan)', backgroundColor: 'var(--brand-navy-dark)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
+                  Active B2B Tier
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Assigned Territory</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginTop: '2px' }}>{currentDistributor.city}, {currentDistributor.state}</div>
+                </div>
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Revolving Terms</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginTop: '2px', color: 'var(--status-success)' }}>30 Days Net</div>
+                </div>
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>GST Status</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginTop: '2px' }}>Verified Active</div>
+                </div>
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Person</div>
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginTop: '2px' }}>{currentDistributor.contactPerson || 'Authorized Officer'}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                <Button size="sm" variant="secondary" icon={CreditCard} onClick={() => { handleTabSwitch('ledger'); loadCreditLedger(); }}>
+                  Credit Statement
+                </Button>
+                <Button size="sm" variant="secondary" icon={ShieldCheck} onClick={() => handleTabSwitch('kyc')}>
+                  KYC Profile
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Actions Card */}
+            <div className="ub-card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
+                Distributor Quick Actions
+              </h3>
+              <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                Access wholesale product catalogue, download official rate sheets, and submit stock requisitions.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                <Button size="sm" variant="primary" icon={Package} onClick={() => handleTabSwitch('catalog')}>
+                  View Products
+                </Button>
+                <Button size="sm" variant="secondary" icon={Plus} onClick={() => setIsOrderModalOpen(true)}>
+                  New Requisition
+                </Button>
+                <Button size="sm" variant="gold" icon={Download} onClick={handleDownloadPriceList}>
+                  Download CSV Matrix
+                </Button>
+                <Button size="sm" variant="secondary" icon={FileCheck2} onClick={() => handleTabSwitch('pricelist')}>
+                  Price Schedule
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Orders Overview */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--brand-navy-primary)' }}>
+                  Recent Orders & Requisitions
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Latest supply dispatch requests and billing confirmations.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button size="sm" variant="secondary" icon={RefreshCw} onClick={fetchMyOrders}>
+                  Refresh
+                </Button>
+                <Button size="sm" variant="secondary" icon={FileText} onClick={() => handleTabSwitch('orders')}>
+                  View All Orders ({distributorOrders.length})
+                </Button>
+              </div>
+            </div>
+
+            <DataTable
+              data={distributorOrders.slice(0, 5)}
+              emptyMessage="No recent orders. Click 'New Requisition' to place a wholesale order."
+              columns={[
+                { 
+                  header: 'Order / Requisition ID', 
+                  accessor: 'id', 
+                  render: (val) => <strong style={{ color: 'var(--brand-blue)', fontFamily: 'monospace' }}>{val}</strong> 
+                },
+                { header: 'Order Date', accessor: 'date' },
+                { 
+                  header: 'Items & Packaging', 
+                  accessor: 'item',
+                  render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>
+                },
+                { 
+                  header: 'Estimated Value', 
+                  accessor: 'total', 
+                  render: (val) => <strong style={{ color: 'var(--brand-blue)' }}>{val}</strong> 
+                },
+                { 
+                  header: 'Status', 
+                  accessor: 'status', 
+                  render: (val, row) => {
+                    const s = row.rawStatus || val;
+                    let bg = 'rgba(234, 179, 8, 0.15)';
+                    let color = '#EAB308';
+                    let border = 'rgba(234, 179, 8, 0.3)';
+                    let label = val;
+
+                    if (s === 'APPROVED') {
+                      bg = 'rgba(6, 182, 212, 0.15)';
+                      color = '#06B6D4';
+                      border = 'rgba(6, 182, 212, 0.3)';
+                      label = 'APPROVED';
+                    } else if (s === 'CONVERTED_TO_INVOICE' || s === 'PAID') {
+                      bg = 'rgba(34, 197, 94, 0.15)';
+                      color = '#22C55E';
+                      border = 'rgba(34, 197, 94, 0.3)';
+                      label = 'BILLED & DISPATCHED';
+                    }
+
+                    return (
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 800, 
+                        padding: '4px 8px', 
+                        borderRadius: '4px', 
+                        backgroundColor: bg, 
+                        color: color, 
+                        border: `1px solid ${border}`,
+                        display: 'inline-block' 
+                      }}>
+                        {label}
+                      </span>
+                    );
+                  }
+                }
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* Tab 1: Products */}
       {/* ========================================================================= */}
       {currentTab === 'catalog' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

@@ -125,14 +125,16 @@ export const AppHeader = ({
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div className="header-breadcrumbs" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
-            {breadcrumbs.map((crumb, idx) => (
-              <React.Fragment key={idx}>
-                <span>{crumb}</span>
-                {idx < breadcrumbs.length - 1 && <span>/</span>}
-              </React.Fragment>
-            ))}
-          </div>
+          {currentRole !== ROLES.DISTRIBUTOR && breadcrumbs && breadcrumbs.length > 0 && (
+            <div className="header-breadcrumbs" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+              {breadcrumbs.map((crumb, idx) => (
+                <React.Fragment key={idx}>
+                  <span>{crumb}</span>
+                  {idx < breadcrumbs.length - 1 && <span>/</span>}
+                </React.Fragment>
+              ))}
+            </div>
+          )}
           <h1 className="header-page-title" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--brand-navy-primary)', margin: 0, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {title}
           </h1>

@@ -26,7 +26,8 @@ import {
   Building2,
   Database,
   MapPin,
-  X
+  X,
+  CreditCard
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { COMPANY_INFO } from '../../config/companyInfo';
@@ -63,10 +64,11 @@ export const AppSidebar = ({
       case ROLES.DISTRIBUTOR:
         return [
           { id: 'dist_dashboard', label: 'B2B Dashboard', icon: LayoutDashboard },
-          { id: 'dist_catalog', label: 'Price Catalogue', icon: Package },
+          { id: 'dist_catalog', label: 'Products', icon: Package },
           { id: 'dist_pricelist', label: 'Download Price List', icon: FileCheck2 },
           { id: 'dist_orders', label: 'Order & Enquiry History', icon: ShoppingCart },
-          { id: 'dist_kyc', label: 'Distributor Profile / KYC', icon: Shield }
+          { id: 'dist_kyc', label: 'Distributor Profile / KYC', icon: Shield },
+          { id: 'dist_ledger', label: 'Credit Ledger & Statement', icon: CreditCard }
         ];
 
       case 'design_system':
@@ -181,7 +183,6 @@ export const AppSidebar = ({
             <span style={{ color: 'var(--brand-cyan)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {currentRole.replace('_', ' ')}
             </span>
-            <span style={{ color: '#94A3B8', fontSize: '10px' }}>v2.4 Enterprise</span>
           </div>
         )}
 
