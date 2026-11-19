@@ -89,7 +89,7 @@ export const JWT_AUTH = {
   }
 };
 
-export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
+export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES.DISTRIBUTOR }) => {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('ub_theme');
     return saved ? saved === 'dark' : true;
@@ -99,7 +99,13 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite }) => {
   const [authMode, setAuthMode] = useState('login');
 
   // Fixed Platform Roles: Admin, Sales Operator, Distributor
-  const [selectedRole, setSelectedRole] = useState(ROLES.DISTRIBUTOR);
+  const [selectedRole, setSelectedRole] = useState(() => initialRole || ROLES.DISTRIBUTOR);
+
+  React.useEffect(() => {
+    if (initialRole) {
+      setSelectedRole(initialRole);
+    }
+  }, [initialRole]);
 
   // Login Form State
   const [email, setEmail] = useState('');

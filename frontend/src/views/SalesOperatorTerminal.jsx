@@ -229,6 +229,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   };
 
   const loadData = async () => {
+    if (!authUser) return;
     try {
       setLoading(true);
       if (currentTab === 'pos_billing') {
@@ -281,8 +282,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   };
 
   useEffect(() => {
-    loadData();
-  }, [currentTab]);
+    if (authUser) {
+      loadData();
+    }
+  }, [currentTab, authUser]);
 
   const locationInventory = inventory.filter(i => {
     if (selectedLocation) {
@@ -696,6 +699,10 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     item.productName.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
     item.sku.toLowerCase().includes(stockSearchQuery.toLowerCase())
   );
+
+  if (!authUser) {
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

@@ -326,6 +326,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   };
 
   const loadData = async () => {
+    if (!authUser) return;
     try {
       if (currentTab === 'catalog' || currentTab === 'pricelist') {
         const prods = await ProductAPI.getAll().catch(() => []);
@@ -353,7 +354,9 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   };
 
   useEffect(() => {
-    loadData();
+    if (authUser) {
+      loadData();
+    }
   }, [currentTab, authUser]);
 
   const handleOrderClick = (product, pack) => {
@@ -401,6 +404,10 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
       label: `${p.name} (${pk.size}) — Wholesale ₹ ${pk.distributorPrice} (MRP ₹ ${pk.mrp})`
     }))
   );
+
+  if (!authUser) {
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

@@ -108,18 +108,92 @@ export const getRouteForTab = (tabKey, role = null) => {
   return ROUTES[0];
 };
 
+// Helper to check if a route requires an authenticated user
+export const isProtectedRoute = (route) => {
+  if (!route) return false;
+  return route.role === ROLES.ADMIN || route.role === ROLES.OPERATOR || route.role === ROLES.DISTRIBUTOR;
+};
+
+// Helper to check if an authenticated user is authorized for a specific route
+export const isAuthorizedForRoute = (user, route) => {
+  if (!isProtectedRoute(route)) return true;
+  if (!user) return false;
+  // Admin has full access to supervise all platform portals
+  if (user.role === ROLES.ADMIN) return true;
+  // Operator can only access operator routes
+  if (user.role === ROLES.OPERATOR) return route.role === ROLES.OPERATOR;
+  // Distributor can only access distributor routes
+  if (user.role === ROLES.DISTRIBUTOR) return route.role === ROLES.DISTRIBUTOR;
+  return false;
+};
+
+// Helper to resolve safe default route for a user role
+export const getDefaultRouteForRole = (role) => {
+  if (role === ROLES.ADMIN) return getRouteForTab('admin_dashboard', ROLES.ADMIN);
+  if (role === ROLES.OPERATOR) return getRouteForTab('pos_billing', ROLES.OPERATOR);
+  if (role === ROLES.DISTRIBUTOR) return getRouteForTab('dist_dashboard', ROLES.DISTRIBUTOR);
+  return matchRoute('/');
+};
+
 export function App() {
-  const initialRoute = matchRoute(window.location.pathname);
+  const [authUser, setAuthUser] = useState(() => {
+    const session = JWT_AUTH.getSession();
+    return session ? session.user : null;
+  });
+
+  // Calculate safe initial route ensuring protected routes require valid authentication
+  const getResolvedInitialRoute = () => {
+    const rawRoute = matchRoute(window.location.pathname);
+    const session = JWT_AUTH.getSession();
+    const user = session ? session.user : null;
+
+    // 1. If accessing a protected route without being logged in -> REDIRECT TO /login
+    if (isProtectedRoute(rawRoute) && !user) {
+      try {
+        sessionStorage.setItem('ub_redirect_after_login', window.location.pathname);
+      } catch (e) {}
+      window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
+      return matchRoute('/login');
+    }
+
+    // 2. If logged in but attempting to access an unauthorized route -> redirect to authorized portal
+    if (isProtectedRoute(rawRoute) && user && !isAuthorizedForRoute(user, rawRoute)) {
+      const fallback = getDefaultRouteForRole(user.role);
+      window.history.replaceState({ role: fallback.role, tab: fallback.tab }, '', fallback.path);
+      return fallback;
+    }
+
+    // 3. If logged in and directly visiting /login -> redirect to authorized portal
+    if (rawRoute.role === 'login' && user) {
+      const fallback = getDefaultRouteForRole(user.role);
+      window.history.replaceState({ role: fallback.role, tab: fallback.tab }, '', fallback.path);
+      return fallback;
+    }
+
+    return rawRoute;
+  };
+
+  const initialRoute = getResolvedInitialRoute();
   const [currentRole, setCurrentRole] = useState(initialRoute.role);
   const [activeTab, setActiveTab] = useState(initialRoute.tab);
   const [currentRouteInfo, setCurrentRouteInfo] = useState(initialRoute);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [authUser, setAuthUser] = useState(() => {
-    const session = JWT_AUTH.getSession();
-    return session ? session.user : null;
-  });
+
+  // Extract intended role for login screen if redirected from a specific portal
+  const getLoginTargetRole = () => {
+    try {
+      const savedPath = sessionStorage.getItem('ub_redirect_after_login');
+      if (savedPath) {
+        const targetRoute = matchRoute(savedPath);
+        if (targetRoute?.role && targetRoute.role !== 'login' && targetRoute.role !== 'public') {
+          return targetRoute.role;
+        }
+      }
+    } catch (e) {}
+    return ROLES.DISTRIBUTOR;
+  };
 
   // Synchronize route metadata whenever role or tab changes
   useEffect(() => {
@@ -156,10 +230,37 @@ export function App() {
     }
   }, []);
 
-  // Handle browser Back & Forward buttons (PopState)
+  // Handle browser Back & Forward buttons (PopState) with strict route protection
   useEffect(() => {
     const onPopState = () => {
       const route = matchRoute(window.location.pathname);
+      const session = JWT_AUTH.getSession();
+      const user = session ? session.user : null;
+
+      if (isProtectedRoute(route)) {
+        if (!user) {
+          try {
+            sessionStorage.setItem('ub_redirect_after_login', window.location.pathname);
+          } catch (e) {}
+          window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
+          setCurrentRole('login');
+          setActiveTab('login');
+          setCurrentRouteInfo(matchRoute('/login'));
+          setIsMobileSidebarOpen(false);
+          return;
+        }
+
+        if (!isAuthorizedForRoute(user, route)) {
+          const fallback = getDefaultRouteForRole(user.role);
+          window.history.replaceState({ role: fallback.role, tab: fallback.tab }, '', fallback.path);
+          setCurrentRole(fallback.role);
+          setActiveTab(fallback.tab);
+          setCurrentRouteInfo(fallback);
+          setIsMobileSidebarOpen(false);
+          return;
+        }
+      }
+
       setCurrentRole(route.role);
       setActiveTab(route.tab);
       setCurrentRouteInfo(route);
@@ -169,9 +270,30 @@ export function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // Switch tab with instant URL pushState update
+  // Switch tab with instant URL pushState update and route protection
   const handleTabChange = (newTab, updateUrl = true) => {
     const route = getRouteForTab(newTab);
+    const session = JWT_AUTH.getSession();
+    const user = session ? session.user : authUser;
+
+    if (isProtectedRoute(route)) {
+      if (!user) {
+        try {
+          sessionStorage.setItem('ub_redirect_after_login', route.path);
+        } catch (e) {}
+        window.history.replaceState({ role: 'login', tab: 'login' }, '', '/login');
+        setCurrentRole('login');
+        setActiveTab('login');
+        setCurrentRouteInfo(matchRoute('/login'));
+        setIsMobileSidebarOpen(false);
+        return;
+      }
+
+      if (!isAuthorizedForRoute(user, route)) {
+        return; // Prevent unauthorized role escalation
+      }
+    }
+
     setActiveTab(route.tab);
     setCurrentRole(route.role);
     setCurrentRouteInfo(route);
@@ -195,10 +317,41 @@ export function App() {
     handleTabChange(defaultTab, updateUrl);
   };
 
+  const handleLoginSuccess = (role, user) => {
+    setAuthUser(user);
+
+    let targetRoute = null;
+    try {
+      const savedPath = sessionStorage.getItem('ub_redirect_after_login');
+      if (savedPath) {
+        sessionStorage.removeItem('ub_redirect_after_login');
+        const candidate = matchRoute(savedPath);
+        if (candidate && isAuthorizedForRoute(user, candidate)) {
+          targetRoute = candidate;
+        }
+      }
+    } catch (e) {}
+
+    if (targetRoute) {
+      setActiveTab(targetRoute.tab);
+      setCurrentRole(targetRoute.role);
+      setCurrentRouteInfo(targetRoute);
+      window.history.replaceState({ role: targetRoute.role, tab: targetRoute.tab }, '', targetRoute.path);
+    } else {
+      handleRoleChange(role);
+    }
+  };
+
   const handleLogout = () => {
     JWT_AUTH.clearSession();
     setAuthUser(null);
-    handleRoleChange('public');
+    try {
+      sessionStorage.removeItem('ub_redirect_after_login');
+    } catch (e) {}
+    window.history.pushState({ role: 'public', tab: 'public_home' }, '', '/');
+    setCurrentRole('public');
+    setActiveTab('public_home');
+    setCurrentRouteInfo(matchRoute('/'));
   };
 
   const getBreadcrumbs = () => {
@@ -213,11 +366,9 @@ export function App() {
   if (currentRole === 'login') {
     return (
       <LoginPage
-        onLoginSuccess={(role, user) => {
-          setAuthUser(user);
-          handleRoleChange(role);
-        }}
+        onLoginSuccess={handleLoginSuccess}
         onBackToWebsite={() => handleRoleChange('public')}
+        initialRole={getLoginTargetRole()}
       />
     );
   }
@@ -228,11 +379,31 @@ export function App() {
       <div className="public-site-wrapper" style={{ minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
         <PublicWebsite
           onLoginClick={() => handleRoleChange('login')}
-          onDistributorLoginClick={() => handleRoleChange('login')}
-          onOperatorLoginClick={() => handleRoleChange('login')}
-          onAdminLoginClick={() => handleRoleChange('login')}
+          onDistributorLoginClick={() => {
+            try { sessionStorage.setItem('ub_redirect_after_login', '/distributor/dashboard'); } catch (e) {}
+            handleRoleChange('login');
+          }}
+          onOperatorLoginClick={() => {
+            try { sessionStorage.setItem('ub_redirect_after_login', '/operator/pos'); } catch (e) {}
+            handleRoleChange('login');
+          }}
+          onAdminLoginClick={() => {
+            try { sessionStorage.setItem('ub_redirect_after_login', '/admin/dashboard'); } catch (e) {}
+            handleRoleChange('login');
+          }}
         />
       </div>
+    );
+  }
+
+  // 3. Fallback Security Guard: If accessing any protected route without authentication, redirect to LoginPage
+  if (isProtectedRoute(currentRouteInfo) && !authUser) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onBackToWebsite={() => handleRoleChange('public')}
+        initialRole={getLoginTargetRole()}
+      />
     );
   }
 

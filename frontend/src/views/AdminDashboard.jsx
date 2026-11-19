@@ -198,6 +198,7 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
 
   // Fetch ONLY the required API data when navigating to a specific menu route
   useEffect(() => {
+    if (!authUser) return;
     switch (currentTab) {
       case 'products':
       case 'products_master':
@@ -418,6 +419,10 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
         );
     }
   };
+
+  if (!authUser) {
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
