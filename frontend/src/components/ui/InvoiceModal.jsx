@@ -276,7 +276,7 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--status-success)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
             <CheckCircle2 size={16} />
-            Stock successfully decremented & SMS dispatched
+            Invoice Generated successfully
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <Button variant="secondary" size="sm" icon={Printer} onClick={handlePrint}>
