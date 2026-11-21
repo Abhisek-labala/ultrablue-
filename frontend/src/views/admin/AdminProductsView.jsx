@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Package,
   Plus,
@@ -17,6 +17,10 @@ import {
   ShoppingBag,
   Upload,
   X,
+  GripVertical,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
   Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -58,6 +62,18 @@ export const AdminProductsView = ({
   onShowToast,
   onNavigateToPricing
 }) => {
+  const [localProducts, setLocalProducts] = useState(() => {
+    return [...products].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  });
+
+  useEffect(() => {
+    setLocalProducts([...products].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)));
+  }, [products]);
+
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -173,15 +189,101 @@ export const AdminProductsView = ({
 
   // Filter products by category and search
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    return localProducts.filter(p => {
       const matchCat = selectedCategory === 'ALL' || (p.category || '').toUpperCase() === selectedCategory.toUpperCase();
       const matchSearch = !searchQuery ||
         (p.name && p.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.capacity && p.capacity.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.bestFor && p.bestFor.toLowerCase().includes(searchQuery.toLowerCase()));
+        (p.capacity && p.capacity.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchCat && matchSearch;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [localProducts, selectedCategory, searchQuery]);
+
+  // Drag and Drop & Sequence Reordering Handlers
+  const handleDragStart = (e, idx) => {
+    setDraggedIdx(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  };
+
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIdx !== idx) {
+      setDragOverIdx(idx);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const handleDrop = async (e, toIdx) => {
+    e.preventDefault();
+    const fromIdx = draggedIdx;
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+
+    if (fromIdx === null || fromIdx === toIdx) return;
+
+    const reordered = [...localProducts];
+    const [movedItem] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, movedItem);
+
+    const updated = reordered.map((item, index) => ({
+      ...item,
+      sortOrder: index + 1
+    }));
+
+    setLocalProducts(updated);
+    setIsSavingOrder(true);
+
+    try {
+      const itemsPayload = updated.map((item, index) => ({
+        id: item.id,
+        sort_order: index + 1
+      }));
+      await ProductAPI.reorder(itemsPayload);
+      onShowToast && onShowToast('Storefront sequence updated successfully!', 'success');
+      onRefresh && onRefresh();
+    } catch (err) {
+      console.error('Failed to reorder products:', err);
+      onShowToast && onShowToast('Failed to save sequence.', 'error');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const moveProduct = async (fromIdx, delta) => {
+    const toIdx = fromIdx + delta;
+    if (toIdx < 0 || toIdx >= localProducts.length) return;
+
+    const reordered = [...localProducts];
+    const [movedItem] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, movedItem);
+
+    const updated = reordered.map((item, index) => ({
+      ...item,
+      sortOrder: index + 1
+    }));
+
+    setLocalProducts(updated);
+    setIsSavingOrder(true);
+
+    try {
+      const itemsPayload = updated.map((item, index) => ({
+        id: item.id,
+        sort_order: index + 1
+      }));
+      await ProductAPI.reorder(itemsPayload);
+      onShowToast && onShowToast('Storefront sequence updated!', 'success');
+      onRefresh && onRefresh();
+    } catch (err) {
+      console.error('Failed to reorder products:', err);
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
 
   // Open Create Modal
   const handleOpenCreate = () => {
@@ -435,7 +537,32 @@ export const AdminProductsView = ({
         </div>
       </div>
 
-      {/* Products Grid (Identical Layout to the Website Cards) */}
+      {/* Sequence Drag & Drop Notice */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '10px',
+        backgroundColor: 'rgba(0, 200, 245, 0.08)',
+        border: '1px solid rgba(0, 200, 245, 0.25)',
+        borderRadius: '12px',
+        padding: '10px 16px',
+        fontSize: '12px',
+        color: 'var(--brand-cyan)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <GripVertical size={16} />
+          <span>
+            <strong>Storefront Sequence Control:</strong> Drag and drop any product card (or use the ‹ › buttons) to reorder. The exact same sequence is mirrored on the Website and Distributor Portal.
+          </span>
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+          Only <strong>Published</strong> products appear on the Website and Distributor Portal.
+        </span>
+      </div>
+
+      {/* Products Grid */}
       {filteredProducts.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -461,40 +588,121 @@ export const AdminProductsView = ({
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: '24px'
         }}>
-          {filteredProducts.map(prod => {
+          {filteredProducts.map((prod, idx) => {
             const isLive = prod.isActive !== false;
             const features = Array.isArray(prod.features) ? prod.features : [];
+            const isBeingDragged = draggedIdx === idx;
+            const isOverTarget = dragOverIdx === idx;
+            const isDragActive = selectedCategory === 'ALL' && !searchQuery;
 
             return (
               <div
                 key={prod.id}
+                draggable={isDragActive}
+                onDragStart={(e) => isDragActive && handleDragStart(e, idx)}
+                onDragOver={(e) => isDragActive && handleDragOver(e, idx)}
+                onDragEnd={handleDragEnd}
+                onDrop={(e) => isDragActive && handleDrop(e, idx)}
                 style={{
                   backgroundColor: 'var(--bg-surface)',
                   borderRadius: '22px',
-                  border: isLive ? '1px solid var(--border-color)' : '1px dashed rgba(239, 68, 68, 0.4)',
+                  border: isOverTarget 
+                    ? '2px solid var(--brand-cyan)' 
+                    : isLive 
+                      ? '1px solid var(--border-color)' 
+                      : '1px dashed rgba(239, 68, 68, 0.4)',
                   padding: '24px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+                  boxShadow: isOverTarget 
+                    ? '0 12px 30px rgba(0, 200, 245, 0.25)' 
+                    : '0 8px 24px rgba(0, 0, 0, 0.25)',
                   position: 'relative',
-                  opacity: isLive ? 1 : 0.75,
-                  transition: 'transform 0.2s ease, border-color 0.2s ease'
+                  opacity: isBeingDragged ? 0.35 : (isLive ? 1 : 0.75),
+                  transform: isOverTarget ? 'scale(1.02)' : 'none',
+                  transition: 'transform 0.2s ease, border-color 0.2s ease, opacity 0.2s ease',
+                  cursor: isDragActive ? 'grab' : 'default'
                 }}
               >
                 <div>
-                  {/* Card Header: Badge & Status Switch */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <span style={{
-                      backgroundColor: 'rgba(0, 200, 245, 0.15)',
-                      color: 'var(--brand-cyan)',
-                      padding: '4px 12px',
-                      borderRadius: '50px',
-                      fontSize: '11px',
-                      fontWeight: 900
-                    }}>
-                      {prod.badge || 'Storefront'}
-                    </span>
+                  {/* Card Header: Drag Grip, Sequence #, Badge & Status Switch */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {/* Drag Handle & Sequence Badge */}
+                      <div
+                        title={isDragActive ? "Drag card to change storefront sequence" : "Sequence number"}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '3px 8px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          cursor: isDragActive ? 'grab' : 'default',
+                          color: 'var(--text-muted)'
+                        }}
+                      >
+                        <GripVertical size={13} />
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-cyan)' }}>
+                          #{idx + 1}
+                        </span>
+                      </div>
+
+                      {/* Quick Move Previous / Next Buttons */}
+                      {isDragActive && (
+                        <div style={{ display: 'flex', gap: '2px' }}>
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={(e) => { e.stopPropagation(); moveProduct(idx, -1); }}
+                            title="Move earlier in sequence"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '4px',
+                              color: idx === 0 ? 'rgba(255,255,255,0.2)' : 'var(--text-muted)',
+                              cursor: idx === 0 ? 'default' : 'pointer',
+                              padding: '2px 4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <ChevronLeft size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === localProducts.length - 1}
+                            onClick={(e) => { e.stopPropagation(); moveProduct(idx, 1); }}
+                            title="Move later in sequence"
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              borderRadius: '4px',
+                              color: idx === localProducts.length - 1 ? 'rgba(255,255,255,0.2)' : 'var(--text-muted)',
+                              cursor: idx === localProducts.length - 1 ? 'default' : 'pointer',
+                              padding: '2px 4px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <ChevronRight size={13} />
+                          </button>
+                        </div>
+                      )}
+
+                      <span style={{
+                        backgroundColor: 'rgba(0, 200, 245, 0.15)',
+                        color: 'var(--brand-cyan)',
+                        padding: '3px 10px',
+                        borderRadius: '50px',
+                        fontSize: '11px',
+                        fontWeight: 900
+                      }}>
+                        {prod.badge || 'Storefront'}
+                      </span>
+                    </div>
 
                     {/* Published on Website Status Switch */}
                     <button
@@ -550,7 +758,7 @@ export const AdminProductsView = ({
                   <h3 style={{ fontSize: '19px', fontWeight: 900, color: 'var(--text-heading)', margin: '0 0 4px 0' }}>
                     {prod.name}
                   </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                     <span style={{ fontSize: '13px', color: 'var(--brand-cyan)', fontWeight: 800 }}>
                       Capacity: {prod.capacity || 'Standard'}
                     </span>
@@ -564,11 +772,6 @@ export const AdminProductsView = ({
                     }}>
                       {(prod.category || 'DEF').toUpperCase()}
                     </span>
-                  </div>
-
-                  {/* Recommended For */}
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5, minHeight: '36px' }}>
-                    <strong style={{ color: 'var(--text-body)' }}>Recommended:</strong> {prod.bestFor || prod.description || 'All standard commercial fleet operations'}
                   </div>
 
                   {/* Bullet points features list */}
@@ -732,30 +935,6 @@ export const AdminProductsView = ({
                   placeholder="e.g. Most Popular • Fleet Choice, LCV & Emergency"
                   value={formData.badge}
                   onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                />
-              </div>
-
-              {/* Recommended Audience / Best For */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-body)', marginBottom: '6px' }}>
-                  Recommended Use / Best For
-                </label>
-                <textarea
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-app)',
-                    color: 'var(--text-heading)',
-                    fontSize: '13px',
-                    resize: 'vertical',
-                    boxSizing: 'border-box'
-                  }}
-                  placeholder="e.g. Medium & Heavy Commercial Vehicles (M&HCV), Highway Fleets, Retail"
-                  value={formData.bestFor}
-                  onChange={(e) => setFormData({ ...formData, bestFor: e.target.value })}
                 />
               </div>
 
@@ -1123,12 +1302,8 @@ export const AdminProductsView = ({
                   <h3 style={{ fontSize: '20px', fontWeight: 900, color: '#FFFFFF', marginBottom: '4px' }}>
                     {formData.name || 'Product Title'}
                   </h3>
-                  <div style={{ fontSize: '13px', color: 'var(--brand-cyan)', fontWeight: 800, marginBottom: '12px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--brand-cyan)', fontWeight: 800, marginBottom: '16px' }}>
                     Capacity: {formData.capacity || 'Volume'}
-                  </div>
-
-                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '16px', lineHeight: 1.5 }}>
-                    <strong style={{ color: '#E2E8F0' }}>Recommended:</strong> {formData.bestFor || 'Target application'}
                   </div>
 
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', marginBottom: '18px' }}>

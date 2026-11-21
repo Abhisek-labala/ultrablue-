@@ -17,7 +17,7 @@ export const ProductAPI = {
       const res = await fetch(`${API_BASE_URL}/products`, { headers });
       const json = await res.json();
       if (!json.data || !Array.isArray(json.data)) return [];
-      return json.data.map(p => ({
+      const list = json.data.map(p => ({
         id: p.id,
         name: p.name,
         category: p.category || p.category_name || 'DEF',
@@ -49,8 +49,23 @@ export const ProductAPI = {
           isPopular: Boolean(v.is_popular)
         })) : []
       }));
+      return list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     } catch {
       return [];
+    }
+  },
+
+  reorder: async (items) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/reorder`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ items })
+      });
+      return await res.json();
+    } catch (err) {
+      console.error('Failed to reorder products:', err);
+      return { success: false };
     }
   },
 

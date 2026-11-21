@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Building, 
   Download, 
@@ -29,6 +29,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { KPICard } from '../components/ui/KPICard';
 import { ProductCard } from '../components/ui/ProductCard';
+import { ProductDetailModal } from '../components/ui/ProductDetailModal';
 import { DataTable } from '../components/ui/DataTable';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Modal } from '../components/ui/Modal';
@@ -61,6 +62,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [activeInvoiceModal, setActiveInvoiceModal] = useState(null);
+  const [activeQuickViewProduct, setActiveQuickViewProduct] = useState(null);
   const [selectedProductForOrder, setSelectedProductForOrder] = useState(null);
   const [selectedPackSku, setSelectedPackSku] = useState('');
   const [orderQuantity, setOrderQuantity] = useState(20);
@@ -365,8 +367,15 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
     setIsOrderModalOpen(true);
   };
 
+  // Only published products visible to distributors, strictly maintaining sequence
+  const publishedProducts = useMemo(() => {
+    return (products || [])
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [products]);
+
   const handleDownloadPriceList = () => {
-    const priceListData = products.flatMap(prod => 
+    const priceListData = publishedProducts.flatMap(prod => 
       (prod.packOptions || []).map(pack => ({
         Product: prod.name,
         Category: prod.category,
@@ -397,8 +406,8 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
     }
   };
 
-  // Product Pack options list for Order Modal
-  const allPackOptions = products.flatMap(p => 
+  // Product Pack options list for Order Modal (only published products)
+  const allPackOptions = publishedProducts.flatMap(p => 
     (p.packOptions || []).map(pk => ({
       value: pk.sku,
       label: `${p.name} (${pk.size}) — Wholesale ₹ ${pk.distributorPrice} (MRP ₹ ${pk.mrp})`
@@ -712,12 +721,13 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-6)' }}>
-            {products.map(product => (
+            {publishedProducts.map(product => (
               <ProductCard
                 key={product.id}
                 product={product}
                 isDistributorView={true}
                 onOrderClick={handleOrderClick}
+                onQuickViewClick={(prod) => setActiveQuickViewProduct(prod)}
               />
             ))}
           </div>
@@ -740,7 +750,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
 
           <DataTable
             title="Complete Live SKU Matrix"
-            data={products.flatMap(prod => 
+            data={publishedProducts.flatMap(prod => 
               (prod.packOptions || []).map(pack => ({
                 product: prod.name,
                 category: prod.category,
@@ -1046,7 +1056,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
             <Button 
               variant="primary" 
               onClick={async () => {
-                const selectedPack = products.flatMap(p => p.packOptions || []).find(pk => pk.sku === selectedPackSku);
+                const selectedPack = publishedProducts.flatMap(p => p.packOptions || []).find(pk => pk.sku === selectedPackSku);
                 const unitPrice = selectedPack ? parseFloat(selectedPack.distributorPrice || selectedPack.mrp || 0) : 0;
                 const effectiveSku = selectedPackSku || (allPackOptions[0]?.value || '');
 
@@ -1243,6 +1253,17 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
         isOpen={Boolean(activeInvoiceModal)}
         onClose={() => setActiveInvoiceModal(null)}
         invoice={activeInvoiceModal}
+      />
+
+      {/* Product Quick Specs Detail Modal */}
+      <ProductDetailModal
+        isOpen={Boolean(activeQuickViewProduct)}
+        onClose={() => setActiveQuickViewProduct(null)}
+        product={activeQuickViewProduct}
+        onApplyRfq={(prod) => {
+          setActiveQuickViewProduct(null);
+          handleOrderClick(prod);
+        }}
       />
     </div>
   );

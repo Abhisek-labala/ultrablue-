@@ -112,6 +112,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
   // Dynamic packaging options driven 100% directly by backend products database
   const packagingOptions = (products || [])
     .filter(p => p.isActive !== false)
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
     .map(p => ({
       id: p.id,
       category: (p.category || 'DEF').toUpperCase(),
@@ -1153,12 +1154,8 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
                       >
                         {pack.name}
                       </h3>
-                      <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '12px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '14px' }}>
                         Capacity: {pack.capacity}
-                      </div>
-
-                      <div style={{ fontSize: '12px', color: themeStyles.textMuted, marginBottom: '16px', lineHeight: 1.5, minHeight: '36px' }}>
-                        <strong>Recommended:</strong> {pack.bestFor}
                       </div>
 
                       {/* Key Features from DB */}

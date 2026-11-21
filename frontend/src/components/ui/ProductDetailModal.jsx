@@ -182,9 +182,6 @@ export const ProductDetailModal = ({
                 <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#FFFFFF', margin: '0 0 6px 0', lineHeight: 1.25 }}>
                   {product.name}
                 </h2>
-                <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.5, margin: 0 }}>
-                  {product.bestFor || product.description}
-                </p>
               </div>
 
               {/* Live DB Pricing Box */}

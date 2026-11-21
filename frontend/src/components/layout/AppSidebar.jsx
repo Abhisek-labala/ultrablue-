@@ -380,27 +380,6 @@ export const AppSidebar = ({
           </div>
         </nav>
 
-        {/* Footer info in Sidebar */}
-        {!isCollapsed && (
-          <div
-            style={{
-              padding: '12px 16px',
-              borderTop: '1px solid var(--brand-navy-border)',
-              backgroundColor: 'var(--brand-navy-dark)',
-              fontSize: '11px',
-              color: 'var(--text-on-dark-secondary)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand-cyan)', marginBottom: '3px' }}>
-              <ShieldCheck size={14} />
-              <span style={{ fontWeight: 700 }}>ISO 22241 & BIS Certified</span>
-            </div>
-            <strong style={{ color: '#E2E8F0', display: 'block', fontSize: '10px' }}>
-              Ayush Green Energy • Bhadrak
-            </strong>
-          </div>
-        )}
-
         {/* Sidebar Collapse Toggle Button */}
         <div
           style={{

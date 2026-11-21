@@ -118,26 +118,32 @@ export const ProductCard = ({
       <div 
         style={{
           position: 'relative',
-          height: '180px',
+          height: '190px',
           width: '100%',
-          backgroundColor: '#040E22',
+          backgroundColor: 'rgba(5, 17, 38, 0.7)',
           overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '10px',
+          boxSizing: 'border-box',
           cursor: 'pointer'
         }}
         onClick={() => onQuickViewClick?.(product, currentPack)}
       >
         <img 
-          src={product.imageUrl || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80'} 
+          src={product.imageUrl || '/images/def_bucket_20l.jpg'} 
           alt={product.name}
           style={{
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
+            objectFit: 'contain',
+            borderRadius: '8px',
             transition: 'transform 0.3s ease'
           }}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80';
+            e.target.src = '/images/def_bucket_20l.jpg';
           }}
         />
 
@@ -157,7 +163,8 @@ export const ProductCard = ({
               boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px'
+              gap: '4px',
+              zIndex: 2
             }}
           >
             <Sparkles size={11} />
@@ -180,7 +187,8 @@ export const ProductCard = ({
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
-            border: '1px solid rgba(0, 200, 245, 0.3)'
+            border: '1px solid rgba(0, 200, 245, 0.3)',
+            zIndex: 2
           }}
         >
           <Eye size={12} />
@@ -196,7 +204,7 @@ export const ProductCard = ({
             fontSize: '16px', 
             fontWeight: 700, 
             color: 'var(--text-primary)',
-            marginBottom: '6px',
+            marginBottom: '12px',
             lineHeight: 1.3,
             cursor: 'pointer'
           }}
@@ -204,10 +212,6 @@ export const ProductCard = ({
         >
           {product.name}
         </h3>
-
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4, height: '34px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-          {product.description}
-        </p>
 
         {/* Technical Highlights Bar */}
         <div 
