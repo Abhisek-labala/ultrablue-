@@ -26,6 +26,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { KPICard } from '../../components/ui/KPICard';
 import { Logo } from '../../components/ui/Logo';
+import { toast } from '../../context/ToastContext';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -283,7 +284,11 @@ export const AdminReportsAnalyticsView = ({
       if (onShowToast) onShowToast('Executive Analytics Report PDF downloaded successfully!');
     } catch (err) {
       console.error('PDF report export error:', err);
-      alert('Could not export PDF report.');
+      if (onShowToast) {
+        onShowToast('Could not export PDF report.', 'error');
+      } else {
+        toast.error('Could not export PDF report.');
+      }
     } finally {
       setIsExportingPdf(false);
     }

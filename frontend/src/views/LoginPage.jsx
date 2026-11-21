@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { AuthAPI, GstAPI } from '../services/api';
 import { ROLES, ROLE_LABELS } from '../config/roles';
+import { toast } from '../context/ToastContext';
 
 // JWT Helper utility to generate, decode and verify tokens
 export const JWT_AUTH = {
@@ -136,7 +137,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
   const handleGstLookup = async (gstinToQuery) => {
     const rawGstin = String(gstinToQuery || regForm.gstin || '').trim().toUpperCase();
     if (!rawGstin || rawGstin.length !== 15) {
-      setGstSearchError('GSTIN must be 15 characters (e.g. 21AABCU9603R1ZM).');
+      const msg = 'GSTIN must be 15 characters (e.g. 21AABCU9603R1ZM).';
+      setGstSearchError(msg);
+      toast.warning(msg);
       return;
     }
     setGstSearchError('');
@@ -162,10 +165,13 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
           pincode: res.data?.pincode || '',
           gstStatus: res.data?.status || 'Active'
         }));
+        toast.success(`GSTIN verified: ${autoCompanyName || rawGstin}`);
       }
     } catch (err) {
       setGstSearchResult(null);
-      setGstSearchError(err.message || 'GST verification failed.');
+      const msg = err.message || 'GST verification failed.';
+      setGstSearchError(msg);
+      toast.error(msg);
     } finally {
       setIsGstSearching(false);
     }
@@ -230,7 +236,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
       }, 700);
 
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      const msg = err.message || 'Authentication failed. Please verify your credentials.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -296,7 +304,9 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
       }, 800);
 
     } catch (err) {
-      setError(err.message || 'Registration failed. Please check the fields and try again.');
+      const msg = err.message || 'Registration failed. Please check the fields and try again.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -677,7 +687,7 @@ export const LoginPage = ({ onLoginSuccess, onBackToWebsite, initialRole = ROLES
                   href="#forgot"
                   onClick={(e) => {
                     e.preventDefault();
-                    alert(`Password reset link for ${email} has been dispatched by Ayush Green Energy IT admin.`);
+                    toast.info(`Password reset instructions for ${email || 'your registered email'} dispatched by Ayush Green Energy IT admin.`);
                   }}
                   style={{ color: 'var(--brand-cyan)', textDecoration: 'none', fontWeight: 600 }}
                 >

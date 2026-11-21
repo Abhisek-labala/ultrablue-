@@ -23,6 +23,7 @@ import { AdminSalesInvoicesView } from './admin/AdminSalesInvoicesView';
 import { AdminCustomerEnquiriesView } from './admin/AdminCustomerEnquiriesView';
 import { AdminReportsAnalyticsView } from './admin/AdminReportsAnalyticsView';
 import { AdminSettingsView } from './admin/AdminSettingsView';
+import { toast } from '../context/ToastContext';
 
 const COMPANY_INFO = {
   name: 'AYUSH GREEN ENERGY',
@@ -36,7 +37,6 @@ const COMPANY_INFO = {
 
 export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabChange }) => {
   const [loading, setLoading] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
 
   // Core Data Collections
   const [inventory, setInventory] = useState([]);
@@ -49,9 +49,17 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
   const [locations, setLocations] = useState([]);
   const [reportSummary, setReportSummary] = useState(null);
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
+  const showToast = (msg, type = 'info') => {
+    if (!msg) return;
+    if (type === 'error' || /failed|error|cannot|invalid|not found|denied|reject/i.test(msg)) {
+      toast.error(msg);
+    } else if (type === 'success' || /success|saved|created|updated|exported|verified|added|approved/i.test(msg)) {
+      toast.success(msg);
+    } else if (type === 'warning' || /warning|caution|limit/i.test(msg)) {
+      toast.warning(msg);
+    } else {
+      toast.info(msg);
+    }
   };
 
   // Targeted API Fetchers - Call only what is needed per active view
@@ -426,14 +434,6 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div style={{ backgroundColor: '#040D1E', color: '#FFFFFF', padding: '12px 20px', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--brand-cyan)', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: 'var(--shadow-lg)' }}>
-          <Sparkles size={18} color="var(--brand-cyan)" />
-          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{toastMsg}</span>
-        </div>
-      )}
-
       {/* RENDER DEDICATED COMPONENT */}
       {renderActiveView()}
     </div>

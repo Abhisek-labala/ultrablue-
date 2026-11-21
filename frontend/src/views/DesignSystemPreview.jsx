@@ -25,6 +25,7 @@ import { Modal } from '../components/ui/Modal';
 import { ProductCard } from '../components/ui/ProductCard';
 import { SkeletonLoader, EmptyState, ErrorBanner } from '../components/ui/FeedbackStates';
 import { ProductAPI, InventoryAPI } from '../services/api';
+import { toast } from '../context/ToastContext';
 
 export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) => {
   const [activeSection, setActiveSection] = useState(() => {
@@ -407,8 +408,8 @@ export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) =
                 key={product.id}
                 product={product}
                 isDistributorView={false}
-                onOrderClick={() => alert(`Order clicked for ${product.name}`)}
-                onInquireClick={() => alert(`Inquiry initiated for ${product.name}`)}
+                onOrderClick={() => toast.info(`Order clicked for ${product.name}`)}
+                onInquireClick={() => toast.info(`Inquiry initiated for ${product.name}`)}
               />
             ))}
           </div>
@@ -425,13 +426,13 @@ export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) =
             <ErrorBanner 
               title="PostgreSQL Inventory Sync Warning"
               message="Depot Central offline cache active. Transactions are queued for automatic synchronization."
-              onRetry={() => alert('Retrying sync...')}
+              onRetry={() => toast.info('Retrying sync...')}
             />
             <EmptyState
               title="No Pending Orders"
               description="All B2B distributor dispatch orders for this cycle have been packed and invoiced."
               actionLabel="Create Dispatch Order"
-              onActionClick={() => alert('New dispatch order modal')}
+              onActionClick={() => toast.info('New dispatch order modal')}
             />
             <SkeletonLoader type="card" count={2} />
           </div>
@@ -448,7 +449,7 @@ export const DesignSystemPreview = ({ activeTab = 'ds_preview', onTabChange }) =
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={() => { alert('Stock refilled successfully!'); setIsModalOpen(false); }}>
+            <Button variant="primary" onClick={() => { toast.success('Stock refilled successfully!'); setIsModalOpen(false); }}>
               Confirm Refill
             </Button>
           </>

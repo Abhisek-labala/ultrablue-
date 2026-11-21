@@ -43,6 +43,7 @@ import {
   DistributorAPI
 } from '../services/api';
 import { ROLES } from '../config/roles';
+import { toast } from '../context/ToastContext';
 
 export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabChange }) => {
   const [currentTab, setCurrentTab] = useState(() => {
@@ -131,11 +132,13 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   const handleApplyCouponByCode = (codeToApply) => {
     const code = (codeToApply || couponCodeInput).trim().toUpperCase();
     if (!code) {
+      toast.warning('Please enter a coupon code.');
       setCouponError('Please enter a coupon code.');
       return;
     }
     const found = availableCoupons.find(p => (p.promo_code || '').trim().toUpperCase() === code);
     if (!found) {
+      toast.error(`Coupon code "${code}" is not valid or expired.`);
       setCouponError(`Coupon code "${code}" is not valid or expired.`);
       return;
     }
@@ -143,6 +146,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     setDiscountType('coupon');
     setCouponCodeInput('');
     setCouponError('');
+    toast.success(`Coupon code "${code}" applied successfully!`);
   };
 
   const handleRemoveDiscount = () => {
@@ -314,6 +318,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     const availableStock = getStockForSku(pack.sku);
 
     if (availableStock <= 0) {
+      toast.error(`Cannot add ${pack.size}: Item is OUT OF STOCK at this location.`);
       setPosError(`Cannot add ${pack.size}: Item is OUT OF STOCK at this location.`);
       return;
     }
@@ -322,12 +327,14 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     if (existingIndex >= 0) {
       const currentQty = cartItems[existingIndex].qty;
       if (currentQty + 1 > availableStock) {
+        toast.warning(`Cannot increase quantity: Only ${availableStock} units available in stock!`);
         setPosError(`Cannot increase quantity: Only ${availableStock} units available in stock!`);
         return;
       }
       const updated = [...cartItems];
       updated[existingIndex].qty += 1;
       setCartItems(updated);
+      toast.info(`Updated "${product.name} (${pack.size})" quantity to ${updated[existingIndex].qty}`);
     } else {
       const batchItem = locationInventory.find(i => i.sku === pack.sku);
       const currentBatchNo = batchItem?.batchNo || '';
@@ -346,6 +353,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           batchNo: currentBatchNo
         }
       ]);
+      toast.success(`Added "${product.name} (${pack.size})" to billing cart`);
     }
   };
 
@@ -413,6 +421,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
 
     setCartItems(newCart);
     setIsB2BModalOpen(false);
+    toast.success(`Loaded approved B2B Order #${order.orderNumber} for ${order.distributorCompany}!`);
     setPosSuccess(`Loaded approved B2B Order #${order.orderNumber} for ${order.distributorCompany}!`);
   };
 
@@ -446,6 +455,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
 
     const availableStock = getStockForSku(item.sku);
     if (newQty > availableStock) {
+      toast.warning(`Anti-Overbilling Protection: Only ${availableStock} units physically in stock.`);
       setPosError(`Anti-Overbilling Protection: Cannot bill ${newQty} units. Only ${availableStock} units physically in stock.`);
       const updated = [...cartItems];
       updated[index].qty = availableStock;
@@ -555,12 +565,14 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
     setPosSuccess('');
 
     if (cartItems.length === 0) {
+      toast.warning('Cart is empty. Please select at least one product.');
       setPosError('Cart is empty. Please select at least one product.');
       return;
     }
 
     const invalidQtyItem = cartItems.find(i => !i.qty || parseInt(i.qty, 10) <= 0);
     if (invalidQtyItem) {
+      toast.warning(`Please specify a valid quantity for "${invalidQtyItem.name}".`);
       setPosError(`Please specify a valid quantity for "${invalidQtyItem.name}".`);
       return;
     }
@@ -580,13 +592,15 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
       : validatePaymentRef(activeRefMethod, paymentRef);
 
     if (nameErr || phoneErr || vehicleErr || refErr) {
+      const firstErr = nameErr || phoneErr || vehicleErr || refErr;
       setFieldErrors({
         customerName: nameErr,
         customerPhone: phoneErr,
         vehicleNo: vehicleErr,
         paymentRef: refErr
       });
-      setPosError(nameErr || phoneErr || vehicleErr || refErr);
+      toast.error(firstErr);
+      setPosError(firstErr);
       return;
     }
 
@@ -611,10 +625,12 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
       } else if (b2bPaymentMode === 'PART_CREDIT') {
         const inputPaid = parseFloat(partPaymentAmount || 0);
         if (isNaN(inputPaid) || inputPaid <= 0) {
+          toast.warning('Please enter a valid upfront payment amount for partial credit billing.');
           setPosError('Please enter a valid upfront payment amount for partial credit billing.');
           return;
         }
         if (inputPaid >= grandTotal) {
+          toast.warning('Upfront payment is equal to or greater than the grand total. Please choose Direct Cash/UPI for 100% upfront payment.');
           setPosError('Upfront payment is equal to or greater than the grand total. Please choose Direct Cash/UPI for 100% upfront payment.');
           return;
         }
@@ -627,7 +643,9 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
       if (creditAmt > 0 && selectedDistributorOrder) {
         const availableLimit = selectedDistributorOrder.availableCredit != null ? selectedDistributorOrder.availableCredit : 0;
         if (creditAmt > availableLimit) {
-          setPosError(`Credit limit exceeded: Required credit ₹${creditAmt.toLocaleString('en-IN')} exceeds distributor's available limit ₹${availableLimit.toLocaleString('en-IN')}. Please collect an upfront payment of at least ₹${(creditAmt - availableLimit).toLocaleString('en-IN')}.`);
+          const limitMsg = `Credit limit exceeded: Required credit ₹${creditAmt.toLocaleString('en-IN')} exceeds distributor's available limit ₹${availableLimit.toLocaleString('en-IN')}. Please collect an upfront payment of at least ₹${(creditAmt - availableLimit).toLocaleString('en-IN')}.`;
+          toast.error(limitMsg);
+          setPosError(limitMsg);
           return;
         }
       }
@@ -703,10 +721,12 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
         handleRemoveDiscount();
         setFieldErrors({});
         setActiveInvoiceForModal(createdInv);
+        toast.success(`Invoice #${createdInv.id} created successfully! Depot stock decremented and B2B order updated.`);
         setPosSuccess(`Invoice #${createdInv.id} created successfully. Depot stock decremented and B2B order updated!`);
         loadData();
       }
     } catch (err) {
+      toast.error(err.message || 'Error generating invoice on backend.');
       setPosError(err.message || 'Error generating invoice on backend.');
     }
   };
@@ -897,20 +917,6 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           })}
         </div>
       </div>
-
-      {posError && (
-        <div style={{ backgroundColor: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger-text)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AlertTriangle size={18} color="var(--status-danger)" />
-          {posError}
-        </div>
-      )}
-
-      {posSuccess && (
-        <div style={{ backgroundColor: 'var(--status-success-bg)', border: '1px solid var(--status-success-border)', color: 'var(--status-success-text)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CheckCircle2 size={18} color="var(--status-success)" />
-          {posSuccess}
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* TAB 1: FAST SALES POS BILLING (High-Performance Ergonomic Workstation) */}
@@ -1278,6 +1284,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                           handleAddToCart(firstInStock.product, firstInStock.pack);
                           setBillingProductSearch('');
                         } else if (matchingBillingVariants.length > 0) {
+                          toast.error(`"${matchingBillingVariants[0].name}" is currently OUT OF STOCK.`);
                           setPosError(`"${matchingBillingVariants[0].name}" is currently OUT OF STOCK.`);
                         }
                       } else if (e.key === 'Escape') {
@@ -1342,6 +1349,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                                   handleAddToCart(item.product, item.pack);
                                   setBillingProductSearch('');
                                 } else {
+                                  toast.error(`"${item.name}" is OUT OF STOCK at this location.`);
                                   setPosError(`"${item.name}" is OUT OF STOCK at this location.`);
                                 }
                               }}

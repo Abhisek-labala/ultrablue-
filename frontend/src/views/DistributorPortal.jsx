@@ -45,6 +45,7 @@ import {
   exportToCSV,
   API_BASE_URL
 } from '../services/api';
+import { toast } from '../context/ToastContext';
 
 export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChange }) => {
   const [distributors, setDistributors] = useState([]);
@@ -891,7 +892,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
                           window.open(`${API_BASE_URL}/invoices/${row.invoiceNo}/pdf`, '_blank');
                         }
                       } else {
-                        alert(`Requisition #${row.id} status: ${row.status}. Tax invoice PDF will be available immediately after Sales Operator bills and dispatches the order.`);
+                        toast.info(`Requisition #${row.id} status: ${row.status}. Tax invoice PDF will be available immediately after Sales Operator bills and dispatches the order.`);
                       }
                     }}
                   >
@@ -1061,7 +1062,7 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
                 const effectiveSku = selectedPackSku || (allPackOptions[0]?.value || '');
 
                 if (!effectiveSku) {
-                  alert('Please select a valid product pack size before submitting.');
+                  toast.warning('Please select a valid product pack size before submitting.');
                   return;
                 }
 
@@ -1085,11 +1086,13 @@ export const DistributorPortal = ({ authUser, activeTab: externalTab, onTabChang
                   });
 
                   setIsOrderModalOpen(false);
-                  setOrderSuccessMsg(`Requisition #${resp.order_number} submitted successfully! It has been routed to Admin for review & approval.`);
+                  const successMsg = `Requisition #${resp.order_number} submitted successfully! Routed to Admin for approval.`;
+                  toast.success(successMsg);
+                  setOrderSuccessMsg(successMsg);
                   await fetchMyOrders();
                   setTimeout(() => setOrderSuccessMsg(''), 6000);
                 } catch (err) {
-                  alert(err.message || 'Failed to submit dispatch requisition.');
+                  toast.error(err.message || 'Failed to submit dispatch requisition.');
                 }
               }}
             >

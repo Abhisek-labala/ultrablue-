@@ -46,6 +46,7 @@ import { HeroCarouselSection } from '../components/ui/HeroCarouselSection';
 import { OfferNotificationCenter } from '../components/ui/OfferNotificationCenter';
 import { InquiryAPI, ProductAPI, PromotionAPI, ComplianceAPI } from '../services/api';
 import { COMPANY_INFO } from '../config/companyInfo';
+import { toast } from '../context/ToastContext';
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
@@ -383,6 +384,7 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
       setSubmittedInquiryCode(res.inquiry_code || 'INQ-' + Math.floor(1000 + Math.random() * 9000));
       setInquirySuccess(true);
       setFormErrors({});
+      toast.success(`Quote request submitted! Reference Code: ${res.inquiry_code || 'INQ-SUCCESS'}`);
     } catch (err) {
       if (err.errors && typeof err.errors === 'object') {
         // Map backend errors
@@ -392,8 +394,9 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
           mappedErrors[fieldKey] = Array.isArray(msgs) ? msgs[0] : msgs;
         }
         setFormErrors(mappedErrors);
+        toast.error('Please resolve the highlighted validation errors.');
       } else {
-        alert(err.message || 'Error submitting quote inquiry. Please call +91 9853675971 directly.');
+        toast.error(err.message || 'Error submitting quote inquiry. Please call +91 9853675971 directly.');
       }
     } finally {
       setIsSubmittingInquiry(false);

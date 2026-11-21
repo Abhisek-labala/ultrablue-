@@ -9,6 +9,7 @@ import { SalesOperatorTerminal } from './views/SalesOperatorTerminal';
 import { AdminDashboard } from './views/AdminDashboard';
 import { PromotionAPI } from './services/api';
 import { ROLES } from './config/roles';
+import { ToastProvider } from './context/ToastContext';
 import './styles/tokens.css';
 import './styles/base.css';
 
@@ -135,7 +136,7 @@ export const getDefaultRouteForRole = (role) => {
   return matchRoute('/');
 };
 
-export function App() {
+function AppContent() {
   const [authUser, setAuthUser] = useState(() => {
     const session = JWT_AUTH.getSession();
     return session ? session.user : null;
@@ -478,6 +479,14 @@ export function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 
