@@ -33,7 +33,6 @@ export const ROUTES = [
   { path: '/admin/sales', role: 'admin', tab: 'admin_sales', aliases: ['/admin/invoices', '/admin/billing', '/admin/pos-invoices'], title: 'Direct Sales & POS Invoices Register', crumbs: [] },
   { path: '/admin/enquiries', role: 'admin', tab: 'admin_inquiries', aliases: ['/admin/inquiries', '/admin/leads'], title: 'Commercial Customer Enquiries & Bulk Leads', crumbs: [] },
   { path: '/admin/reports', role: 'admin', tab: 'admin_reports', aliases: ['/admin/analytics', '/admin/stats'], title: 'Reports, Analytics & Financial Intelligence', crumbs: [] },
-  { path: '/admin/settings', role: 'admin', tab: 'admin_settings', aliases: ['/admin/config', '/admin/platform-settings'], title: 'Ayush Green Energy Enterprise Settings', crumbs: [] },
 
   // Distributor Routes
   { path: '/distributor', role: 'distributor', tab: 'dist_dashboard', exact: true, title: 'B2B Distributor Operations Portal', crumbs: [] },

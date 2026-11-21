@@ -8,7 +8,6 @@ import {
   FileText,
   BarChart3,
   MessageSquare,
-  Settings,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -91,8 +90,7 @@ export const AppSidebar = ({
           { id: 'admin_inventory', label: 'Inventory & Refills', icon: Warehouse, badge: 'Multi-Depot' },
           { id: 'admin_sales', label: 'Sales & POS Invoices', icon: ShoppingCart },
           { id: 'admin_inquiries', label: 'Customer Enquiries', icon: MessageSquare, badge: 'Leads' },
-          { id: 'admin_reports', label: 'Reports & Analytics', icon: BarChart3 },
-          { id: 'admin_settings', label: 'Platform Settings', icon: Settings }
+          { id: 'admin_reports', label: 'Reports & Analytics', icon: BarChart3 }
         ];
     }
   };

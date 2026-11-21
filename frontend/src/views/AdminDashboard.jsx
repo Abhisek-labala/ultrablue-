@@ -22,7 +22,6 @@ import { AdminOperatorsView } from './admin/AdminOperatorsView';
 import { AdminSalesInvoicesView } from './admin/AdminSalesInvoicesView';
 import { AdminCustomerEnquiriesView } from './admin/AdminCustomerEnquiriesView';
 import { AdminReportsAnalyticsView } from './admin/AdminReportsAnalyticsView';
-import { AdminSettingsView } from './admin/AdminSettingsView';
 import { toast } from '../context/ToastContext';
 
 const COMPANY_INFO = {
@@ -244,9 +243,6 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
       case 'reports':
         fetchReports();
         break;
-      case 'settings':
-        // Static configuration, no remote dataset required
-        break;
       case 'dashboard':
       case 'admin_dashboard':
         fetchDashboardOverview();
@@ -399,14 +395,6 @@ export const AdminDashboard = ({ authUser, activeTab = 'admin_dashboard', onTabC
             exportToCSV={exportToCSV}
             onShowToast={showToast}
             COMPANY_INFO={COMPANY_INFO}
-          />
-        );
-
-      case 'settings':
-        return (
-          <AdminSettingsView
-            COMPANY_INFO={COMPANY_INFO}
-            onShowToast={showToast}
           />
         );
 
