@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "UltraBlue+ Mobile",
+    "slug": "ultrablueplus-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A1A2F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ultrablueplus.mobile",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A1A2F"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A1A2F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A1A2F"
+      },
+      "package": "com.ultrablueplus.mobile",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-sharing"
+    ]
+  }
+}

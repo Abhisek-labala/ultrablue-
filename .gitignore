@@ -21,3 +21,12 @@ backend/database/*.sqlite
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+
+# Mobile Ignored Files (Expo Go)
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/.env.local
+mobile/npm-debug.*
+mobile/*.log
+

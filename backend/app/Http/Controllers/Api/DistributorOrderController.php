@@ -79,7 +79,21 @@ class DistributorOrderController extends Controller
     public function store(Request $request)
     {
         if ($request->filled('distributor_id')) {
-            $profile = DB::table('distributor_profiles')->where('id', $request->input('distributor_id'))->first();
+            $distId = $request->input('distributor_id');
+            $profile = null;
+            if (Str::isUuid($distId)) {
+                $profile = DB::table('distributor_profiles')->where('id', $distId)->first();
+            } else {
+                $user = DB::table('users')->where('id', $distId)->first();
+                if ($user) {
+                    $profile = DB::table('distributor_profiles')
+                        ->where('email', $user->email)
+                        ->orWhere('phone', $user->phone)
+                        ->orWhereRaw('LOWER(company_name) = ?', [strtolower(trim($user->organization ?? ''))])
+                        ->first();
+                }
+            }
+
             if ($profile) {
                 $request->merge([
                     'distributor_name' => $request->input('distributor_name') ?: ($profile->contact_person ?? ''),
@@ -276,14 +290,36 @@ class DistributorOrderController extends Controller
      */
     public function creditLedger($distributorId)
     {
-        $dist = DB::table('distributor_profiles')->where('id', $distributorId)->first();
+        $dist = null;
+        if (Str::isUuid($distributorId)) {
+            $dist = DB::table('distributor_profiles')->where('id', $distributorId)->first();
+        } else {
+            $user = DB::table('users')->where('id', $distributorId)->first();
+            if ($user) {
+                $dist = DB::table('distributor_profiles')
+                    ->where('email', $user->email)
+                    ->orWhere('phone', $user->phone)
+                    ->orWhereRaw('LOWER(company_name) = ?', [strtolower(trim($user->organization ?? ''))])
+                    ->first();
+            }
+        }
+
         if (!$dist) {
-            return response()->json(['success' => false, 'message' => 'Distributor not found.'], 404);
+            // Also try matching by phone suffix
+            $cleanPhone = preg_replace('/\D/', '', (string) $distributorId);
+            if (strlen($cleanPhone) >= 10) {
+                $last10 = substr($cleanPhone, -10);
+                $dist = DB::table('distributor_profiles')->where('phone', 'LIKE', "%{$last10}%")->first();
+            }
+        }
+
+        if (!$dist) {
+            return response()->json(['success' => false, 'message' => 'Distributor profile not found.'], 404);
         }
 
         $transactions = DB::table('distributor_credit_transactions')
             ->leftJoin('invoices', 'distributor_credit_transactions.invoice_id', '=', 'invoices.id')
-            ->where('distributor_credit_transactions.distributor_id', $distributorId)
+            ->where('distributor_credit_transactions.distributor_id', $dist->id)
             ->select(
                 'distributor_credit_transactions.*',
                 'invoices.invoice_number'
