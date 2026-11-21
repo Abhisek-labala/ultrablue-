@@ -31,11 +31,12 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 // Public & Product Endpoints
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/categories', [ProductController::class, 'categories']);
-Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::match(['post', 'put'], '/products/reorder', [ProductController::class, 'reorder']);
+Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 Route::post('/products', [ProductController::class, 'store']);
-Route::put('/products/{id}', [ProductController::class, 'update']);
-Route::patch('/products/{id}/toggle-status', [ProductController::class, 'toggleStatus']);
-Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+Route::put('/products/{id}', [ProductController::class, 'update'])->whereNumber('id');
+Route::patch('/products/{id}/toggle-status', [ProductController::class, 'toggleStatus'])->whereNumber('id');
+Route::delete('/products/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
 Route::post('/upload', [ProductController::class, 'uploadImage']);
 Route::get('/products/image/{filename}', [ProductController::class, 'serveImage']);
 Route::post('/enquiries', [EnquiryController::class, 'store']);

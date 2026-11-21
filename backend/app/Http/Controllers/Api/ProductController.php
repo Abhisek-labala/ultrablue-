@@ -283,6 +283,32 @@ class ProductController extends Controller
         return response()->json(['success' => true, 'message' => 'Product deleted successfully.']);
     }
 
+    public function reorder(Request $request)
+    {
+        $items = $request->input('items', []);
+        if (empty($items) || !is_array($items)) {
+            return response()->json(['success' => false, 'message' => 'No items provided for reordering.'], 400);
+        }
+
+        DB::transaction(function () use ($items) {
+            foreach ($items as $index => $item) {
+                $id = is_array($item) ? ($item['id'] ?? null) : $item;
+                $sortOrder = is_array($item) ? ($item['sort_order'] ?? ($index + 1)) : ($index + 1);
+                if ($id) {
+                    DB::table('products')->where('id', $id)->update([
+                        'sort_order' => (int) $sortOrder,
+                        'updated_at' => now()
+                    ]);
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product sequence reordered successfully.'
+        ]);
+    }
+
     public function uploadImage(Request $request)
     {
         try {

@@ -12,12 +12,12 @@ apt update && apt upgrade -y
 # Install dependencies & software-properties
 apt install -y git curl wget unzip zip lsb-release ca-certificates apt-transport-https software-properties-common
 
-# Add Ondřej Surý PHP PPA for the latest PHP 8.2/8.3
+# Add Ondřej Surý PHP PPA for the latest stable PHP (PHP 8.4)
 add-apt-repository ppa:ondrej/php -y
 apt update
 
-# Install PHP 8.2, PHP-FPM, and essential Laravel extensions
-apt install -y php8.2-fpm php8.2-cli php8.2-pgsql php8.2-mbstring php8.2-xml php8.2-bcmath php8.2-curl php8.2-zip php8.2-intl
+# Install PHP 8.4, PHP-FPM, and essential Laravel extensions (Patched v8.4.28+)
+apt install -y php8.4-fpm php8.4-cli php8.4-pgsql php8.4-mbstring php8.4-xml php8.4-bcmath php8.4-curl php8.4-zip php8.4-intl
 
 # Install Nginx & PostgreSQL
 apt install -y nginx postgresql postgresql-contrib
@@ -110,7 +110,7 @@ server {
 
         location ~ \.php$ {
             include snippets/fastcgi-php.conf;
-            fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+            fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
             fastcgi_param SCRIPT_FILENAME /var/www/ultrablueplus/backend/public/index.php;
             include fastcgi_params;
         }
@@ -139,8 +139,8 @@ rm -f /etc/nginx/sites-enabled/default
 # Test Nginx syntax
 nginx -t
 
-# Restart PHP-FPM and Nginx
-systemctl restart php8.2-fpm
+# Restart PHP-FPM (PHP 8.4) and Nginx
+systemctl restart php8.4-fpm
 systemctl restart nginx
 
 # 1. Allow Nginx / Port 80 & 443 through UFW
