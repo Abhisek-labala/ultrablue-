@@ -7,14 +7,12 @@ import {
   Download,
   CheckCircle2,
   Check,
-  QrCode as QrIcon,
   FileText
 } from 'lucide-react';
 import { COMPANY_INFO } from '../../config/companyInfo';
 import { API_BASE_URL } from '../../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import QRCode from 'qrcode';
 
 // Helper to convert numbers to Indian Rupee Words
 const numberToWords = (num) => {
@@ -141,6 +139,12 @@ export const generateWhatsAppInvoiceMessage = ({
   lines.push(`• Total Taxable Value: ₹${taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
   lines.push(`• Central GST (CGST @ 9%): ₹${cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
   lines.push(`• State GST (SGST @ 9%): ₹${sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const rawBreakdownTotal = (taxable + cgst + sgst);
+  const diffRoundOff = Math.round((grandTotal - rawBreakdownTotal) * 100) / 100;
+  if (Math.abs(diffRoundOff) > 0.001) {
+    const sign = diffRoundOff >= 0 ? '+' : '-';
+    lines.push(`• Round Off: ${sign}₹${Math.abs(diffRoundOff).toFixed(2)}`);
+  }
   lines.push(`*👉 GRAND TOTAL (INR): ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}*`);
   lines.push(`----------------------------------------`);
   lines.push(`✅ *ISO 22241 & IS 17042 Certified Genuine DEF*`);
@@ -157,7 +161,6 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
   const [whatsAppNotice, setWhatsAppNotice] = useState('');
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const companyData = {
     name: COMPANY_INFO.name,
@@ -169,30 +172,6 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
     email: COMPANY_INFO.email || ''
   };
 
-  // Generate dynamic scannable QR code whenever invoice changes
-  useEffect(() => {
-    if (invoice) {
-      const invNo = invoice.invoiceNumber || invoice.invoice_number || invoice.id || '';
-      const grandTotal = (parseFloat(invoice.grandTotal || invoice.grand_total) || 0).toFixed(2);
-      const date = invoice.createdAt || invoice.created_at || invoice.date || '';
-      const cust = invoice.customerName || invoice.customer_name || '';
-      const veh = invoice.vehicleNumber || invoice.vehicle_number || invoice.vehicleNo || '';
-
-      const payload = `ULTRABLUE+ GST TAX INVOICE\nInvoice: ${invNo}\nDate: ${date}\nSeller: ${companyData.name}\nGSTIN: ${companyData.gstin}\nCustomer: ${cust}\nVehicle: ${veh}\nTotal: INR ${grandTotal}\nStatus: VERIFIED & PAID`;
-
-      QRCode.toDataURL(payload, {
-        width: 140,
-        margin: 1,
-        color: {
-          dark: '#002B66',
-          light: '#FFFFFF'
-        }
-      })
-        .then(url => setQrCodeDataUrl(url))
-        .catch(err => console.error('QR code generation failed:', err));
-    }
-  }, [invoice]);
-
   if (!invoice) return null;
 
   const invNo = invoice.invoiceNumber || invoice.invoice_number || invoice.id || '';
@@ -202,6 +181,9 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
   const cgst = parseFloat(invoice.cgst || invoice.cgst_amount || 0);
   const sgst = parseFloat(invoice.sgst || invoice.sgst_amount || 0);
   const grandTotal = parseFloat(invoice.grandTotal || invoice.grand_total || (taxable + cgst + sgst));
+  const roundOff = invoice.roundOff !== undefined
+    ? parseFloat(invoice.roundOff)
+    : (invoice.round_off !== undefined ? parseFloat(invoice.round_off) : Math.round((grandTotal - (taxable + cgst + sgst)) * 100) / 100);
   const dateDisplay = invoice.createdAt || invoice.created_at || invoice.date || '';
   const depotDisplay = invoice.depotName || invoice.location_name || invoice.location || '';
   const operatorDisplay = invoice.operatorName || invoice.operator_name || '';
@@ -676,22 +658,33 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
                 {numberToWords(grandTotal)}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px', backgroundColor: '#F0F9FF', padding: '8px 10px', borderRadius: '6px', border: '1px solid #BAE6FD' }}>
-                {/* Live Scannable QR Code Image */}
-                {qrCodeDataUrl ? (
-                  <img
-                    src={qrCodeDataUrl}
-                    alt="Digital GST Invoice QR"
-                    style={{ width: '64px', height: '64px', borderRadius: '4px', border: '1px solid #0284C7', backgroundColor: '#FFFFFF', flexShrink: 0 }}
-                  />
-                ) : (
-                  <div style={{ width: '64px', height: '64px', backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <QrIcon size={40} color="#0056D2" />
-                  </div>
-                )}
-                <div style={{ fontSize: '10px', color: '#0369A1' }}>
-                  <strong style={{ fontSize: '11px', color: '#0056D2' }}>GST E-Invoice & Batch Seal</strong><br />
-                  Scan QR code on any mobile camera to verify digital authenticity & ISO 22241 batch record.
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginTop: '12px',
+                backgroundColor: '#FFFFFF',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #E2E8F0',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+              }}>
+                <img
+                  src="/images/ayush_green_energy_logo.jpg"
+                  alt="Ayush Green Energy"
+                  style={{
+                    height: '52px',
+                    width: 'auto',
+                    objectFit: 'contain',
+                    borderRadius: '4px',
+                    flexShrink: 0
+                  }}
+                />
+                <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4 }}>
+                  <strong style={{ fontSize: '11.5px', color: '#15803D', display: 'block', marginBottom: '2px' }}>
+                    Ayush Green Energy
+                  </strong>
+                  <span>Manufacturer of Genuine DEF • ISO 22241 &amp; BIS Certified AUS 32 Fleet Solution</span>
                 </div>
               </div>
             </div>
@@ -720,6 +713,14 @@ export const InvoiceModal = ({ isOpen, onClose, invoice }) => {
                 <span style={{ color: '#64748B' }}>State GST (SGST @ 9%):</span>
                 <strong>₹ {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </div>
+              {Math.abs(roundOff) > 0.001 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '11.5px' }}>
+                  <span style={{ color: '#64748B' }}>Round Off:</span>
+                  <strong style={{ color: roundOff >= 0 ? '#16A34A' : '#D97706' }}>
+                    {roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `- ₹ ${Math.abs(roundOff).toFixed(2)}`}
+                  </strong>
+                </div>
+              )}
 
               {/* Grand Total Highlight Badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', backgroundColor: '#0056D2', color: '#FFFFFF', borderRadius: '6px', marginTop: '6px', alignItems: 'center' }}>

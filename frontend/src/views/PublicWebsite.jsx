@@ -33,7 +33,8 @@ import {
   Cpu,
   RefreshCw,
   Gauge,
-  Eye
+  Eye,
+  LayoutGrid
 } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 import { Button } from '../components/ui/Button';
@@ -146,6 +147,9 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     ? packagingOptions
     : packagingOptions.filter(p => (p.category || '').toUpperCase() === activeProductFilter.toUpperCase());
 
+  // Products Display Mode: 'grid' (default: 2 rows of 4 items, up to 8 directly on page) | 'slider' (horizontal carousel for all products)
+  const [productsDisplayMode, setProductsDisplayMode] = useState('grid');
+
   // Product Slider / Auto-Carousel State
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isSliderHovered, setIsSliderHovered] = useState(false);
@@ -166,16 +170,16 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     setCurrentSlide(0);
   }, [activeProductFilter, filteredPackaging.length]);
 
-  // Auto-slide effect every 3.8s (automatically pauses when user hovers over carousel)
+  // Auto-slide effect every 3.8s (only active in slider mode and automatically pauses when user hovers over carousel)
   useEffect(() => {
-    if (isSliderHovered || filteredPackaging.length <= itemsPerView) return;
+    if (productsDisplayMode !== 'slider' || isSliderHovered || filteredPackaging.length <= itemsPerView) return;
 
     const timer = setInterval(() => {
       setCurrentSlide(prev => (prev >= maxSlide ? 0 : prev + 1));
     }, 3800);
 
     return () => clearInterval(timer);
-  }, [isSliderHovered, maxSlide, filteredPackaging.length, itemsPerView]);
+  }, [productsDisplayMode, isSliderHovered, maxSlide, filteredPackaging.length, itemsPerView]);
 
   const handlePrevSlide = () => {
     setCurrentSlide(prev => (prev <= 0 ? maxSlide : prev - 1));
@@ -413,6 +417,235 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     textBody: isDark ? '#CBD5E1' : '#334155',
     textMuted: isDark ? '#94A3B8' : '#64748B',
     borderColor: isDark ? 'rgba(0, 200, 245, 0.22)' : '#E2E8F0',
+  };
+
+  // Shared Packaging Product Card Render Helper (reused across 2-Row Grid and Sliding Carousel)
+  const renderProductCard = (pack, isSlider = false) => {
+    return (
+      <div
+        key={pack.id}
+        className="modern-card-hover"
+        style={{
+          ...(isSlider ? {
+            flex: `0 0 calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
+            minWidth: `calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
+          } : {
+            width: '100%',
+          }),
+          boxSizing: 'border-box',
+          backgroundColor: themeStyles.bgCard,
+          borderRadius: '22px',
+          border: pack.id === '20L' ? '2px solid var(--brand-blue)' : `1px solid ${themeStyles.borderColor}`,
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.4)' : '0 8px 24px rgba(0,0,0,0.06)',
+          position: 'relative'
+        }}
+      >
+        <div>
+          {/* Top Badge & Category */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '8px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                backgroundColor: pack.badge ? 'var(--brand-blue)' : (isDark ? 'rgba(0, 200, 245, 0.15)' : 'rgba(0, 143, 224, 0.08)'),
+                color: pack.badge ? '#FFFFFF' : (isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'),
+                padding: '4px 12px',
+                borderRadius: '50px',
+                fontSize: '11px',
+                fontWeight: 900,
+                letterSpacing: '0.04em'
+              }}
+            >
+              {pack.badge || pack.category}
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-cyan)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {pack.category}
+              </span>
+              <Package size={17} color="var(--brand-cyan)" />
+            </div>
+          </div>
+
+          {/* Branded Product Image Frame */}
+          <div
+            style={{
+              width: '100%',
+              height: '200px',
+              backgroundColor: isDark ? '#051126' : '#F8FAFC',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '18px',
+              border: `1px solid ${themeStyles.borderColor}`,
+              boxSizing: 'border-box',
+              padding: '12px',
+              cursor: 'pointer'
+            }}
+            onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+            title="Click to view full specifications"
+          >
+            <img
+              src={pack.image}
+              alt={pack.name}
+              className="img-zoom-hover"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                borderRadius: '8px'
+              }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = '/images/def_bucket_20l.jpg';
+              }}
+            />
+          </div>
+
+          {/* Title & Capacity */}
+          <h3
+            style={{
+              fontSize: '19px',
+              fontWeight: 900,
+              color: themeStyles.textHeading,
+              marginBottom: '6px',
+              lineHeight: 1.3,
+              cursor: 'pointer'
+            }}
+            onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+          >
+            {pack.name}
+          </h3>
+          <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '14px' }}>
+            Capacity: {pack.capacity}
+          </div>
+
+          {/* Key Features from DB */}
+          {pack.features && pack.features.length > 0 && (
+            <div style={{ borderTop: `1px solid ${themeStyles.borderColor}`, paddingTop: '14px', marginBottom: '18px' }}>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {pack.features.slice(0, 3).map((feat, idx) => (
+                  <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: themeStyles.textBody, lineHeight: 1.4 }}>
+                    <Check size={14} color="#10B981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Live Database Pricing & Order Batch Box */}
+        <div>
+          <div
+            style={{
+              backgroundColor: isDark ? 'rgba(4, 14, 34, 0.7)' : '#F1F5F9',
+              borderRadius: '14px',
+              padding: '12px 14px',
+              marginBottom: '16px',
+              border: `1px solid ${themeStyles.borderColor}`
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+              <span style={{ fontSize: '11px', color: themeStyles.textMuted, fontWeight: 700 }}>
+                Suggested Retail Price (MRP):
+              </span>
+              <span style={{ fontSize: '10px', color: 'var(--brand-cyan)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Direct Factory Rate
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '22px', fontWeight: 900, color: themeStyles.textHeading, letterSpacing: '-0.02em' }}>
+                ₹ {Number(pack.mrp || 0).toLocaleString('en-IN')}
+              </span>
+              {pack.distributorPrice > 0 && (
+                <span style={{ fontSize: '12px', color: '#10B981', fontWeight: 800 }}>
+                  Wholesale: ₹ {Number(pack.distributorPrice).toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+            {pack.defaultQty && (
+              <div style={{ fontSize: '11px', color: themeStyles.textMuted, marginTop: '6px', paddingTop: '6px', borderTop: `1px dashed ${themeStyles.borderColor}`, display: 'flex', justifyContent: 'space-between' }}>
+                <span>Standard Order Batch:</span>
+                <strong style={{ color: themeStyles.textBody }}>{pack.defaultQty}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons: View Specs & Order/RFQ */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
+              style={{
+                flex: 1,
+                padding: '11px 8px',
+                borderRadius: '50px',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E2E8F0',
+                color: themeStyles.textHeading,
+                border: `1px solid ${themeStyles.borderColor}`,
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--brand-cyan)';
+                e.currentTarget.style.color = 'var(--brand-cyan)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = themeStyles.borderColor;
+                e.currentTarget.style.color = themeStyles.textHeading;
+              }}
+            >
+              <Eye size={14} />
+              <span>View Specs</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSelectPackageForQuote(pack)}
+              style={{
+                flex: 1.4,
+                padding: '11px 12px',
+                borderRadius: '50px',
+                backgroundColor: 'var(--brand-blue)',
+                color: '#FFFFFF',
+                border: 'none',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 16px rgba(0, 143, 224, 0.4)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 143, 224, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 143, 224, 0.4)';
+              }}
+            >
+              <span>Order / RFQ</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -944,371 +1177,294 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
               })}
             </div>
 
-            {/* Carousel Header Controls: Status Indicator & Prev/Next Arrows */}
+            {/* View Controls & Switcher */}
             <div style={{
               display: 'flex',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               alignItems: 'center',
-              marginBottom: '22px',
-              padding: '0 6px'
+              marginBottom: '24px',
+              padding: '0 6px',
+              flexWrap: 'wrap',
+              gap: '14px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  display: 'inline-block',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: isSliderHovered ? '#F59E0B' : '#10B981',
-                  boxShadow: isSliderHovered ? '0 0 10px #F59E0B' : '0 0 10px #10B981',
-                  transition: 'background-color 0.2s ease'
-                }} />
-                <span style={{ fontSize: '13px', fontWeight: 700, color: themeStyles.textMuted }}>
-                  {filteredPackaging.length <= itemsPerView
-                    ? `Showing ${filteredPackaging.length} Products`
-                    : isSliderHovered
-                      ? 'Paused on hover'
-                      : `Auto-sliding • ${filteredPackaging.length} Products`}
-                </span>
-              </div>
-
-              {/* Manual Slide Controls */}
-              {filteredPackaging.length > itemsPerView && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* View Switcher Pills & Carousel Arrows */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
+                  padding: '4px',
+                  borderRadius: '50px',
+                  border: `1px solid ${themeStyles.borderColor}`
+                }}>
                   <button
                     type="button"
-                    onClick={handlePrevSlide}
-                    aria-label="Previous Product"
+                    onClick={() => setProductsDisplayMode('grid')}
                     style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: themeStyles.bgCard,
-                      border: `1px solid ${themeStyles.borderColor}`,
-                      color: themeStyles.textHeading,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '50px',
+                      fontSize: '12px',
+                      fontWeight: productsDisplayMode === 'grid' ? 800 : 600,
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
-                      e.currentTarget.style.color = '#FFFFFF';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = themeStyles.borderColor;
-                      e.currentTarget.style.backgroundColor = themeStyles.bgCard;
-                      e.currentTarget.style.color = themeStyles.textHeading;
+                      border: 'none',
+                      backgroundColor: productsDisplayMode === 'grid' ? 'var(--brand-blue)' : 'transparent',
+                      color: productsDisplayMode === 'grid' ? '#FFFFFF' : themeStyles.textMuted,
+                      boxShadow: productsDisplayMode === 'grid' ? '0 2px 8px rgba(0, 143, 224, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    <ChevronLeft size={20} />
+                    <LayoutGrid size={14} />
+                    <span>2-Row Grid</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleNextSlide}
-                    aria-label="Next Product"
+                    onClick={() => {
+                      setProductsDisplayMode('slider');
+                      setCurrentSlide(0);
+                    }}
                     style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: themeStyles.bgCard,
-                      border: `1px solid ${themeStyles.borderColor}`,
-                      color: themeStyles.textHeading,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '6px 14px',
+                      borderRadius: '50px',
+                      fontSize: '12px',
+                      fontWeight: productsDisplayMode === 'slider' ? 800 : 600,
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
-                      e.currentTarget.style.color = '#FFFFFF';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = themeStyles.borderColor;
-                      e.currentTarget.style.backgroundColor = themeStyles.bgCard;
-                      e.currentTarget.style.color = themeStyles.textHeading;
+                      border: 'none',
+                      backgroundColor: productsDisplayMode === 'slider' ? 'var(--brand-blue)' : 'transparent',
+                      color: productsDisplayMode === 'slider' ? '#FFFFFF' : themeStyles.textMuted,
+                      boxShadow: productsDisplayMode === 'slider' ? '0 2px 8px rgba(0, 143, 224, 0.4)' : 'none',
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    <ChevronRight size={20} />
+                    <Layers size={14} />
+                    <span>All Products (Slider)</span>
                   </button>
                 </div>
-              )}
-            </div>
 
-            {/* Packaging Carousel Overflow Container */}
-            <div
-              style={{
-                position: 'relative',
-                width: '100%',
-                overflow: 'hidden',
-                padding: '6px 2px 14px 2px',
-                marginBottom: '24px'
-              }}
-              onMouseEnter={() => setIsSliderHovered(true)}
-              onMouseLeave={() => setIsSliderHovered(false)}
-            >
-              {/* Sliding Flex Track */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '24px',
-                  transition: 'transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)',
-                  transform: `translateX(calc(-${currentSlide} * (100% + 24px) / ${itemsPerView}))`
-                }}
-              >
-                {filteredPackaging.map(pack => (
-                  <div
-                    key={pack.id}
-                    className="modern-card-hover"
-                    style={{
-                      flex: `0 0 calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
-                      minWidth: `calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
-                      boxSizing: 'border-box',
-                      backgroundColor: themeStyles.bgCard,
-                      borderRadius: '22px',
-                      border: pack.id === '20L' ? '2px solid var(--brand-blue)' : `1px solid ${themeStyles.borderColor}`,
-                      padding: '24px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.4)' : '0 8px 24px rgba(0,0,0,0.06)',
-                      position: 'relative'
-                    }}
-                  >
-                    <div>
-                      {/* Top Badge & Category */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '8px', flexWrap: 'wrap' }}>
-                        <span
-                          style={{
-                            backgroundColor: pack.badge ? 'var(--brand-blue)' : (isDark ? 'rgba(0, 200, 245, 0.15)' : 'rgba(0, 143, 224, 0.08)'),
-                            color: pack.badge ? '#FFFFFF' : (isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'),
-                            padding: '4px 12px',
-                            borderRadius: '50px',
-                            fontSize: '11px',
-                            fontWeight: 900,
-                            letterSpacing: '0.04em'
-                          }}
-                        >
-                          {pack.badge || pack.category}
-                        </span>
+                {/* Manual Slide Controls (only visible in slider mode when items > itemsPerView) */}
+                {productsDisplayMode === 'slider' && filteredPackaging.length > itemsPerView && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={handlePrevSlide}
+                      aria-label="Previous Product"
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        backgroundColor: themeStyles.bgCard,
+                        border: `1px solid ${themeStyles.borderColor}`,
+                        color: themeStyles.textHeading,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                        e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
+                        e.currentTarget.style.color = '#FFFFFF';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = themeStyles.borderColor;
+                        e.currentTarget.style.backgroundColor = themeStyles.bgCard;
+                        e.currentTarget.style.color = themeStyles.textHeading;
+                      }}
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-cyan)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            {pack.category}
-                          </span>
-                          <Package size={17} color="var(--brand-cyan)" />
-                        </div>
-                      </div>
-
-                      {/* Branded Product Image Frame */}
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '200px',
-                          backgroundColor: isDark ? '#051126' : '#F8FAFC',
-                          borderRadius: '16px',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: '18px',
-                          border: `1px solid ${themeStyles.borderColor}`,
-                          boxSizing: 'border-box',
-                          padding: '12px',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
-                        title="Click to view full specifications"
-                      >
-                        <img
-                          src={pack.image}
-                          alt={pack.name}
-                          className="img-zoom-hover"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            borderRadius: '8px'
-                          }}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = '/images/def_bucket_20l.jpg';
-                          }}
-                        />
-                      </div>
-
-                      {/* Title & Capacity */}
-                      <h3
-                        style={{
-                          fontSize: '19px',
-                          fontWeight: 900,
-                          color: themeStyles.textHeading,
-                          marginBottom: '6px',
-                          lineHeight: 1.3,
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
-                      >
-                        {pack.name}
-                      </h3>
-                      <div style={{ fontSize: '13px', color: 'var(--brand-blue)', fontWeight: 800, marginBottom: '14px' }}>
-                        Capacity: {pack.capacity}
-                      </div>
-
-                      {/* Key Features from DB */}
-                      {pack.features && pack.features.length > 0 && (
-                        <div style={{ borderTop: `1px solid ${themeStyles.borderColor}`, paddingTop: '14px', marginBottom: '18px' }}>
-                          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {pack.features.slice(0, 3).map((feat, idx) => (
-                              <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: themeStyles.textBody, lineHeight: 1.4 }}>
-                                <Check size={14} color="#10B981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                                <span>{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Live Database Pricing & Order Batch Box */}
-                    <div>
-                      <div
-                        style={{
-                          backgroundColor: isDark ? 'rgba(4, 14, 34, 0.7)' : '#F1F5F9',
-                          borderRadius: '14px',
-                          padding: '12px 14px',
-                          marginBottom: '16px',
-                          border: `1px solid ${themeStyles.borderColor}`
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '11px', color: themeStyles.textMuted, fontWeight: 700 }}>
-                            Suggested Retail Price (MRP):
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--brand-cyan)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Direct Factory Rate
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <span style={{ fontSize: '22px', fontWeight: 900, color: themeStyles.textHeading, letterSpacing: '-0.02em' }}>
-                            ₹ {Number(pack.mrp || 0).toLocaleString('en-IN')}
-                          </span>
-                          {pack.distributorPrice > 0 && (
-                            <span style={{ fontSize: '12px', color: '#10B981', fontWeight: 800 }}>
-                              Wholesale: ₹ {Number(pack.distributorPrice).toLocaleString('en-IN')}
-                            </span>
-                          )}
-                        </div>
-                        {pack.defaultQty && (
-                          <div style={{ fontSize: '11px', color: themeStyles.textMuted, marginTop: '6px', paddingTop: '6px', borderTop: `1px dashed ${themeStyles.borderColor}`, display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Standard Order Batch:</span>
-                            <strong style={{ color: themeStyles.textBody }}>{pack.defaultQty}</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Buttons: View Specs & Order/RFQ */}
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveQuickViewProduct(pack.rawProduct)}
-                          style={{
-                            flex: 1,
-                            padding: '11px 8px',
-                            borderRadius: '50px',
-                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E2E8F0',
-                            color: themeStyles.textHeading,
-                            border: `1px solid ${themeStyles.borderColor}`,
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--brand-cyan)';
-                            e.currentTarget.style.color = 'var(--brand-cyan)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = themeStyles.borderColor;
-                            e.currentTarget.style.color = themeStyles.textHeading;
-                          }}
-                        >
-                          <Eye size={14} />
-                          <span>View Specs</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSelectPackageForQuote(pack)}
-                          style={{
-                            flex: 1.4,
-                            padding: '11px 12px',
-                            borderRadius: '50px',
-                            backgroundColor: 'var(--brand-blue)',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            fontSize: '12px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            boxShadow: '0 4px 16px rgba(0, 143, 224, 0.4)',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 143, 224, 0.6)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 143, 224, 0.4)';
-                          }}
-                        >
-                          <span>Order / RFQ</span>
-                          <ArrowRight size={14} />
-                        </button>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleNextSlide}
+                      aria-label="Next Product"
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        backgroundColor: themeStyles.bgCard,
+                        border: `1px solid ${themeStyles.borderColor}`,
+                        color: themeStyles.textHeading,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                        e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
+                        e.currentTarget.style.color = '#FFFFFF';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = themeStyles.borderColor;
+                        e.currentTarget.style.backgroundColor = themeStyles.bgCard;
+                        e.currentTarget.style.color = themeStyles.textHeading;
+                      }}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
-            {/* Pagination Navigation Dots */}
-            {filteredPackaging.length > itemsPerView && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '50px' }}>
-                {Array.from({ length: maxSlide + 1 }).map((_, idx) => {
-                  const isActive = currentSlide === idx;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentSlide(idx)}
-                      style={{
-                        width: isActive ? '28px' : '8px',
-                        height: '8px',
-                        borderRadius: '50px',
-                        backgroundColor: isActive ? 'var(--brand-blue)' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'),
-                        border: 'none',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        boxShadow: isActive ? '0 0 10px rgba(0, 143, 224, 0.6)' : 'none'
-                      }}
-                      aria-label={`Slide to product ${idx + 1}`}
-                    />
-                  );
-                })}
+            {/* Mode 1: 2-Row Grid View (Up to 8 Products Directly on Page, 4 Items Per Row) */}
+            {productsDisplayMode === 'grid' && (
+              <div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: windowWidth >= 1180
+                      ? 'repeat(4, minmax(0, 1fr))'
+                      : windowWidth >= 680
+                        ? 'repeat(2, minmax(0, 1fr))'
+                        : '1fr',
+                    gap: '24px',
+                    marginBottom: '28px'
+                  }}
+                >
+                  {filteredPackaging.slice(0, 8).map(pack => renderProductCard(pack, false))}
+                </div>
+
+                {/* Prominent CTA below grid to view all products in sliding method */}
+                <div style={{ textAlign: 'center', marginTop: '16px', marginBottom: '48px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductsDisplayMode('slider');
+                      setCurrentSlide(0);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '13px 28px',
+                      borderRadius: '50px',
+                      backgroundColor: isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)',
+                      color: isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)',
+                      border: `1.5px solid ${isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'}`,
+                      fontSize: '14px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: isDark ? '0 4px 20px rgba(0, 200, 245, 0.2)' : '0 4px 16px rgba(0, 143, 224, 0.15)',
+                      transition: 'all 0.25s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
+                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                      e.currentTarget.style.color = '#FFFFFF';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)';
+                      e.currentTarget.style.borderColor = isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)';
+                      e.currentTarget.style.color = isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <Layers size={17} />
+                    <span>View All Products in Sliding Carousel ({filteredPackaging.length} Packaging Formats)</span>
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mode 2: Sliding Carousel Mode */}
+            {productsDisplayMode === 'slider' && (
+              <div>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    overflow: 'hidden',
+                    padding: '6px 2px 14px 2px',
+                    marginBottom: '24px'
+                  }}
+                  onMouseEnter={() => setIsSliderHovered(true)}
+                  onMouseLeave={() => setIsSliderHovered(false)}
+                >
+                  {/* Sliding Flex Track */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '24px',
+                      transition: 'transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)',
+                      transform: `translateX(calc(-${currentSlide} * (100% + 24px) / ${itemsPerView}))`
+                    }}
+                  >
+                    {filteredPackaging.map(pack => renderProductCard(pack, true))}
+                  </div>
+                </div>
+
+                {/* Pagination Navigation Dots */}
+                {filteredPackaging.length > itemsPerView && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                    {Array.from({ length: maxSlide + 1 }).map((_, idx) => {
+                      const isActive = currentSlide === idx;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setCurrentSlide(idx)}
+                          style={{
+                            width: isActive ? '28px' : '8px',
+                            height: '8px',
+                            borderRadius: '50px',
+                            backgroundColor: isActive ? 'var(--brand-blue)' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'),
+                            border: 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            boxShadow: isActive ? '0 0 10px rgba(0, 143, 224, 0.6)' : 'none'
+                          }}
+                          aria-label={`Slide to product ${idx + 1}`}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Toggle Back to 2-Row Grid View */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '48px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setProductsDisplayMode('grid')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 22px',
+                      borderRadius: '50px',
+                      backgroundColor: themeStyles.bgCard,
+                      border: `1px solid ${themeStyles.borderColor}`,
+                      color: themeStyles.textHeading,
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
+                      e.currentTarget.style.color = 'var(--brand-blue)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = themeStyles.borderColor;
+                      e.currentTarget.style.color = themeStyles.textHeading;
+                    }}
+                  >
+                    <LayoutGrid size={16} />
+                    <span>Switch to 2-Row Grid View (Up to 8 Products)</span>
+                  </button>
+                </div>
               </div>
             )}
 

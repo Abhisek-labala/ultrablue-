@@ -196,7 +196,13 @@ class InvoiceController extends Controller
             $taxable = round($totalTaxable, 2);
             $cgst = round($totalCgst, 2);
             $sgst = round($totalSgst, 2);
-            $grandTotal = round($grandTotal, 2);
+
+            // Standard GST Rule of Rounding Off (Section 170 of CGST Act 2017):
+            // If paise < 0.50 (e.g. 150.49), round down to 150.00
+            // If paise >= 0.50 (e.g. 150.51), round up to 151.00
+            $unroundedTotal = $grandTotal;
+            $grandTotal = round($unroundedTotal);
+            $roundOff = round($grandTotal - ($taxable + $cgst + $sgst), 2);
 
             $invoiceId = (string) Str::uuid();
 
@@ -379,6 +385,7 @@ class InvoiceController extends Controller
                 'message' => "Invoice #{$invoiceNumber} successfully created and stock decremented.",
                 'invoice_number' => $invoiceNumber,
                 'grand_total' => $grandTotal,
+                'round_off' => $roundOff,
                 'paid_amount' => round($paidAmount, 2),
                 'credit_amount' => round($creditAmount, 2)
             ], 201);
@@ -448,11 +455,33 @@ class InvoiceController extends Controller
         $sgstFormatted = number_format((float) $invoice->sgst_amount, 2);
         $discountFormatted = number_format((float) $invoice->discount_amount, 2);
 
+        // Calculate Round Off amount if present
+        $rawTaxSum = floatval($invoice->taxable_amount) + floatval($invoice->cgst_amount) + floatval($invoice->sgst_amount);
+        $roundOffVal = round(floatval($invoice->grand_total) - $rawTaxSum, 2);
+        $roundOffHtml = '';
+        if (abs($roundOffVal) > 0.001) {
+            $sign = $roundOffVal >= 0 ? '+' : '-';
+            $valFormatted = number_format(abs($roundOffVal), 2);
+            $roundOffHtml = "
+                                <tr>
+                                    <td style=\"color: #64748b;\">Round Off:</td>
+                                    <td align=\"right\"><strong>{$sign} ₹ {$valFormatted}</strong></td>
+                                </tr>";
+        }
+
         // Dynamically compute tax percentages from invoice amounts
         $taxableVal = floatval($invoice->taxable_amount);
         $cgstPercent = $taxableVal > 0 ? round((floatval($invoice->cgst_amount) / $taxableVal) * 100, 1) : 9;
         $sgstPercent = $taxableVal > 0 ? round((floatval($invoice->sgst_amount) / $taxableVal) * 100, 1) : 9;
         $amountInWords = $this->numberToWords(floatval($invoice->grand_total));
+
+        // Ayush Green Energy Logo for PDF Slip
+        $logoPath = public_path('images/ayush_green_energy_logo.jpg');
+        if (!file_exists($logoPath)) {
+            $logoPath = base_path('../frontend/public/images/ayush_green_energy_logo.jpg');
+        }
+        $logoDataUri = file_exists($logoPath) ? ('data:image/jpeg;base64,' . base64_encode(file_get_contents($logoPath))) : '';
+        $logoImgTag = $logoDataUri ? "<img src=\"{$logoDataUri}\" alt=\"Ayush Green Energy\" style=\"height: 44px; width: auto; object-fit: contain;\">" : "";
 
         $itemsHtml = '';
         $sno = 1;
@@ -724,9 +753,18 @@ class InvoiceController extends Controller
                                 {$amountInWords}
                             </div>
 
-                            <div style="margin-top: 8px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 6px 8px; font-size: 8.5px; color: #0369a1; line-height: 1.35;">
-                                <strong style="color: #0056D2; font-size: 9.5px;">ISO 22241-1 &amp; BIS Certified AUS 32 DEF</strong><br>
-                                High-purity automotive urea solution tested in compliance with standard specification limits.
+                            <div style="margin-top: 8px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px;">
+                                <table style="width: 100%; border: none; margin: 0;">
+                                    <tr>
+                                        <td width="55" style="vertical-align: middle; padding: 0;">
+                                            {$logoImgTag}
+                                        </td>
+                                        <td style="vertical-align: middle; padding-left: 8px; font-size: 8px; color: #475569; line-height: 1.35;">
+                                            <strong style="color: #15803d; font-size: 9.5px; display: block; margin-bottom: 2px;">Ayush Green Energy</strong>
+                                            Manufacturer of Genuine DEF &bull; ISO 22241 &amp; BIS Certified AUS 32 Fleet Solution
+                                        </td>
+                                    </tr>
+                                </table>
                             </div>
                         </td>
                         <td width="45%" style="vertical-align: top;">
@@ -751,6 +789,7 @@ class InvoiceController extends Controller
                                     <td style="color: #64748b;">State GST (SGST @ {$sgstPercent}%):</td>
                                     <td align="right"><strong>₹ {$sgstFormatted}</strong></td>
                                 </tr>
+                                {$roundOffHtml}
                             </table>
 
                             <table class="grand-total-table">

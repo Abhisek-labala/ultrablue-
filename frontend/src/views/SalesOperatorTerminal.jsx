@@ -556,7 +556,12 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
   const taxable = Math.round(totalTaxable * 100) / 100;
   const cgst = Math.round(totalCgst * 100) / 100;
   const sgst = Math.round(totalSgst * 100) / 100;
-  const grandTotal = Math.round(calculatedGrandTotal * 100) / 100;
+  const unroundedGrandTotal = Math.round(calculatedGrandTotal * 100) / 100;
+
+  // Standard GST Rule of Rounding Off (Section 170 of CGST Act 2017):
+  // Paise < 0.50 rounds down (e.g. 150.49 -> 150), paise >= 0.50 rounds up (e.g. 150.51 -> 151)
+  const grandTotal = Math.round(unroundedGrandTotal);
+  const roundOff = Math.round((grandTotal - unroundedGrandTotal) * 100) / 100;
 
   // Real Laravel Invoice Generation
   const handleGenerateInvoice = async (e) => {
@@ -702,6 +707,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
           taxable,
           cgst,
           sgst,
+          roundOff,
           grandTotal: result.grand_total || grandTotal,
           paymentMethod: effectivePaymentMethod,
           paymentStatus: creditAmt > 0 ? (paidAmt > 0 ? 'PART_CREDIT' : 'ON_CREDIT') : 'PAID',
@@ -1935,6 +1941,14 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                   <span>State GST (SGST):</span>
                   <span style={{ color: 'var(--text-secondary)' }}>₹ {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
+                {Math.abs(roundOff) > 0.001 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '11px', fontWeight: 700 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Round Off:</span>
+                    <span style={{ color: roundOff >= 0 ? '#10B981' : '#F59E0B' }}>
+                      {roundOff >= 0 ? `+ ₹ ${roundOff.toFixed(2)}` : `- ₹ ${Math.abs(roundOff).toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Total Payable Box */}
@@ -1953,7 +1967,7 @@ export const SalesOperatorTerminal = ({ authUser, activeTab: externalTab, onTabC
                     Grand Total Payable
                   </span>
                   <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                    All Taxes Included
+                    {Math.abs(roundOff) > 0.001 ? 'Rounded to Nearest ₹1 (GST Rule)' : 'All Taxes Included'}
                   </span>
                 </div>
                 <strong style={{ fontSize: '24px', fontWeight: 900, color: '#FFFFFF', fontFamily: 'var(--font-family-heading)' }}>
