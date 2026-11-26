@@ -9,10 +9,7 @@ import {
   Sparkles,
   Truck,
   Award,
-  ChevronRight,
-  ChevronLeft,
   Package,
-  Layers,
   MessageCircle,
   Menu,
   X,
@@ -33,8 +30,7 @@ import {
   Cpu,
   RefreshCw,
   Gauge,
-  Eye,
-  LayoutGrid
+  Eye
 } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 import { Button } from '../components/ui/Button';
@@ -147,47 +143,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     ? packagingOptions
     : packagingOptions.filter(p => (p.category || '').toUpperCase() === activeProductFilter.toUpperCase());
 
-  // Products Display Mode: 'grid' (default: 2 rows of 4 items, up to 8 directly on page) | 'slider' (horizontal carousel for all products)
-  const [productsDisplayMode, setProductsDisplayMode] = useState('grid');
-
-  // Product Slider / Auto-Carousel State
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isSliderHovered, setIsSliderHovered] = useState(false);
+  // Responsive window width tracking for 2-row grid columns
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
-  // Responsive items in view tracking
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  const itemsPerView = windowWidth < 680 ? 1 : windowWidth < 1024 ? 2 : windowWidth < 1340 ? 3 : 4;
-  const maxSlide = Math.max(0, filteredPackaging.length - itemsPerView);
-
-  // Reset to slide 0 when category filter changes or item count changes
-  useEffect(() => {
-    setCurrentSlide(0);
-  }, [activeProductFilter, filteredPackaging.length]);
-
-  // Auto-slide effect every 3.8s (only active in slider mode and automatically pauses when user hovers over carousel)
-  useEffect(() => {
-    if (productsDisplayMode !== 'slider' || isSliderHovered || filteredPackaging.length <= itemsPerView) return;
-
-    const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev >= maxSlide ? 0 : prev + 1));
-    }, 3800);
-
-    return () => clearInterval(timer);
-  }, [productsDisplayMode, isSliderHovered, maxSlide, filteredPackaging.length, itemsPerView]);
-
-  const handlePrevSlide = () => {
-    setCurrentSlide(prev => (prev <= 0 ? maxSlide : prev - 1));
-  };
-
-  const handleNextSlide = () => {
-    setCurrentSlide(prev => (prev >= maxSlide ? 0 : prev + 1));
-  };
 
   // Fetch dynamic products & promotions from DB on mount
   useEffect(() => {
@@ -419,19 +382,14 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
     borderColor: isDark ? 'rgba(0, 200, 245, 0.22)' : '#E2E8F0',
   };
 
-  // Shared Packaging Product Card Render Helper (reused across 2-Row Grid and Sliding Carousel)
-  const renderProductCard = (pack, isSlider = false) => {
+  // Packaging Product Card Render Helper (2-Row Grid View)
+  const renderProductCard = (pack) => {
     return (
       <div
         key={pack.id}
         className="modern-card-hover"
         style={{
-          ...(isSlider ? {
-            flex: `0 0 calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
-            minWidth: `calc(${100 / itemsPerView}% - ${(24 * (itemsPerView - 1)) / itemsPerView}px)`,
-          } : {
-            width: '100%',
-          }),
+          width: '100%',
           boxSizing: 'border-box',
           backgroundColor: themeStyles.bgCard,
           borderRadius: '22px',
@@ -1177,296 +1135,21 @@ export const PublicWebsite = ({ onLoginClick, onDistributorLoginClick, onOperato
               })}
             </div>
 
-            {/* View Controls & Switcher */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              marginBottom: '24px',
-              padding: '0 6px',
-              flexWrap: 'wrap',
-              gap: '14px'
-            }}>
-              {/* View Switcher Pills & Carousel Arrows */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  display: 'inline-flex',
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
-                  padding: '4px',
-                  borderRadius: '50px',
-                  border: `1px solid ${themeStyles.borderColor}`
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => setProductsDisplayMode('grid')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 14px',
-                      borderRadius: '50px',
-                      fontSize: '12px',
-                      fontWeight: productsDisplayMode === 'grid' ? 800 : 600,
-                      cursor: 'pointer',
-                      border: 'none',
-                      backgroundColor: productsDisplayMode === 'grid' ? 'var(--brand-blue)' : 'transparent',
-                      color: productsDisplayMode === 'grid' ? '#FFFFFF' : themeStyles.textMuted,
-                      boxShadow: productsDisplayMode === 'grid' ? '0 2px 8px rgba(0, 143, 224, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <LayoutGrid size={14} />
-                    <span>2-Row Grid</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductsDisplayMode('slider');
-                      setCurrentSlide(0);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 14px',
-                      borderRadius: '50px',
-                      fontSize: '12px',
-                      fontWeight: productsDisplayMode === 'slider' ? 800 : 600,
-                      cursor: 'pointer',
-                      border: 'none',
-                      backgroundColor: productsDisplayMode === 'slider' ? 'var(--brand-blue)' : 'transparent',
-                      color: productsDisplayMode === 'slider' ? '#FFFFFF' : themeStyles.textMuted,
-                      boxShadow: productsDisplayMode === 'slider' ? '0 2px 8px rgba(0, 143, 224, 0.4)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Layers size={14} />
-                    <span>All Products (Slider)</span>
-                  </button>
-                </div>
-
-                {/* Manual Slide Controls (only visible in slider mode when items > itemsPerView) */}
-                {productsDisplayMode === 'slider' && filteredPackaging.length > itemsPerView && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={handlePrevSlide}
-                      aria-label="Previous Product"
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        backgroundColor: themeStyles.bgCard,
-                        border: `1px solid ${themeStyles.borderColor}`,
-                        color: themeStyles.textHeading,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                        e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
-                        e.currentTarget.style.color = '#FFFFFF';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = themeStyles.borderColor;
-                        e.currentTarget.style.backgroundColor = themeStyles.bgCard;
-                        e.currentTarget.style.color = themeStyles.textHeading;
-                      }}
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleNextSlide}
-                      aria-label="Next Product"
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '50%',
-                        backgroundColor: themeStyles.bgCard,
-                        border: `1px solid ${themeStyles.borderColor}`,
-                        color: themeStyles.textHeading,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.08)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                        e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
-                        e.currentTarget.style.color = '#FFFFFF';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = themeStyles.borderColor;
-                        e.currentTarget.style.backgroundColor = themeStyles.bgCard;
-                        e.currentTarget.style.color = themeStyles.textHeading;
-                      }}
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                  </div>
-                )}
-              </div>
+            {/* 2-Row Grid View (Up to 8 Products Directly on Page, 4 Items Per Row) */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: windowWidth >= 1180
+                  ? 'repeat(4, minmax(0, 1fr))'
+                  : windowWidth >= 680
+                    ? 'repeat(2, minmax(0, 1fr))'
+                    : '1fr',
+                gap: '24px',
+                marginBottom: '48px'
+              }}
+            >
+              {filteredPackaging.slice(0, 8).map(pack => renderProductCard(pack))}
             </div>
-
-            {/* Mode 1: 2-Row Grid View (Up to 8 Products Directly on Page, 4 Items Per Row) */}
-            {productsDisplayMode === 'grid' && (
-              <div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: windowWidth >= 1180
-                      ? 'repeat(4, minmax(0, 1fr))'
-                      : windowWidth >= 680
-                        ? 'repeat(2, minmax(0, 1fr))'
-                        : '1fr',
-                    gap: '24px',
-                    marginBottom: '28px'
-                  }}
-                >
-                  {filteredPackaging.slice(0, 8).map(pack => renderProductCard(pack, false))}
-                </div>
-
-                {/* Prominent CTA below grid to view all products in sliding method */}
-                <div style={{ textAlign: 'center', marginTop: '16px', marginBottom: '48px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProductsDisplayMode('slider');
-                      setCurrentSlide(0);
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '13px 28px',
-                      borderRadius: '50px',
-                      backgroundColor: isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)',
-                      color: isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)',
-                      border: `1.5px solid ${isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)'}`,
-                      fontSize: '14px',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      boxShadow: isDark ? '0 4px 20px rgba(0, 200, 245, 0.2)' : '0 4px 16px rgba(0, 143, 224, 0.15)',
-                      transition: 'all 0.25s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--brand-blue)';
-                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                      e.currentTarget.style.color = '#FFFFFF';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = isDark ? 'rgba(0, 200, 245, 0.12)' : 'rgba(0, 143, 224, 0.08)';
-                      e.currentTarget.style.borderColor = isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)';
-                      e.currentTarget.style.color = isDark ? 'var(--brand-cyan)' : 'var(--brand-blue)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
-                    <Layers size={17} />
-                    <span>View All Products in Sliding Carousel ({filteredPackaging.length} Packaging Formats)</span>
-                    <ArrowRight size={17} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Mode 2: Sliding Carousel Mode */}
-            {productsDisplayMode === 'slider' && (
-              <div>
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '100%',
-                    overflow: 'hidden',
-                    padding: '6px 2px 14px 2px',
-                    marginBottom: '24px'
-                  }}
-                  onMouseEnter={() => setIsSliderHovered(true)}
-                  onMouseLeave={() => setIsSliderHovered(false)}
-                >
-                  {/* Sliding Flex Track */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '24px',
-                      transition: 'transform 0.55s cubic-bezier(0.2, 0.9, 0.3, 1)',
-                      transform: `translateX(calc(-${currentSlide} * (100% + 24px) / ${itemsPerView}))`
-                    }}
-                  >
-                    {filteredPackaging.map(pack => renderProductCard(pack, true))}
-                  </div>
-                </div>
-
-                {/* Pagination Navigation Dots */}
-                {filteredPackaging.length > itemsPerView && (
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-                    {Array.from({ length: maxSlide + 1 }).map((_, idx) => {
-                      const isActive = currentSlide === idx;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => setCurrentSlide(idx)}
-                          style={{
-                            width: isActive ? '28px' : '8px',
-                            height: '8px',
-                            borderRadius: '50px',
-                            backgroundColor: isActive ? 'var(--brand-blue)' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'),
-                            border: 'none',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                            boxShadow: isActive ? '0 0 10px rgba(0, 143, 224, 0.6)' : 'none'
-                          }}
-                          aria-label={`Slide to product ${idx + 1}`}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Toggle Back to 2-Row Grid View */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '48px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setProductsDisplayMode('grid')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 22px',
-                      borderRadius: '50px',
-                      backgroundColor: themeStyles.bgCard,
-                      border: `1px solid ${themeStyles.borderColor}`,
-                      color: themeStyles.textHeading,
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: isDark ? '0 4px 14px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--brand-blue)';
-                      e.currentTarget.style.color = 'var(--brand-blue)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = themeStyles.borderColor;
-                      e.currentTarget.style.color = themeStyles.textHeading;
-                    }}
-                  >
-                    <LayoutGrid size={16} />
-                    <span>Switch to 2-Row Grid View (Up to 8 Products)</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
           </div>
         </section>
